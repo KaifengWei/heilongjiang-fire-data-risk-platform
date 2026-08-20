@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "heilongjiang-fire-data-risk-platform"
+version = "0.1.0"
+description = "Local validation, statistics, mapping and rule-based assessment of active-fire and burned-area data."
+requires-python = ">=3.10"
+authors = [{name = "KaifengWei"}]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

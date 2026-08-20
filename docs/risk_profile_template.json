@@ -1,0 +1,26 @@
+{
+  "profile_id": "由使用单位填写",
+  "profile_version": "1.0",
+  "profile_name": "由使用单位填写",
+  "issued_by": "由使用单位填写",
+  "approved_by": "由使用单位填写",
+  "effective_date": null,
+  "applicable_regions": [],
+  "applicable_months": [],
+  "mode": "absolute_rule",
+  "indicators": [
+    {
+      "name": "active_fire_density_per_1000km2",
+      "weight": null,
+      "thresholds_for_scores_1_to_5": []
+    },
+    {
+      "name": "burned_area_ratio_pct",
+      "weight": null,
+      "thresholds_for_scores_1_to_5": []
+    }
+  ],
+  "final_score_thresholds": [],
+  "missing_value_policy": null,
+  "notes": "模板不包含默认阈值或权重。必须由规则制定单位补全并审核后才能用于评级。"
+}

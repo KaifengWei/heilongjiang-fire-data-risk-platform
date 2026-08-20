@@ -1,0 +1,31 @@
+# Python / test cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Local imported data and generated database
+data/runtime/*
+!data/runtime/.gitkeep
+data/private/
+*.sqlite
+*.sqlite-journal
+
+# GIS and raster source data are managed outside the repository by default
+*.tif
+*.tiff
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+
+# Build output
+build/
+dist/
+*.spec

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>黑龙江省火点数据检测与风险评估平台</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <p class="eyebrow">FIRE DATA ANALYSIS · V0.1</p>
+      <h1>黑龙江省火点数据检测与风险评估平台</h1>
+      <p class="subtitle">接收用户自行下载的官方原始数据，自动完成质量检查、空间统计、面积分析、分层制图和结果导出。</p>
+    </div>
+    <div id="dataState" class="data-state">正在读取数据状态…</div>
+  </header>
+
+  <main>
+    <section class="query-panel" aria-label="查询条件">
+      <label>
+        区域
+        <select id="regionSelect"><option value="">全部已导入区域</option></select>
+      </label>
+      <label>
+        开始日期
+        <input id="startDate" type="date">
+      </label>
+      <label>
+        结束日期
+        <input id="endDate" type="date">
+      </label>
+      <label>
+        地图最多显示点数
+        <select id="mapLimit">
+          <option value="500">500</option>
+          <option value="1000" selected>1000</option>
+          <option value="2000">2000</option>
+          <option value="5000">5000</option>
+        </select>
+      </label>
+      <div class="query-actions">
+        <button id="refreshButton" type="button">查询统计</button>
+        <a id="exportLink" class="secondary-button" href="/api/export.csv">导出本次查询 CSV</a>
+      </div>
+    </section>
+
+    <section class="warning" aria-label="指标口径提示">
+      <strong>先看口径：</strong>
+      红色“主动火点观测记录”来自 FIRMS 等卫星热异常产品；绿色“烧毁像元”来自火烧迹地产品。二者不是同一个指标，不能相互替代，也不等于独立火灾事件数。
+      <br><strong>当前版本：</strong>v0.1 已实现本地导入、查询、面积统计、地图和 CSV 导出；浏览器上传、HDF-EOS 直读和风险规则引擎仍在开发，页面不会把尚未实现的能力显示为可用功能。
+    </section>
+
+    <section class="definition-grid input-contract" aria-label="首版文件提交范围">
+      <article><h3>必须提交：主动火点</h3><p>NASA FIRMS 直接下载的 MODIS 或 VIIRS CSV。平台据此统计主动火点观测记录数，并保留卫星、时间、置信度和 FRP 等字段。</p></article>
+      <article><h3>必须提交：火烧迹地</h3><p>MCD64A1 月度 Burn Date GeoTIFF。平台重分类烧毁像元并计算面积；有对应 QA GeoTIFF 时建议一并提交。</p></article>
+      <article><h3>通常无需提交：行政区</h3><p>正式版内置经核验的黑龙江省、市、县边界。仅分析自定义范围时，再提交 GeoJSON 或包含完整组件与投影文件的 Shapefile ZIP。</p></article>
+    </section>
+
+    <section class="metric-grid" aria-label="统计摘要">
+      <article class="metric-card active-card">
+        <p>主动火点观测记录数</p>
+        <strong id="activeCount">—</strong>
+        <span>条</span>
+      </article>
+      <article class="metric-card burned-card">
+        <p>烧毁像元数</p>
+        <strong id="burnedCount">—</strong>
+        <span>个</span>
+      </article>
+      <article class="metric-card area-card">
+        <p>火烧迹地面积</p>
+        <strong id="burnedArea">—</strong>
+        <span>km²</span>
+      </article>
+    </section>
+
+    <section class="content-grid">
+      <article class="panel map-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>空间分布</h2>
+            <p id="mapNote">地图会在查询后显示。</p>
+          </div>
+          <div class="layer-controls">
+            <label><input id="showActive" type="checkbox" checked> 红色主动火点</label>
+            <label><input id="showBurned" type="checkbox" checked> 绿色烧毁像元</label>
+          </div>
+        </div>
+        <canvas id="mapCanvas" width="1200" height="610" aria-label="火点与烧毁像元分布图"></canvas>
+      </article>
+
+      <article class="panel data-panel">
+        <div class="panel-heading"><div><h2>数据来源与状态</h2><p>每次导入均保留来源、导入时间和统计数量。</p></div></div>
+        <div id="sourceBreakdown" class="source-breakdown">暂无数据。</div>
+        <h3>最近导入</h3>
+        <div class="table-wrap"><table><thead><tr><th>类型</th><th>状态</th><th>写入记录</th><th>来源</th></tr></thead><tbody id="importRows"></tbody></table></div>
+      </article>
+    </section>
+
+    <section class="panel trend-panel">
+      <div class="panel-heading"><div><h2>逐日统计</h2><p>按实际数据日期汇总；没有数据的日期不虚构为 0。</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>日期</th><th>主动火点观测记录数</th><th>烧毁像元数</th><th>火烧迹地面积（km²）</th></tr></thead><tbody id="dailyRows"><tr><td colspan="4" class="empty">请先执行查询。</td></tr></tbody></table></div>
+    </section>
+
+    <section class="definition-grid" aria-label="指标解释">
+      <article><h3>主动火点观测记录</h3><p>某颗卫星在某次过境时探测到的热异常记录。重复过境、不同传感器可能都记录同一处燃烧，故不是独立火灾事件数。</p></article>
+      <article><h3>烧毁像元</h3><p>火烧迹地产品中被判为发生过燃烧的栅格单元。它适合计算烧毁范围，但不应称为官方主动火点数。</p></article>
+      <article><h3>火烧迹地面积</h3><p>本系统对选中烧毁像元的实际地表面积求和。对经纬度栅格，按纬度计算单元球面面积，不采用固定 0.25 km² 假设。</p></article>
+    </section>
+  </main>
+
+  <footer>本地单机系统 · 数据口径与原始来源请见项目 README 和导入记录。</footer>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
