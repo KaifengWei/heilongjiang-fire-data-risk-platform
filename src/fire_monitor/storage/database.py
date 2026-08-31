@@ -1,10 +1,10 @@
 """面向本地部署的 SQLite 数据库。
 
-数据模型有意区分两类观测：
+数据模型中的两类观测：
 1. active_fire_observations：FIRMS 主动火点观测记录；
 2. burned_pixels：火烧迹地产品判定为烧毁的栅格像元。
 
-两者不能互相替代，系统也不会把烧毁像元数写成官方主动火点数。
+烧毁像元数不等同于官方主动火点数。
 """
 
 from __future__ import annotations
@@ -16,78 +16,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Iterator
 
-
-SCHEMA = """
-PRAGMA foreign_keys = ON;
-
-CREATE TABLE IF NOT EXISTS regions (
-    id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    level TEXT NOT NULL DEFAULT 'city',
-    geometry_json TEXT NOT NULL,
-    source TEXT,
-    version TEXT,
-    created_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS import_runs (
-    id INTEGER PRIMARY KEY,
-    data_kind TEXT NOT NULL,
-    source_ref TEXT NOT NULL,
-    started_at TEXT NOT NULL,
-    completed_at TEXT,
-    status TEXT NOT NULL,
-    input_count INTEGER NOT NULL DEFAULT 0,
-    stored_count INTEGER NOT NULL DEFAULT 0,
-    metadata_json TEXT NOT NULL DEFAULT '{}'
-);
-
-CREATE TABLE IF NOT EXISTS active_fire_observations (
-    id INTEGER PRIMARY KEY,
-    dedupe_key TEXT NOT NULL UNIQUE,
-    acquired_date TEXT NOT NULL,
-    acquired_time TEXT,
-    latitude REAL NOT NULL,
-    longitude REAL NOT NULL,
-    region_name TEXT,
-    firms_source TEXT NOT NULL,
-    instrument TEXT,
-    satellite TEXT,
-    confidence TEXT,
-    frp REAL,
-    scan REAL,
-    track REAL,
-    quality_rule TEXT,
-    import_run_id INTEGER,
-    FOREIGN KEY(import_run_id) REFERENCES import_runs(id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_active_fire_date_region
-ON active_fire_observations(acquired_date, region_name);
-
-CREATE TABLE IF NOT EXISTS burned_pixels (
-    id INTEGER PRIMARY KEY,
-    dedupe_key TEXT NOT NULL UNIQUE,
-    burned_date TEXT NOT NULL,
-    doy INTEGER,
-    latitude REAL NOT NULL,
-    longitude REAL NOT NULL,
-    region_name TEXT,
-    cell_area_km2 REAL NOT NULL,
-    source_product TEXT NOT NULL,
-    raster_name TEXT,
-    qa_value INTEGER,
-    import_run_id INTEGER,
-    FOREIGN KEY(import_run_id) REFERENCES import_runs(id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_burned_pixel_date_region
-ON burned_pixels(burned_date, region_name);
-"""
+from .migrations import apply_migrations
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    """返回不包含微秒的 UTC ISO 8601 时间。"""
+
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+    )
 
 
 class Database:
@@ -98,9 +37,14 @@ class Database:
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
         conn = sqlite3.connect(self.path)
         conn.row_factory = sqlite3.Row
+
         try:
             yield conn
             conn.commit()
@@ -111,8 +55,365 @@ class Database:
             conn.close()
 
     def initialize(self) -> None:
+        """初始化数据库并执行增量迁移。"""
+
         with self.connect() as conn:
-            conn.executescript(SCHEMA)
+            apply_migrations(conn)
+
+    def create_analysis_task(
+        self,
+        *,
+        task_id: str,
+        name: str,
+        software_version: str,
+        analysis_start: str | None = None,
+        analysis_end: str | None = None,
+        boundary_set_id: str | None = None,
+        assessment_mode: str | None = None,
+        parameters: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """创建一个新的分析任务。"""
+
+        created_at = utc_now()
+
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO analysis_tasks(
+                    task_id,
+                    name,
+                    analysis_start,
+                    analysis_end,
+                    status,
+                    boundary_set_id,
+                    software_version,
+                    assessment_mode,
+                    parameters_json,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?, 'created', ?, ?, ?, ?, ?)
+                """,
+                (
+                    task_id,
+                    name,
+                    analysis_start,
+                    analysis_end,
+                    boundary_set_id,
+                    software_version,
+                    assessment_mode,
+                    json.dumps(
+                        parameters or {},
+                        ensure_ascii=False,
+                    ),
+                    created_at,
+                ),
+            )
+
+        task = self.get_analysis_task(task_id)
+
+        if task is None:
+            raise RuntimeError(
+                f"分析任务创建后无法读取：{task_id}"
+            )
+
+        return task
+
+    def get_analysis_task(
+        self,
+        task_id: str,
+    ) -> dict[str, Any] | None:
+        """读取一个分析任务。"""
+
+        with self.connect() as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    task_id,
+                    name,
+                    analysis_start,
+                    analysis_end,
+                    status,
+                    boundary_set_id,
+                    software_version,
+                    assessment_mode,
+                    parameters_json,
+                    created_at,
+                    started_at,
+                    completed_at,
+                    error_message
+                FROM analysis_tasks
+                WHERE task_id = ?
+                """,
+                (task_id,),
+            ).fetchone()
+
+        if row is None:
+            return None
+
+        result = dict(row)
+        result["parameters"] = json.loads(
+            result.pop("parameters_json")
+        )
+
+        return result
+
+    def list_analysis_tasks(
+        self,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """按创建时间倒序读取分析任务。"""
+
+        if limit <= 0:
+            raise ValueError("limit 必须大于 0")
+
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    task_id,
+                    name,
+                    analysis_start,
+                    analysis_end,
+                    status,
+                    boundary_set_id,
+                    software_version,
+                    assessment_mode,
+                    parameters_json,
+                    created_at,
+                    started_at,
+                    completed_at,
+                    error_message
+                FROM analysis_tasks
+                ORDER BY created_at DESC, task_id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+
+        tasks: list[dict[str, Any]] = []
+
+        for row in rows:
+            item = dict(row)
+            item["parameters"] = json.loads(
+                item.pop("parameters_json")
+            )
+            tasks.append(item)
+
+        return tasks
+
+    def update_analysis_task_status(
+        self,
+        task_id: str,
+        status: str,
+        *,
+        error_message: str | None = None,
+    ) -> None:
+        """更新分析任务状态。"""
+
+        allowed_statuses = {
+            "created",
+            "validating",
+            "ready",
+            "running",
+            "completed",
+            "failed",
+        }
+
+        if status not in allowed_statuses:
+            raise ValueError(
+                f"不支持的任务状态：{status}"
+            )
+
+        now = utc_now()
+
+        with self.connect() as conn:
+            existing = conn.execute(
+                """
+                SELECT task_id, started_at
+                FROM analysis_tasks
+                WHERE task_id = ?
+                """,
+                (task_id,),
+            ).fetchone()
+
+            if existing is None:
+                raise KeyError(
+                    f"分析任务不存在：{task_id}"
+                )
+
+            started_at = existing["started_at"]
+            completed_at = None
+
+            if (
+                status == "running"
+                and started_at is None
+            ):
+                started_at = now
+
+            if status in {
+                "completed",
+                "failed",
+            }:
+                completed_at = now
+
+            conn.execute(
+                """
+                UPDATE analysis_tasks
+                SET
+                    status = ?,
+                    started_at = ?,
+                    completed_at = ?,
+                    error_message = ?
+                WHERE task_id = ?
+                """,
+                (
+                    status,
+                    started_at,
+                    completed_at,
+                    error_message,
+                    task_id,
+                ),
+            )
+
+    def register_input_file(
+        self,
+        *,
+        task_id: str,
+        file_role: str,
+        original_filename: str,
+        sha256: str,
+        size_bytes: int,
+        stored_path: str | None = None,
+        source_agency: str | None = None,
+        product_name: str | None = None,
+        product_version: str | None = None,
+        processing_class: str | None = None,
+        date_start: str | None = None,
+        date_end: str | None = None,
+        crs: str | None = None,
+        validation_status: str = "pending",
+        validation_message: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> int:
+        """登记分析任务使用的输入文件。"""
+
+        if size_bytes < 0:
+            raise ValueError(
+                "size_bytes 不能小于 0"
+            )
+
+        with self.connect() as conn:
+            task = conn.execute(
+                """
+                SELECT task_id
+                FROM analysis_tasks
+                WHERE task_id = ?
+                """,
+                (task_id,),
+            ).fetchone()
+
+            if task is None:
+                raise KeyError(
+                    f"分析任务不存在：{task_id}"
+                )
+
+            cursor = conn.execute(
+                """
+                INSERT INTO input_files(
+                    task_id,
+                    file_role,
+                    original_filename,
+                    stored_path,
+                    sha256,
+                    size_bytes,
+                    source_agency,
+                    product_name,
+                    product_version,
+                    processing_class,
+                    date_start,
+                    date_end,
+                    crs,
+                    validation_status,
+                    validation_message,
+                    metadata_json,
+                    created_at
+                )
+                VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?, ?
+                )
+                """,
+                (
+                    task_id,
+                    file_role,
+                    original_filename,
+                    stored_path,
+                    sha256,
+                    size_bytes,
+                    source_agency,
+                    product_name,
+                    product_version,
+                    processing_class,
+                    date_start,
+                    date_end,
+                    crs,
+                    validation_status,
+                    validation_message,
+                    json.dumps(
+                        metadata or {},
+                        ensure_ascii=False,
+                    ),
+                    utc_now(),
+                ),
+            )
+
+            return int(cursor.lastrowid)
+
+    def list_input_files(
+        self,
+        task_id: str,
+    ) -> list[dict[str, Any]]:
+        """读取分析任务登记的输入文件。"""
+
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    id,
+                    task_id,
+                    file_role,
+                    original_filename,
+                    stored_path,
+                    sha256,
+                    size_bytes,
+                    source_agency,
+                    product_name,
+                    product_version,
+                    processing_class,
+                    date_start,
+                    date_end,
+                    crs,
+                    validation_status,
+                    validation_message,
+                    metadata_json,
+                    created_at
+                FROM input_files
+                WHERE task_id = ?
+                ORDER BY id
+                """,
+                (task_id,),
+            ).fetchall()
+
+        result: list[dict[str, Any]] = []
+
+        for row in rows:
+            item = dict(row)
+            item["metadata"] = json.loads(
+                item.pop("metadata_json")
+            )
+            result.append(item)
+
+        return result
 
     def upsert_regions(self, regions: Iterable[dict[str, Any]]) -> int:
         values = []

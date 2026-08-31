@@ -1,8 +1,7 @@
 """MCD64 火烧迹地 TIF 读取与面积计算。
 
-首版只接受北向上的 EPSG:4326（经纬度）GeoTIFF。对于当前已核验的
-MCD64monthly *.burndate.tif，这样可以按各纬度行的实际球面面积计算，
-不会把经纬度网格机械写成 0.25 km² 固定像元。
+首版只接受北向上的 EPSG:4326（经纬度）GeoTIFF。
+可以按各纬度行的实际球面面积计算，不会把经纬度网格机械写成 0.25 km² 固定像元。
 """
 
 from __future__ import annotations
