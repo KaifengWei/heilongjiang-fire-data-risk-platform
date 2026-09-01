@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ task.name }} - 分析任务</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+<header class="site-header compact-header">
+  <div>
+    <p class="eyebrow">{{ task.task_id }}</p>
+    <h1>{{ task.name }}</h1>
+    <p class="subtitle">
+      输入数据校验、任务准备状态和文件追溯记录。
+    </p>
+  </div>
+
+  <nav class="top-nav">
+    <a href="{{ url_for('index') }}">统计首页</a>
+    <a href="{{ url_for('tasks') }}">分析任务</a>
+  </nav>
+</header>
+
+<main>
+
+  {% if page_error %}
+  <section class="message-error">
+    <strong>操作失败：</strong>
+    {{ page_error }}
+  </section>
+  {% endif %}
+
+  <section class="task-summary-grid">
+
+    <article class="panel">
+      <h2>任务信息</h2>
+
+      {% set scope = task.parameters.get('analysis_scope', 'combined') %}
+
+      <dl class="detail-list">
+        <div>
+          <dt>任务状态</dt>
+          <dd>
+            <span class="status-badge status-{{ task.status }}">
+              {{ task.status }}
+            </span>
+          </dd>
+        </div>
+
+        <div>
+          <dt>分析范围</dt>
+          <dd>{{ scope_labels.get(scope, scope) }}</dd>
+        </div>
+
+        <div>
+          <dt>分析时间</dt>
+          <dd>
+            {{ task.analysis_start or '未限定' }}
+            —
+            {{ task.analysis_end or '未限定' }}
+          </dd>
+        </div>
+
+        <div>
+          <dt>软件版本</dt>
+          <dd>{{ task.software_version }}</dd>
+        </div>
+
+        <div>
+          <dt>创建时间</dt>
+          <dd>{{ task.created_at }}</dd>
+        </div>
+      </dl>
+    </article>
+
+    <article class="panel readiness-panel">
+      <h2>输入准备状态</h2>
+
+      {% if readiness.ready %}
+        <div class="readiness-ready">
+          READY
+        </div>
+        <p>
+          当前任务已经具备所选分析范围要求的基础输入条件。
+        </p>
+      {% else %}
+        <div class="readiness-not-ready">
+          NOT READY
+        </div>
+
+        <p>
+          当前任务尚不能进入正式数据处理。
+        </p>
+
+        {% if readiness.reasons %}
+        <ul class="reason-list">
+          {% for reason in readiness.reasons %}
+            <li>{{ reason }}</li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      {% endif %}
+
+      {% if readiness.warnings %}
+      <div class="warning compact-warning">
+        <strong>警告：</strong>
+        <ul>
+          {% for warning in readiness.warnings %}
+            <li>{{ warning }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <form
+        method="post"
+        action="{{ url_for('refresh_task_readiness', task_id=task.task_id) }}"
+      >
+        <button type="submit">
+          重新检查准备状态
+        </button>
+      </form>
+
+      <p class="scope-note">
+        “READY”只表示输入文件满足当前基础合同与配对要求，
+        不表示 FIRMS 正式质量筛选、MCD64A1 QA 位筛选、
+        风险评估或统计计算已经完成。
+      </p>
+    </article>
+
+  </section>
+
+  <section class="panel">
+    <div class="panel-heading">
+      <div>
+        <h2>提交输入文件</h2>
+        <p>
+          文件将复制到当前任务独立目录，并记录 SHA256 和校验结果。
+        </p>
+      </div>
+    </div>
+
+    <form
+      method="post"
+      enctype="multipart/form-data"
+      action="{{ url_for('upload_task_file', task_id=task.task_id) }}"
+      class="upload-form"
+    >
+
+      <label>
+        文件角色
+        <select name="file_role" required>
+          <option value="">请选择</option>
+          <option value="firms_csv">
+            FIRMS 主动火点 CSV
+          </option>
+          <option value="mcd64_burn_date">
+            MCD64A1 Burn Date GeoTIFF
+          </option>
+          <option value="mcd64_qa">
+            MCD64A1 QA GeoTIFF
+          </option>
+        </select>
+      </label>
+
+      <label>
+        本地文件
+        <input type="file" name="file" required>
+      </label>
+
+      <div class="form-actions">
+        <button type="submit">
+          上传并校验
+        </button>
+      </div>
+
+    </form>
+
+    <div class="warning">
+      <strong>MCD64A1 文件名要求：</strong>
+      当前版本需要从文件名识别
+      <code>AYYYYDDD</code>，
+      例如
+      <code>MCD64A1.A2026060.burndate.tif</code>。
+      请不要删除这一产品日期标识。
+    </div>
+  </section>
+
+  <section class="panel task-list-panel">
+    <div class="panel-heading">
+      <div>
+        <h2>输入文件记录</h2>
+        <p>
+          这里显示数据库实际登记的文件，不代表所有文件均已通过校验。
+        </p>
+      </div>
+    </div>
+
+    {% if files %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>原始文件名</th>
+            <th>角色</th>
+            <th>校验状态</th>
+            <th>文件大小</th>
+            <th>SHA256</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+
+        <tbody>
+        {% for file in files %}
+          <tr>
+            <td>{{ file.original_filename }}</td>
+
+            <td>
+              {{ file_role_labels.get(file.file_role, file.file_role) }}
+            </td>
+
+            <td>
+              <span class="status-badge status-{{ file.validation_status }}">
+                {{ file.validation_status }}
+              </span>
+            </td>
+
+            <td>{{ file.size_bytes }} B</td>
+
+            <td>
+              <code class="hash-value">
+                {{ file.sha256 }}
+              </code>
+            </td>
+
+            <td>
+              {{ file.validation_message or '—' }}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% else %}
+      <p class="empty-state">
+        当前任务还没有登记任何输入文件。
+      </p>
+    {% endif %}
+  </section>
+
+  {% if readiness.details.mcd64_pairs %}
+  <section class="panel task-list-panel">
+    <div class="panel-heading">
+      <div>
+        <h2>MCD64A1 有效配对</h2>
+        <p>
+          只有空间信息一致的 Burn Date / QA 才会出现在这里。
+        </p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>产品日期</th>
+            <th>Burn Date 文件 ID</th>
+            <th>QA 文件 ID</th>
+            <th>配对状态</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for pair in readiness.details.mcd64_pairs %}
+          <tr>
+            <td>{{ pair.product_date }}</td>
+            <td>{{ pair.burn_date_file_id }}</td>
+            <td>{{ pair.qa_file_id }}</td>
+            <td>{{ pair.pair_status }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+</main>
+
+<footer>
+  所有输入状态均来源于当前任务真实文件和数据库记录。
+</footer>
+
+</body>
+</html>

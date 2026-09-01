@@ -11,7 +11,16 @@
     <div>
       <p class="eyebrow">FIRE DATA ANALYSIS · V0.1</p>
       <h1>黑龙江省火点数据检测与风险评估平台</h1>
-      <p class="subtitle">接收用户自行下载的官方原始数据，自动完成质量检查、空间统计、面积分析、分层制图和结果导出。</p>
+      <p class="subtitle">
+  接收用户自行获取的受支持 FIRMS 与 MCD64A1 数据，
+  对输入文件进行校验、统计、制图和可追溯分析。
+</p>
+
+<p>
+  <a class="header-link" href="{{ url_for('tasks') }}">
+    进入分析任务
+  </a>
+</p>
     </div>
     <div id="dataState" class="data-state">正在读取数据状态…</div>
   </header>
@@ -48,14 +57,39 @@
     <section class="warning" aria-label="指标口径提示">
       <strong>先看口径：</strong>
       红色“主动火点观测记录”来自 FIRMS 等卫星热异常产品；绿色“烧毁像元”来自火烧迹地产品。二者不是同一个指标，不能相互替代，也不等于独立火灾事件数。
-      <br><strong>当前版本：</strong>v0.1 已实现本地导入、查询、面积统计、地图和 CSV 导出；浏览器上传、HDF-EOS 直读和风险规则引擎仍在开发，页面不会把尚未实现的能力显示为可用功能。
+      <br><strong>当前版本：</strong>v0.1 已实现本地分析任务创建、FIRMS CSV 与 MCD64A1 GeoTIFF 文件上传及基础校验、MCD64A1 Burn Date/QA 配对检查，以及既有查询、 面积统计、地图和 CSV 导出功能。HDF-EOS 直读、MCD64A1 QA 位筛选和风险规则引擎尚未实现。
     </section>
 
-    <section class="definition-grid input-contract" aria-label="首版文件提交范围">
-      <article><h3>必须提交：主动火点</h3><p>NASA FIRMS 直接下载的 MODIS 或 VIIRS CSV。平台据此统计主动火点观测记录数，并保留卫星、时间、置信度和 FRP 等字段。</p></article>
-      <article><h3>必须提交：火烧迹地</h3><p>MCD64A1 月度 Burn Date GeoTIFF。平台重分类烧毁像元并计算面积；有对应 QA GeoTIFF 时建议一并提交。</p></article>
-      <article><h3>通常无需提交：行政区</h3><p>正式版内置经核验的黑龙江省、市、县边界。仅分析自定义范围时，再提交 GeoJSON 或包含完整组件与投影文件的 Shapefile ZIP。</p></article>
-    </section>
+    <section class="definition-grid input-contract" aria-label="当前文件提交范围">
+
+  <article>
+    <h3>FIRMS 主动火点</h3>
+    <p>
+      firms_only 或 combined 任务需要提交 FIRMS CSV。
+      当前系统进行字段、经纬度、日期和质量字段基础检查。
+      统计对象为主动火点观测记录，不等于独立火灾事件数。
+    </p>
+  </article>
+
+  <article>
+    <h3>MCD64A1 火烧迹地</h3>
+    <p>
+      mcd64_only 或 combined 任务需要提交同一产品月份的
+      Burn Date GeoTIFF 与 QA GeoTIFF。
+      系统检查产品日期、CRS、尺寸、GeoTransform、像元大小和空间范围。
+    </p>
+  </article>
+
+  <article>
+    <h3>当前 QA 边界</h3>
+    <p>
+      当前版本已经校验 QA 栅格是否能够与 Burn Date 正确逐像元配对，
+      但尚未执行 MCD64A1 QA bit 质量筛选。
+      因此“输入已就绪”不代表 QA 质量控制已经完成。
+    </p>
+  </article>
+
+</section>
 
     <section class="metric-grid" aria-label="统计摘要">
       <article class="metric-card active-card">

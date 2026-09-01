@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>分析任务 - 黑龙江省火点数据检测与风险评估平台</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+<header class="site-header compact-header">
+  <div>
+    <p class="eyebrow">ANALYSIS TASKS · V0.1.1</p>
+    <h1>分析任务</h1>
+    <p class="subtitle">
+      每次分析以独立任务保存输入文件、校验状态、处理参数和后续结果。
+    </p>
+  </div>
+
+  <nav class="top-nav">
+    <a href="{{ url_for('index') }}">统计首页</a>
+    <a class="active" href="{{ url_for('tasks') }}">分析任务</a>
+  </nav>
+</header>
+
+<main>
+
+  {% if page_error %}
+  <section class="message-error">
+    <strong>无法创建任务：</strong>
+    {{ page_error }}
+  </section>
+  {% endif %}
+
+  <section class="panel">
+    <div class="panel-heading">
+      <div>
+        <h2>创建分析任务</h2>
+        <p>
+          任务创建后再上传对应数据。创建任务本身不会执行数据分析。
+        </p>
+      </div>
+    </div>
+
+    <form method="post" action="{{ url_for('create_task') }}" class="form-grid">
+      <label>
+        任务名称
+        <input
+          type="text"
+          name="name"
+          maxlength="100"
+          required
+          placeholder="例如：2026年3月黑龙江省火情分析"
+        >
+      </label>
+
+      <label>
+        分析范围
+        <select name="analysis_scope" required>
+          <option value="">请选择</option>
+          <option value="firms_only">仅 FIRMS 主动火点</option>
+          <option value="mcd64_only">仅 MCD64A1 火烧迹地</option>
+          <option value="combined">FIRMS + MCD64A1 联合分析</option>
+        </select>
+      </label>
+
+      <label>
+        开始日期
+        <input type="date" name="analysis_start">
+      </label>
+
+      <label>
+        结束日期
+        <input type="date" name="analysis_end">
+      </label>
+
+      <div class="form-actions">
+        <button type="submit">创建任务</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel task-list-panel">
+    <div class="panel-heading">
+      <div>
+        <h2>已有任务</h2>
+        <p>
+          当前显示数据库中最近的分析任务。
+        </p>
+      </div>
+    </div>
+
+    {% if tasks %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>任务</th>
+            <th>分析范围</th>
+            <th>时间范围</th>
+            <th>状态</th>
+            <th>创建时间</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for task in tasks %}
+          <tr>
+            <td>
+              <strong>{{ task.name }}</strong>
+              <div class="mono-small">{{ task.task_id }}</div>
+            </td>
+
+            <td>
+              {% set scope = task.parameters.get('analysis_scope', 'combined') %}
+              {{ scope_labels.get(scope, scope) }}
+            </td>
+
+            <td>
+              {{ task.analysis_start or '未限定' }}
+              —
+              {{ task.analysis_end or '未限定' }}
+            </td>
+
+            <td>
+              <span class="status-badge status-{{ task.status }}">
+                {{ task.status }}
+              </span>
+            </td>
+
+            <td>{{ task.created_at }}</td>
+
+            <td>
+              <a
+                class="secondary-button"
+                href="{{ url_for('task_detail', task_id=task.task_id) }}"
+              >
+                查看
+              </a>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="empty-state">
+        当前还没有分析任务。
+      </p>
+    {% endif %}
+  </section>
+
+</main>
+
+<footer>
+  分析任务用于记录输入和处理过程；创建任务不代表分析已经完成。
+</footer>
+
+</body>
+</html>

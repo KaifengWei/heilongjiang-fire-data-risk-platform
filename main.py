@@ -43,7 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
     serve = subparsers.add_parser("serve", help="启动本地浏览器界面")
     add_database_argument(serve)
     serve.add_argument("--host", default=None, help="默认 127.0.0.1")
-    serve.add_argument("--port", type=int, default=None, help="默认 5060")
+    serve.add_argument("--port", type=int, default=None, help="默认 5050")
 
     regions = subparsers.add_parser("init-regions", help="导入 GeoJSON 行政区边界")
     add_database_argument(regions)

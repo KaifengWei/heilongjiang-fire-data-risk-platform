@@ -31,5 +31,5 @@ def load_settings(database_path: str | Path | None = None) -> Settings:
         runtime_dir=runtime,
         database_path=db_path,
         host=os.environ.get("FIRE_MONITOR_HOST", "127.0.0.1"),
-        port=int(os.environ.get("FIRE_MONITOR_PORT", "5060")),
+        port=int(os.environ.get("FIRE_MONITOR_PORT", "5050")),
     )
