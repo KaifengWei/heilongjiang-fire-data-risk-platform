@@ -1,3 +1,5 @@
+# 原有的行政区几何包含判断、边界加载及同名区域多要素合并测试
+
 import json
 
 from fire_monitor.core.geography import RegionIndex, geometry_contains, load_regions_from_geojson

@@ -463,17 +463,55 @@ class Database:
         ]
 
     def start_import(
-        self, data_kind: str, source_ref: str, metadata: dict[str, Any] | None = None
+        self,
+        data_kind: str,
+        source_ref: str,
+        metadata: dict[str, Any] | None = None,
+        *,
+        task_id: str | None = None,
+        input_file_id: int | None = None,
     ) -> int:
+        """创建一次数据处理运行记录。
+
+        task_id 和 input_file_id 为可选参数，
+        以兼容原有 CLI 导入流程。
+
+        正式任务处理时应尽量提供二者，
+        使处理结果能够追溯到具体任务和输入文件。
+        """
+
         with self.connect() as conn:
             cursor = conn.execute(
                 """
-                INSERT INTO import_runs(data_kind, source_ref, started_at, status, metadata_json)
-                VALUES (?, ?, ?, 'running', ?)
+                INSERT INTO import_runs(
+                    data_kind,
+                    source_ref,
+                    started_at,
+                    status,
+                    metadata_json,
+                    task_id,
+                    input_file_id
+                )
+                VALUES (
+                    ?, ?, ?, 'running', ?, ?, ?
+                )
                 """,
-                (data_kind, source_ref, utc_now(), json.dumps(metadata or {}, ensure_ascii=False)),
+                (
+                    data_kind,
+                    source_ref,
+                    utc_now(),
+                    json.dumps(
+                        metadata or {},
+                        ensure_ascii=False,
+                    ),
+                    task_id,
+                    input_file_id,
+                ),
             )
-            return int(cursor.lastrowid)
+
+            return int(
+                cursor.lastrowid
+            )
 
     def finish_import(
         self,
@@ -750,3 +788,91 @@ class Database:
                 {**dict(row), "metadata": json.loads(row["metadata_json"])} for row in imports
             ],
         }
+
+    def list_import_runs(
+        self,
+        *,
+        task_id: str | None = None,
+        data_kind: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """读取数据处理运行记录。"""
+
+        if limit <= 0:
+            raise ValueError(
+                "limit 必须大于 0"
+            )
+
+        conditions: list[str] = []
+        parameters: list[Any] = []
+
+        if task_id is not None:
+            conditions.append(
+                "task_id = ?"
+            )
+            parameters.append(
+                task_id
+            )
+
+        if data_kind is not None:
+            conditions.append(
+                "data_kind = ?"
+            )
+            parameters.append(
+                data_kind
+            )
+
+        where_clause = ""
+
+        if conditions:
+            where_clause = (
+                "WHERE "
+                + " AND ".join(
+                    conditions
+                )
+            )
+
+        parameters.append(limit)
+
+        with self.connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT
+                    id,
+                    data_kind,
+                    source_ref,
+                    started_at,
+                    completed_at,
+                    status,
+                    input_count,
+                    stored_count,
+                    metadata_json,
+                    task_id,
+                    input_file_id
+                FROM import_runs
+                {where_clause}
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                parameters,
+            ).fetchall()
+
+        result: list[
+            dict[str, Any]
+        ] = []
+
+        for row in rows:
+            item = dict(row)
+
+            item["metadata"] = (
+                json.loads(
+                    item.pop(
+                        "metadata_json"
+                    )
+                    or "{}"
+                )
+            )
+
+            result.append(item)
+
+        return result

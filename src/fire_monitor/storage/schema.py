@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS active_fire_observations (
     longitude REAL NOT NULL,
     region_name TEXT,
     firms_source TEXT NOT NULL,
+    processing_class TEXT,
+    source_version TEXT,
     instrument TEXT,
     satellite TEXT,
     confidence TEXT,
@@ -58,6 +60,30 @@ CREATE TABLE IF NOT EXISTS active_fire_observations (
 
 CREATE INDEX IF NOT EXISTS idx_active_fire_date_region
 ON active_fire_observations(acquired_date, region_name);
+
+CREATE TABLE IF NOT EXISTS active_fire_observation_sources (
+    id INTEGER PRIMARY KEY,
+    observation_id INTEGER NOT NULL,
+    source_record_key TEXT NOT NULL UNIQUE,
+    firms_source TEXT NOT NULL,
+    processing_class TEXT NOT NULL,
+    source_version TEXT,
+    confidence TEXT,
+    frp REAL,
+    scan REAL,
+    track REAL,
+    quality_rule TEXT,
+    import_run_id INTEGER,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(observation_id)
+        REFERENCES active_fire_observations(id)
+        ON DELETE CASCADE,
+    FOREIGN KEY(import_run_id)
+        REFERENCES import_runs(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_active_fire_sources_observation
+ON active_fire_observation_sources(observation_id);
 
 CREATE TABLE IF NOT EXISTS burned_pixels (
     id INTEGER PRIMARY KEY,
@@ -146,4 +172,4 @@ ON input_files(sha256);
 """
 
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2

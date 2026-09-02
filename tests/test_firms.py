@@ -1,3 +1,5 @@
+# 原有的FIRMS质量规则、基础规范化及API日期分段测试
+
 import pandas as pd
 
 from fire_monitor.core.firms import firms_quality_pass, normalized_firms_rows, split_firms_date_ranges

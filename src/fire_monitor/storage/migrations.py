@@ -77,6 +77,102 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
             "INTEGER",
         )
 
+        if current_version < 2:
+            _add_column_if_missing(
+                conn,
+                "active_fire_observations",
+                "processing_class",
+                "TEXT",
+            )
+
+            _add_column_if_missing(
+                conn,
+                "active_fire_observations",
+                "source_version",
+                "TEXT",
+            )
+
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS
+                    active_fire_observation_sources
+                (
+                    id
+                    INTEGER
+                    PRIMARY
+                    KEY,
+                    observation_id
+                    INTEGER
+                    NOT
+                    NULL,
+                    source_record_key
+                    TEXT
+                    NOT
+                    NULL
+                    UNIQUE,
+                    firms_source
+                    TEXT
+                    NOT
+                    NULL,
+                    processing_class
+                    TEXT
+                    NOT
+                    NULL,
+                    source_version
+                    TEXT,
+                    confidence
+                    TEXT,
+                    frp
+                    REAL,
+                    scan
+                    REAL,
+                    track
+                    REAL,
+                    quality_rule
+                    TEXT,
+                    import_run_id
+                    INTEGER,
+                    created_at
+                    TEXT
+                    NOT
+                    NULL,
+                    FOREIGN
+                    KEY
+                (
+                    observation_id
+                )
+                    REFERENCES active_fire_observations
+                (
+                    id
+                )
+                    ON DELETE CASCADE,
+                    FOREIGN KEY
+                (
+                    import_run_id
+                )
+                    REFERENCES import_runs
+                (
+                    id
+                )
+                    )
+                """
+            )
+
+            conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS
+                    idx_active_fire_sources_observation
+                    ON active_fire_observation_sources(
+                    observation_id
+                    )
+                """
+            )
+
         conn.execute(
             f"PRAGMA user_version = {CURRENT_SCHEMA_VERSION}"
         )
+
+        conn.execute(
+            f"PRAGMA user_version = {CURRENT_SCHEMA_VERSION}"
+        )
+

@@ -24,6 +24,7 @@
 </header>
 
 <main>
+  {% set scope = task.parameters.get('analysis_scope', 'combined') %}
 
   {% if page_error %}
   <section class="message-error">
@@ -37,7 +38,7 @@
     <article class="panel">
       <h2>任务信息</h2>
 
-      {% set scope = task.parameters.get('analysis_scope', 'combined') %}
+
 
       <dl class="detail-list">
         <div>
@@ -250,6 +251,168 @@
       </p>
     {% endif %}
   </section>
+
+  <section class="panel task-list-panel">
+
+  <div class="panel-heading">
+    <div>
+      <h2>FIRMS 正式处理</h2>
+      <p>
+        对已上传的 FIRMS CSV 执行字段规范化、质量筛选、
+        任务日期约束、行政区落区和重复观测处理。
+      </p>
+    </div>
+  </div>
+
+  {% if scope not in ['firms_only', 'combined'] %}
+
+    <p class="empty-state">
+      当前任务分析范围不包含 FIRMS。
+    </p>
+
+  {% elif not firms_input_files %}
+
+    <div class="warning">
+      当前没有通过基础校验的 FIRMS CSV，
+      暂时不能执行正式处理。
+    </div>
+
+  {% elif region_count == 0 %}
+
+    <div class="warning">
+      <strong>尚不能执行：</strong>
+      当前数据库没有行政区边界。
+      FIRMS 正式处理必须完成空间落区，
+      因此不会在没有边界数据时直接写入统计结果。
+    </div>
+
+  {% else %}
+
+    <form
+      method="post"
+      action="{{ url_for('process_task_firms', task_id=task.task_id) }}"
+    >
+      <button type="submit">
+        执行 FIRMS 处理
+      </button>
+    </form>
+
+  {% endif %}
+
+  <p class="scope-note">
+    此操作处理的是主动火点观测记录，
+    不将相邻火点自动合并为独立火灾事件。
+  </p>
+
+</section>
+
+{% if firms_runs %}
+<section class="panel task-list-panel">
+
+  <div class="panel-heading">
+    <div>
+      <h2>FIRMS 处理记录</h2>
+      <p>
+        以下数据直接来自数据库中的 import_runs 处理记录。
+      </p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>运行 ID</th>
+          <th>状态</th>
+          <th>输入记录</th>
+          <th>规范化通过</th>
+          <th>规范化筛除</th>
+          <th>日期范围外</th>
+          <th>行政区外</th>
+          <th>文件内重复</th>
+          <th>新增观测</th>
+          <th>已有观测</th>
+          <th>SP替换</th>
+        </tr>
+      </thead>
+
+      <tbody>
+      {% for run in firms_runs %}
+
+        {% set report = run.metadata or {} %}
+
+        <tr>
+          <td>
+            {{ run.id }}
+            <div class="mono-small">
+              {{ run.started_at }}
+            </div>
+          </td>
+
+          <td>
+            <span class="status-badge status-{{ run.status }}">
+              {{ run.status }}
+            </span>
+          </td>
+
+          <td>
+            {{ report.get('input_rows', run.input_count) }}
+          </td>
+
+          <td>
+            {{ report.get('normalization_accepted', '—') }}
+          </td>
+
+          <td>
+            {{ report.get('normalization_rejected', '—') }}
+          </td>
+
+          <td>
+            {{ report.get('outside_task_date_range', '—') }}
+          </td>
+
+          <td>
+            {{ report.get('outside_configured_regions', '—') }}
+          </td>
+
+          <td>
+            {{ report.get('duplicate_source_records_in_file', '—') }}
+          </td>
+
+          <td>
+            {{ report.get('new_observations', run.stored_count) }}
+          </td>
+
+          <td>
+            {{ report.get('existing_observations', '—') }}
+          </td>
+
+          <td>
+            {{ report.get('preferred_source_updates', '—') }}
+          </td>
+        </tr>
+
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% set latest = firms_runs[0].metadata or {} %}
+
+  {% if latest.get('rejection_counts') %}
+  <div class="warning">
+    <strong>最近一次规范化筛除：</strong>
+
+    {% for key, value in latest.get('rejection_counts', {}).items() %}
+      <code>{{ key }}</code>
+      = {{ value }}
+      {% if not loop.last %}；{% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</section>
+{% endif %}
 
   {% if readiness.details.mcd64_pairs %}
   <section class="panel task-list-panel">

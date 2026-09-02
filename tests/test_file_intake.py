@@ -1,3 +1,4 @@
+# Day3A：输入文件基础校验、任务隔离存储、SHA256与文件登记测试
 from pathlib import Path
 
 import numpy as np

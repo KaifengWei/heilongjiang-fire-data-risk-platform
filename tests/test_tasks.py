@@ -1,3 +1,5 @@
+# Day2：分析任务、输入文件登记、数据库迁移及任务状态生命周期测试
+
 import sqlite3
 
 import pytest
@@ -33,7 +35,7 @@ def test_database_migration_creates_task_tables(
     assert "analysis_tasks" in tables
     assert "input_files" in tables
     assert "boundary_sets" in tables
-    assert version == 1
+    assert version == 2
 
 
 def test_existing_tables_are_preserved(

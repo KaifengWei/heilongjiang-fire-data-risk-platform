@@ -1,3 +1,4 @@
+# Day3C：firms_only、mcd64_only与combined任务输入准备状态测试
 from pathlib import Path
 
 import numpy as np

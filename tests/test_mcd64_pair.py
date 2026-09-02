@@ -1,3 +1,5 @@
+# Day3B：MCD64A1 Burn Date与QA GeoTIFF配对一致性测试
+
 from pathlib import Path
 
 import numpy as np

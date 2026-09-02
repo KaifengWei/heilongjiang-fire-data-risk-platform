@@ -29,6 +29,9 @@ from fire_monitor.services.validation_service import (
 )
 from fire_monitor.storage.database import Database
 
+from fire_monitor.services.firms_processing_service import (
+    FirmsProcessingService,
+)
 
 SCOPE_LABELS = {
     "firms_only": "仅 FIRMS 主动火点",
@@ -121,6 +124,12 @@ def create_app(
         ReadinessService(database)
     )
 
+    firms_processing_service = (
+        FirmsProcessingService(
+            database
+        )
+    )
+
     app = Flask(
         __name__,
         template_folder=str(
@@ -154,6 +163,10 @@ def create_app(
     app.extensions[
         "readiness_service"
     ] = readiness_service
+
+    app.extensions[
+        "firms_processing_service"
+    ] = firms_processing_service
 
     def query_args() -> tuple[
         str | None,
@@ -230,6 +243,36 @@ def create_app(
             .evaluate_task(task_id)
         )
 
+        firms_input_files = [
+            item
+            for item in files
+            if (
+                item["file_role"]
+                == "firms_csv"
+                and item[
+                    "validation_status"
+                ]
+                in {
+                    "valid",
+                    "valid_with_warnings",
+                }
+            )
+        ]
+
+        firms_runs = (
+            database.list_import_runs(
+                task_id=task_id,
+                data_kind=(
+                    "active_fire_observations"
+                ),
+                limit=20,
+            )
+        )
+
+        region_count = len(
+            database.list_regions()
+        )
+
         return (
             render_template(
                 "task_detail.html",
@@ -241,6 +284,15 @@ def create_app(
                     FILE_ROLE_LABELS
                 ),
                 page_error=page_error,
+                firms_input_files=(
+                    firms_input_files
+                ),
+                firms_runs=(
+                    firms_runs
+                ),
+                region_count=(
+                    region_count
+                ),
             ),
             http_status,
         )
@@ -499,6 +551,52 @@ def create_app(
             return (
                 "分析任务不存在。",
                 404,
+            )
+
+        return redirect(
+            url_for(
+                "task_detail",
+                task_id=task_id,
+            )
+        )
+
+    @app.post(
+        "/tasks/<task_id>/process/firms"
+    )
+    def process_task_firms(
+            task_id: str,
+    ):
+        task = (
+            task_service
+            .get_task(task_id)
+        )
+
+        if task is None:
+            return (
+                "分析任务不存在。",
+                404,
+            )
+
+        try:
+            firms_processing_service.process_task(
+                task_id,
+                quality_only=True,
+            )
+
+        except (
+                ValueError,
+                KeyError,
+                FileNotFoundError,
+                RuntimeError,
+                OSError,
+        ) as exc:
+            return render_task_detail(
+                task_id,
+                page_error=(
+                        "FIRMS 处理失败："
+                        + str(exc)
+                ),
+                http_status=400,
             )
 
         return redirect(
