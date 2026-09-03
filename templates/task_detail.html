@@ -24,7 +24,7 @@
 </header>
 
 <main>
-  {% set scope = task.parameters.get('analysis_scope', 'combined') %}
+  {% set scope = (task.parameters or {}).get('analysis_scope', 'combined') %}
 
   {% if page_error %}
   <section class="message-error">
@@ -414,7 +414,7 @@
 </section>
 {% endif %}
 
-  {% if readiness.details.mcd64_pairs %}
+  {% if mcd64_pairs %}
   <section class="panel task-list-panel">
     <div class="panel-heading">
       <div>
@@ -436,7 +436,7 @@
           </tr>
         </thead>
         <tbody>
-        {% for pair in readiness.details.mcd64_pairs %}
+        {% for pair in mcd64_pairs %}
           <tr>
             <td>{{ pair.product_date }}</td>
             <td>{{ pair.burn_date_file_id }}</td>
@@ -447,6 +447,261 @@
         </tbody>
       </table>
     </div>
+  </section>
+  {% endif %}
+
+    <section class="panel task-list-panel">
+
+    <div class="panel-heading">
+      <div>
+        <h2>MCD64A1 正式处理</h2>
+
+        <p>
+          对有效 Burn Date / QA 配对执行 QA 位筛选、
+          行政区落区和烧毁像元面积估计。
+        </p>
+      </div>
+    </div>
+
+    {% if scope not in ['mcd64_only', 'combined'] %}
+
+      <p class="empty-state">
+        当前任务分析范围不包含 MCD64A1。
+      </p>
+
+    {% elif not mcd64_pairs %}
+
+      <div class="warning">
+        当前没有通过配对校验的
+        MCD64A1 Burn Date / QA 文件，
+        暂时不能执行正式处理。
+      </div>
+
+    {% elif region_count == 0 %}
+
+      <div class="warning">
+        <strong>尚不能执行：</strong>
+        当前数据库没有行政区边界。
+        MCD64A1 正式处理必须完成空间落区，
+        因此不会在没有边界数据时直接计算区域面积。
+      </div>
+
+    {% else %}
+
+      <form
+        method="post"
+        action="{{ url_for('process_task_mcd64', task_id=task.task_id) }}"
+        class="upload-form"
+      >
+
+        <label>
+          QA 筛选策略
+
+          <select
+            name="qa_policy"
+            required
+          >
+            <option
+              value="standard"
+              selected
+            >
+              standard — 保留 shortened mapping period
+            </option>
+
+            <option value="strict">
+              strict — 排除 shortened mapping period
+            </option>
+          </select>
+        </label>
+
+        <div class="form-actions">
+          <button type="submit">
+            执行 MCD64A1 处理
+          </button>
+        </div>
+
+      </form>
+
+    {% endif %}
+
+    <p class="scope-note">
+      这里计算的是 MCD64A1 遥感产品经当前质量策略筛选后的
+      烧毁像元面积估计，不等同于地面核定灾损面积。
+    </p>
+
+  </section>
+
+  {% if mcd64_runs %}
+  <section class="panel task-list-panel">
+
+    <div class="panel-heading">
+      <div>
+        <h2>MCD64A1 处理记录</h2>
+
+        <p>
+          以下结果来自数据库中的 import_runs，
+          每一行对应一个月度 Burn Date / QA 文件对的正式处理。
+        </p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+
+        <thead>
+          <tr>
+            <th>运行 ID</th>
+            <th>状态</th>
+            <th>策略</th>
+            <th>正值候选</th>
+            <th>月份外</th>
+            <th>QA拒绝</th>
+            <th>shortened</th>
+            <th>relabeling</th>
+            <th>行政区外</th>
+            <th>有效像元</th>
+            <th>新增像元</th>
+            <th>面积 km²</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+        {% for run in mcd64_runs %}
+
+          {% set report = run.metadata or {} %}
+
+          <tr>
+
+            <td>
+              {{ run.id }}
+
+              <div class="mono-small">
+                {{ run.started_at }}
+              </div>
+            </td>
+
+            <td>
+              <span class="status-badge status-{{ run.status }}">
+                {{ run.status }}
+              </span>
+            </td>
+
+            <td>
+              {{ report.get('qa_policy', '—') }}
+            </td>
+
+            <td>
+              {{
+                report.get(
+                  'positive_burn_date_pixels',
+                  run.input_count
+                )
+              }}
+            </td>
+
+            <td>
+              {{
+                report.get(
+                  'positive_values_outside_expected_month',
+                  '—'
+                )
+              }}
+            </td>
+
+            <td>
+              {{
+                report.get(
+                  'qa_rejected_pixels',
+                  '—'
+                )
+              }}
+            </td>
+
+            <td>
+              {{
+                report.get(
+                  'qa_shortened_mapping_period_pixels',
+                  '—'
+                )
+              }}
+            </td>
+
+            <td>
+              {{
+                report.get(
+                  'qa_contextually_relabeled_pixels',
+                  '—'
+                )
+              }}
+            </td>
+
+            <td>
+              {{
+                report.get(
+                  'outside_configured_regions',
+                  '—'
+                )
+              }}
+            </td>
+
+            <td>
+              {{
+                report.get(
+                  'run_burned_pixel_count',
+                  run.stored_count
+                )
+              }}
+            </td>
+
+            <td>
+              {{
+                report.get(
+                  'new_burned_pixels',
+                  '—'
+                )
+              }}
+            </td>
+
+            <td>
+              {{
+                report.get(
+                  'run_burned_area_km2',
+                  '—'
+                )
+              }}
+            </td>
+
+          </tr>
+
+        {% endfor %}
+
+        </tbody>
+
+      </table>
+    </div>
+
+    {% set latest_mcd64 = mcd64_runs[0].metadata or {} %}
+
+    {% if latest_mcd64.get('qa_rejection_counts') %}
+    <div class="warning">
+
+      <strong>最近一次 QA 拒绝原因：</strong>
+
+      {% for key, value in latest_mcd64.get('qa_rejection_counts', {}).items() %}
+
+        <code>{{ key }}</code>
+        = {{ value }}
+
+        {% if not loop.last %}
+          ；
+        {% endif %}
+
+      {% endfor %}
+
+    </div>
+    {% endif %}
+
   </section>
   {% endif %}
 

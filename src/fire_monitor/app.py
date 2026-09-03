@@ -33,6 +33,10 @@ from fire_monitor.services.firms_processing_service import (
     FirmsProcessingService,
 )
 
+from fire_monitor.services.mcd64_processing_service import (
+    Mcd64ProcessingService,
+)
+
 SCOPE_LABELS = {
     "firms_only": "仅 FIRMS 主动火点",
     "mcd64_only": "仅 MCD64A1 火烧迹地",
@@ -130,6 +134,12 @@ def create_app(
         )
     )
 
+    mcd64_processing_service = (
+        Mcd64ProcessingService(
+            database
+        )
+    )
+
     app = Flask(
         __name__,
         template_folder=str(
@@ -167,6 +177,10 @@ def create_app(
     app.extensions[
         "firms_processing_service"
     ] = firms_processing_service
+
+    app.extensions[
+        "mcd64_processing_service"
+    ] = mcd64_processing_service
 
     def query_args() -> tuple[
         str | None,
@@ -269,6 +283,26 @@ def create_app(
             )
         )
 
+        mcd64_pairs = (
+            (
+                    readiness.details
+                    or {}
+            ).get(
+                "mcd64_pairs",
+                [],
+            )
+        )
+
+        mcd64_runs = (
+            database.list_import_runs(
+                task_id=task_id,
+                data_kind=(
+                    "burned_pixels_tif"
+                ),
+                limit=20,
+            )
+        )
+
         region_count = len(
             database.list_regions()
         )
@@ -289,6 +323,12 @@ def create_app(
                 ),
                 firms_runs=(
                     firms_runs
+                ),
+                mcd64_pairs=(
+                    mcd64_pairs
+                ),
+                mcd64_runs=(
+                    mcd64_runs
                 ),
                 region_count=(
                     region_count
@@ -595,6 +635,77 @@ def create_app(
                 page_error=(
                         "FIRMS 处理失败："
                         + str(exc)
+                ),
+                http_status=400,
+            )
+
+        return redirect(
+            url_for(
+                "task_detail",
+                task_id=task_id,
+            )
+        )
+
+    @app.post(
+        "/tasks/<task_id>/process/mcd64"
+    )
+    def process_task_mcd64(
+        task_id: str,
+    ):
+        task = (
+            task_service
+            .get_task(task_id)
+        )
+
+        if task is None:
+            return (
+                "分析任务不存在。",
+                404,
+            )
+
+        qa_policy = (
+            request.form
+            .get(
+                "qa_policy",
+                "standard",
+            )
+            .strip()
+        )
+
+        if qa_policy not in {
+            "standard",
+            "strict",
+        }:
+            return render_task_detail(
+                task_id,
+                page_error=(
+                    "MCD64A1 处理失败："
+                    "QA 策略无效。"
+                ),
+                http_status=400,
+            )
+
+        try:
+            (
+                mcd64_processing_service
+                .process_task(
+                    task_id,
+                    qa_policy=qa_policy,
+                )
+            )
+
+        except (
+            ValueError,
+            KeyError,
+            FileNotFoundError,
+            RuntimeError,
+            OSError,
+        ) as exc:
+            return render_task_detail(
+                task_id,
+                page_error=(
+                    "MCD64A1 处理失败："
+                    + str(exc)
                 ),
                 http_status=400,
             )

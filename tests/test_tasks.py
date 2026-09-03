@@ -35,7 +35,7 @@ def test_database_migration_creates_task_tables(
     assert "analysis_tasks" in tables
     assert "input_files" in tables
     assert "boundary_sets" in tables
-    assert version == 2
+    assert version == 3
 
 
 def test_existing_tables_are_preserved(
