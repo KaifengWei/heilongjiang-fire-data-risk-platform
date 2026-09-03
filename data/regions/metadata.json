@@ -2,6 +2,8 @@
   "name": "黑龙江省行政区空间数据",
   "level": "city",
   "version": "1.0",
-  "coordinate_system": "WGS84",
-  "description": "用于火点和火烧迹地区域统计"
+  "coordinate_system": "EPSG:4326",
+  "province": "黑龙江省",
+  "region_count": 13,
+  "description": "用于火点检测、火烧迹地统计和风险评估空间分区"
 }
