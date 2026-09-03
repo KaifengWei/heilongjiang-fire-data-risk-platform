@@ -1,0 +1,7 @@
+{
+  "name": "黑龙江省行政区空间数据",
+  "level": "city",
+  "version": "1.0",
+  "coordinate_system": "WGS84",
+  "description": "用于火点和火烧迹地区域统计"
+}
