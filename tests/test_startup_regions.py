@@ -1,23 +1,24 @@
-# Day6：行政区基础数据导入与管理测试
+# Day6-2：默认行政区数据启动初始化测试
 from pathlib import Path
 import json
 
+
 from fire_monitor.storage.database import Database
 from fire_monitor.services.region_service import RegionService
+from fire_monitor.services.startup_service import StartupService
 
 
 
 def create_geojson(
-    path: Path
+    path: Path,
 ):
-
     data = {
         "type": "FeatureCollection",
         "features": [
             {
                 "type": "Feature",
                 "properties": {
-                    "name": "测试区域"
+                    "name": "默认区域"
                 },
                 "geometry": {
                     "type": "Polygon",
@@ -44,10 +45,10 @@ def create_geojson(
                                 45
                             ],
                         ]
-                    ]
-                }
+                    ],
+                },
             }
-        ]
+        ],
     }
 
 
@@ -61,35 +62,55 @@ def create_geojson(
 
 
 
-def test_import_regions_from_geojson(
+def create_service(
     tmp_path,
 ):
 
     database = Database(
         tmp_path / "test.sqlite"
     )
+
     database.initialize()
 
-    service = RegionService(
-        database
+    region_service = (
+        RegionService(
+            database
+        )
+    )
+
+    return (
+        database,
+        StartupService(
+            database,
+            region_service,
+            tmp_path
+            /
+            "default.geojson",
+        ),
     )
 
 
-    geojson = (
-        tmp_path
-        /
-        "region.geojson"
+
+def test_startup_imports_default_regions(
+    tmp_path,
+):
+
+    database, startup = (
+        create_service(
+            tmp_path
+        )
     )
 
     create_geojson(
-        geojson
+        tmp_path
+        /
+        "default.geojson"
     )
 
 
-    count = service.import_geojson(
-        geojson,
-        source="test",
-        version="1.0",
+    count = (
+        startup
+        .initialize_default_regions()
     )
 
 
@@ -97,14 +118,57 @@ def test_import_regions_from_geojson(
 
 
     regions = (
-        service.list_regions()
+        database.list_regions()
     )
-
 
     assert len(regions) == 1
 
-    assert (
-        regions[0]["name"]
-        ==
-        "测试区域"
+
+
+def test_startup_skips_existing_regions(
+    tmp_path,
+):
+
+    database, startup = (
+        create_service(
+            tmp_path
+        )
     )
+
+    create_geojson(
+        tmp_path
+        /
+        "default.geojson"
+    )
+
+
+    startup.initialize_default_regions()
+
+
+    count = (
+        startup
+        .initialize_default_regions()
+    )
+
+
+    assert count == 0
+
+
+def test_startup_without_file_does_not_fail(
+    tmp_path,
+):
+
+    database, startup = (
+        create_service(
+            tmp_path
+        )
+    )
+
+
+    count = (
+        startup
+        .initialize_default_regions()
+    )
+
+
+    assert count == 0
