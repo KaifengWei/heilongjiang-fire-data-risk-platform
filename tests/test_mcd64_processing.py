@@ -345,6 +345,16 @@ def test_task_mcd64_standard_processing(
     assert pixel_count == 3
     assert membership_count == 3
 
+    with database.connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT region_name
+            FROM burned_pixels
+            """
+        ).fetchall()
+
+    assert rows
+    assert rows[0]["region_name"] == "测试区域"
 
 def test_repeated_processing_does_not_duplicate_pixels(
     tmp_path,

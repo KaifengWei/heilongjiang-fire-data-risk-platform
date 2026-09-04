@@ -1,9 +1,43 @@
 {
-  "name": "黑龙江省行政区空间数据",
+  "name": "黑龙江省地级行政区边界",
   "level": "city",
-  "version": "1.0",
-  "coordinate_system": "EPSG:4326",
-  "province": "黑龙江省",
   "region_count": 13,
-  "description": "用于火点检测、火烧迹地统计和风险评估空间分区"
+  "source_dataset": "1:100万公众版基础地理信息数据（2021）",
+  "source_provider": "全国地理信息资源目录服务系统",
+  "source_layer": "BOUA",
+  "source_crs": "EPSG:4490",
+  "source_url": "https://www.webmap.cn/commres.do?method=result25W",
+  "source_actuality": "2019",
+  "attribution": "数据来源：全国地理信息资源目录服务系统",
+  "geometry_crs": "EPSG:4326",
+  "source_sheets": [
+    "K52",
+    "L51",
+    "L52",
+    "L53",
+    "M51",
+    "M52",
+    "M53",
+    "N51",
+    "N52"
+  ],
+  "source_packages": [
+    {
+      "filename": "20260904150033812.zip",
+      "sha256": "5fbd3f168a394a10f7f8ecfc9217186af058cf0619d5a756f95c25f51ed25940"
+    },
+    {
+      "filename": "20260904150050802.zip",
+      "sha256": "daaa94a3a04f6ec462b0354479c122eb03af481f43959e206724c5d9dff13379"
+    }
+  ],
+  "source_boua_rows": 174,
+  "unique_county_pac": 128,
+  "processing": {
+    "province_filter": "PAC startswith 23",
+    "grouping": "PAC first four digits",
+    "geometry_operation": "polygon union/dissolve",
+    "coordinate_conversion": "EPSG:4490 -> EPSG:4326"
+  },
+  "output_file": "heilongjiang_city.geojson"
 }

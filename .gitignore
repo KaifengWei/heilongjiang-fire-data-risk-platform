@@ -15,6 +15,7 @@ data/runtime/*
 data/private/
 *.sqlite
 *.sqlite-journal
+data/raw_regions/official_1m/*.zip
 
 # GIS and raster source data are managed outside the repository by default
 *.tif
