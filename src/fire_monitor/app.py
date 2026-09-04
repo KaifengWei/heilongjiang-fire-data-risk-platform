@@ -37,6 +37,10 @@ from fire_monitor.services.mcd64_processing_service import (
     Mcd64ProcessingService,
 )
 
+from fire_monitor.services.statistics_service import (
+    StatisticsService,
+)
+
 SCOPE_LABELS = {
     "firms_only": "仅 FIRMS 主动火点",
     "mcd64_only": "仅 MCD64A1 火烧迹地",
@@ -140,6 +144,12 @@ def create_app(
         )
     )
 
+    statistics_service = (
+        StatisticsService(
+            database
+        )
+    )
+
     app = Flask(
         __name__,
         template_folder=str(
@@ -181,6 +191,10 @@ def create_app(
     app.extensions[
         "mcd64_processing_service"
     ] = mcd64_processing_service
+
+    app.extensions[
+        "statistics_service"
+    ] = statistics_service
 
     def query_args() -> tuple[
         str | None,
@@ -776,6 +790,49 @@ def create_app(
                 start,
                 end,
             )
+        )
+
+    @app.get("/api/statistics/regions")
+    def statistics_regions():
+
+        return jsonify(
+            {
+                "regions": (
+                    statistics_service
+                    .region_statistics()
+                )
+            }
+        )
+
+
+    @app.get("/api/statistics/ranking")
+    def statistics_ranking():
+
+        metric = (
+            request.args.get(
+                "metric",
+                "burned_area_km2",
+            )
+        )
+
+        limit = int(
+            request.args.get(
+                "limit",
+                "10",
+            )
+        )
+
+        return jsonify(
+            {
+                "metric": metric,
+                "ranking": (
+                    statistics_service
+                    .region_ranking(
+                        metric=metric,
+                        limit=limit,
+                    )
+                ),
+            }
         )
 
     @app.get("/api/daily")
