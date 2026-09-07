@@ -23,6 +23,8 @@
   </nav>
 </header>
 
+
+
 <main>
   {% set scope = (task.parameters or {}).get('analysis_scope', 'combined') %}
 
@@ -704,6 +706,124 @@
 
   </section>
   {% endif %}
+
+  <section class="panel task-list-panel">
+
+    <div class="panel-heading">
+      <div>
+        <h2>当前任务统计结果</h2>
+
+        <p>
+          以下结果仅统计当前分析任务正式处理并关联的数据，
+          不包含其他分析任务的历史结果。
+        </p>
+      </div>
+    </div>
+
+    {% if task_region_statistics %}
+
+      <dl class="detail-list">
+
+        <div>
+          <dt>FIRMS 主动火点观测记录数</dt>
+          <dd>
+            {{
+              task_region_statistics
+              | sum(attribute='active_fire_count')
+            }}
+          </dd>
+        </div>
+
+        <div>
+          <dt>MCD64A1 烧毁像元数</dt>
+          <dd>
+            {{
+              task_region_statistics
+              | sum(attribute='burned_pixel_count')
+            }}
+          </dd>
+        </div>
+
+        <div>
+          <dt>烧毁像元面积估计</dt>
+          <dd>
+            {{
+              (
+                task_region_statistics
+                | sum(attribute='burned_area_km2')
+              )
+              | round(6)
+            }}
+            km²
+          </dd>
+        </div>
+
+      </dl>
+
+
+      <div class="table-wrap">
+
+        <table>
+
+          <thead>
+            <tr>
+              <th>行政区</th>
+              <th>FIRMS 主动火点观测记录</th>
+              <th>MCD64A1 烧毁像元</th>
+              <th>烧毁像元面积估计 km²</th>
+            </tr>
+          </thead>
+
+          <tbody>
+
+          {% for item in task_region_statistics %}
+
+            <tr>
+              <td>
+                {{ item.region_name }}
+              </td>
+
+              <td>
+                {{ item.active_fire_count }}
+              </td>
+
+              <td>
+                {{ item.burned_pixel_count }}
+              </td>
+
+              <td>
+                {{
+                  item.burned_area_km2
+                  | round(6)
+                }}
+              </td>
+            </tr>
+
+          {% endfor %}
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+
+      <p class="scope-note">
+        FIRMS 数值表示卫星主动火点观测记录数，
+        不等同于独立火灾事件数。
+        MCD64A1 面积为遥感产品筛选后的烧毁像元面积估计，
+        不等同于地面核定灾损面积。
+      </p>
+
+    {% else %}
+
+      <p class="empty-state">
+        当前任务尚无正式处理后的统计结果。
+      </p>
+
+    {% endif %}
+
+  </section>
 
 </main>
 

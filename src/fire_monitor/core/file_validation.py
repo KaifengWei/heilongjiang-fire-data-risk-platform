@@ -182,6 +182,16 @@ def validate_firms_csv(
             {"acq_date", "date", "日期"},
         )
 
+        time_col = _find_column(
+            fieldnames,
+            {"acq_time"},
+        )
+
+        satellite_col = _find_column(
+            fieldnames,
+            {"satellite"},
+        )
+
         instrument_col = _find_column(
             fieldnames,
             {"instrument", "传感器"},
@@ -201,6 +211,12 @@ def validate_firms_csv(
 
         if date_col is None:
             missing_required.append("acq_date")
+
+        if time_col is None:
+            missing_required.append("acq_time")
+
+        if satellite_col is None:
+            missing_required.append("satellite")
 
         if missing_required:
             return ValidationResult(
@@ -309,6 +325,8 @@ def validate_firms_csv(
         "latitude_column": latitude_col,
         "longitude_column": longitude_col,
         "date_column": date_col,
+        "time_column": time_col,
+        "satellite_column": satellite_col,
         "instrument_column": instrument_col,
         "confidence_column": confidence_col,
     }

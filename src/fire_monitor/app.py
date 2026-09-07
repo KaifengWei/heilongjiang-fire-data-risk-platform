@@ -321,6 +321,13 @@ def create_app(
             database.list_regions()
         )
 
+        task_region_statistics = (
+            statistics_service
+            .task_region_statistics(
+                task_id
+            )
+        )
+
         return (
             render_template(
                 "task_detail.html",
@@ -346,6 +353,9 @@ def create_app(
                 ),
                 region_count=(
                     region_count
+                ),
+                task_region_statistics=(
+                    task_region_statistics
                 ),
             ),
             http_status,

@@ -125,8 +125,10 @@ def test_web_uploads_real_firms_file_and_becomes_ready(
 
     firms_content = (
         "latitude,longitude,acq_date,"
+        "acq_time,satellite,"
         "instrument,confidence\n"
         "45.75,126.65,2026-03-15,"
+        "0320,N,"
         "VIIRS,n\n"
     ).encode("utf-8")
 

@@ -78,8 +78,10 @@ def _create_valid_firms(
     path.write_text(
         (
             "latitude,longitude,acq_date,"
+            "acq_time,satellite,"
             "instrument,confidence\n"
             "45.75,126.65,2026-03-15,"
+            "0320,N,"
             "VIIRS,n\n"
         ),
         encoding="utf-8",
@@ -428,8 +430,10 @@ def test_firms_warning_does_not_block_firms_only_task(
 
     firms_path.write_text(
         (
-            "latitude,longitude,acq_date\n"
-            "45.75,126.65,2026-03-15\n"
+            "latitude,longitude,acq_date,"
+            "acq_time,satellite\n"
+            "45.75,126.65,2026-03-15,"
+            "0320,N\n"
         ),
         encoding="utf-8",
     )

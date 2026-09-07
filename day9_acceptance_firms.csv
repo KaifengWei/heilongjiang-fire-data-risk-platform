@@ -1,0 +1,3 @@
+﻿latitude,longitude,acq_date,acq_time,satellite,instrument,confidence
+45.75,126.65,2026-03-15,0320,N,VIIRS,n
+47.35,123.95,2026-03-16,0415,N,VIIRS,h

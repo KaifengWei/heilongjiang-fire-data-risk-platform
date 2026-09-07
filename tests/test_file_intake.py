@@ -26,10 +26,13 @@ def test_valid_firms_csv(
     source.write_text(
         (
             "latitude,longitude,acq_date,"
+            "acq_time,satellite,"
             "instrument,confidence\n"
             "45.75,126.65,2026-03-15,"
+            "0320,N,"
             "VIIRS,n\n"
             "46.10,127.20,2026-03-16,"
+            "0415,N,"
             "VIIRS,h\n"
         ),
         encoding="utf-8",
@@ -66,6 +69,28 @@ def test_firms_csv_missing_required_column(
     assert result.accepted is False
     assert "longitude" in result.message
 
+def test_firms_csv_missing_identity_columns_is_invalid(
+    tmp_path,
+):
+    source = tmp_path / "missing_identity.csv"
+
+    source.write_text(
+        (
+            "latitude,longitude,acq_date,"
+            "instrument,confidence\n"
+            "45.75,126.65,2026-03-15,"
+            "VIIRS,n\n"
+        ),
+        encoding="utf-8",
+    )
+
+    result = validate_firms_csv(source)
+
+    assert result.status == "invalid"
+    assert result.accepted is False
+    assert "acq_time" in result.message
+    assert "satellite" in result.message
+
 
 def test_firms_csv_warns_about_bad_rows(
     tmp_path,
@@ -75,10 +100,13 @@ def test_firms_csv_warns_about_bad_rows(
     source.write_text(
         (
             "latitude,longitude,acq_date,"
+            "acq_time,satellite,"
             "instrument,confidence\n"
             "45.75,126.65,2026-03-15,"
+            "0320,N,"
             "VIIRS,n\n"
             "999,126.70,2026-03-16,"
+            "0415,N,"
             "VIIRS,n\n"
         ),
         encoding="utf-8",
@@ -106,8 +134,10 @@ def test_firms_csv_without_quality_columns_warns(
 
     source.write_text(
         (
-            "latitude,longitude,acq_date\n"
-            "45.75,126.65,2026-03-15\n"
+            "latitude,longitude,acq_date,"
+            "acq_time,satellite\n"
+            "45.75,126.65,2026-03-15,"
+            "0320,N\n"
         ),
         encoding="utf-8",
     )
@@ -143,8 +173,10 @@ def test_validation_service_copies_and_registers_file(
     source.write_text(
         (
             "latitude,longitude,acq_date,"
+            "acq_time,satellite,"
             "instrument,confidence\n"
             "45.75,126.65,2026-03-15,"
+            "0320,N,"
             "VIIRS,n\n"
         ),
         encoding="utf-8",
@@ -208,8 +240,10 @@ def test_same_file_is_not_registered_twice(
     source.write_text(
         (
             "latitude,longitude,acq_date,"
+            "acq_time,satellite,"
             "instrument,confidence\n"
             "45.75,126.65,2026-03-15,"
+            "0320,N,"
             "VIIRS,n\n"
         ),
         encoding="utf-8",
