@@ -57,7 +57,7 @@
     <section class="warning" aria-label="指标口径提示">
       <strong>先看口径：</strong>
       红色“主动火点观测记录”来自 FIRMS 等卫星热异常产品；绿色“烧毁像元”来自火烧迹地产品。二者不是同一个指标，不能相互替代，也不等于独立火灾事件数。
-      <br><strong>当前版本：</strong>v0.1 已实现本地分析任务创建、FIRMS CSV 与 MCD64A1 GeoTIFF 文件上传及基础校验、MCD64A1 Burn Date/QA 配对检查，以及既有查询、 面积统计、地图和 CSV 导出功能。HDF-EOS 直读、MCD64A1 QA 位筛选和风险规则引擎尚未实现。
+      <br><strong>当前版本：</strong>v0.1.1 已实现本地分析任务创建、FIRMS CSV 与 MCD64A1 GeoTIFF 文件上传及基础校验、 MCD64A1 Burn Date/QA 配对检查、正式处理阶段的 QA 位质量筛选，以及查询、面积统计、 地图和 CSV 导出功能。HDF-EOS 直读和风险规则引擎尚未实现。
     </section>
 
     <section class="definition-grid input-contract" aria-label="当前文件提交范围">
@@ -83,9 +83,9 @@
   <article>
     <h3>当前 QA 边界</h3>
     <p>
-      当前版本已经校验 QA 栅格是否能够与 Burn Date 正确逐像元配对，
-      但尚未执行 MCD64A1 QA bit 质量筛选。
-      因此“输入已就绪”不代表 QA 质量控制已经完成。
+        当前版本在正式 MCD64A1 处理中支持 standard / strict 两种平台定义的 QA 筛选策略。
+        READY 仅表示输入文件与配对条件满足，不代表 QA 筛选已经执行；
+        QA 筛选在正式处理阶段完成。
     </p>
   </article>
 
@@ -121,7 +121,24 @@
             <label><input id="showBurned" type="checkbox" checked> 绿色烧毁像元</label>
           </div>
         </div>
-        <canvas id="mapCanvas" width="1200" height="610" aria-label="火点与烧毁像元分布图"></canvas>
+          <div class="map-viewport">
+        <canvas
+            id="mapCanvas"
+            width="1200"
+            height="720"
+            aria-label="黑龙江省行政区、主动火点与烧毁像元空间分布图"
+        ></canvas>
+
+        <div
+            id="mapTooltip"
+            class="map-tooltip"
+            hidden
+        ></div>
+
+        </div>
+        <p class="map-help">
+        将鼠标移到行政区可查看名称；单击行政区可直接按该区域查询。
+        </p>
       </article>
 
       <article class="panel data-panel">
