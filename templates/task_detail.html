@@ -825,6 +825,134 @@
 
   </section>
 
+<section class="panel task-list-panel">
+
+  <div class="panel-heading">
+    <div>
+      <h2>任务内相对火情关注等级</h2>
+      <p>
+        基于当前任务正式处理后的 FIRMS 主动火点观测记录
+        与 MCD64A1 烧毁像元面积估计进行任务内相对比较。
+      </p>
+    </div>
+  </div>
+
+  {% if task_risk_assessment %}
+
+    <dl class="detail-list">
+
+      <div>
+        <dt>规则版本</dt>
+        <dd>
+          {{ task_risk_assessment.rule_version }}
+        </dd>
+      </div>
+
+      <div>
+        <dt>评估范围</dt>
+        <dd>
+          当前分析任务内行政区相对比较
+        </dd>
+      </div>
+
+      <div>
+        <dt>规则标识</dt>
+        <dd>
+          {{ task_risk_assessment.rule_id }}
+        </dd>
+      </div>
+
+    </dl>
+
+    <div class="table-wrap">
+
+      <table class="risk-table">
+
+        <thead>
+          <tr>
+            <th>行政区</th>
+            <th>相对关注等级</th>
+            <th>FIRMS 主动火点观测记录</th>
+            <th>MCD64A1 烧毁像元面积估计 km²</th>
+            <th>相对分值</th>
+            <th>评估说明</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+        {% for item in task_risk_assessment.regions %}
+
+          <tr>
+
+            <td>
+              {{ item.region_name }}
+            </td>
+
+            <td>
+              <span
+                class="attention-badge"
+                data-level="{{ item.attention_level }}"
+              >
+                {{ item.attention_level }}
+              </span>
+            </td>
+
+            <td>
+              {{ item.active_fire_count }}
+            </td>
+
+            <td>
+              {{
+                item.burned_area_km2
+                | round(6)
+              }}
+            </td>
+
+            <td>
+              {% if item.relative_score is not none %}
+                {{
+                  item.relative_score
+                  | round(3)
+                }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+
+            <td class="risk-explanation">
+              {{ item.explanation }}
+            </td>
+
+          </tr>
+
+        {% endfor %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+    <p class="scope-note">
+      相对分值仅表示当前任务内部各行政区在可用遥感指标中的相对位置，
+      不是火灾发生概率，也不是绝对风险概率。
+    </p>
+
+    <p class="risk-disclaimer">
+      {{ task_risk_assessment.disclaimer }}
+    </p>
+
+  {% else %}
+
+    <p class="empty-state">
+      当前任务尚未完成 FIRMS 或 MCD64A1 正式处理，
+      暂不生成相对火情关注等级。
+    </p>
+
+  {% endif %}
+
+</section>
 </main>
 
 <footer>

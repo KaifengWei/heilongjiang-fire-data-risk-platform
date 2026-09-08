@@ -40,6 +40,9 @@ from fire_monitor.services.mcd64_processing_service import (
 from fire_monitor.services.statistics_service import (
     StatisticsService,
 )
+from fire_monitor.services.risk_assessment_service import (
+    RiskAssessmentService,
+)
 
 SCOPE_LABELS = {
     "firms_only": "仅 FIRMS 主动火点",
@@ -150,6 +153,13 @@ def create_app(
         )
     )
 
+    risk_assessment_service = (
+        RiskAssessmentService(
+            database,
+            statistics_service,
+        )
+    )
+
     app = Flask(
         __name__,
         template_folder=str(
@@ -195,6 +205,10 @@ def create_app(
     app.extensions[
         "statistics_service"
     ] = statistics_service
+
+    app.extensions[
+        "risk_assessment_service"
+    ] = risk_assessment_service
 
     def query_args() -> tuple[
         str | None,
@@ -328,6 +342,26 @@ def create_app(
             )
         )
 
+        has_completed_processing = (
+                any(
+                    run["status"] == "completed"
+                    for run in firms_runs
+                )
+                or any(
+            run["status"] == "completed"
+            for run in mcd64_runs
+        )
+        )
+
+        task_risk_assessment = (
+            risk_assessment_service
+            .assess_task(
+                task_id
+            )
+            if has_completed_processing
+            else None
+        )
+
         return (
             render_template(
                 "task_detail.html",
@@ -356,6 +390,9 @@ def create_app(
                 ),
                 task_region_statistics=(
                     task_region_statistics
+                ),
+                task_risk_assessment=(
+                    task_risk_assessment
                 ),
             ),
             http_status,
