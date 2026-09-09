@@ -828,14 +828,33 @@
 <section class="panel task-list-panel">
 
   <div class="panel-heading">
-    <div>
-      <h2>任务内相对火情关注等级</h2>
-      <p>
-        基于当前任务正式处理后的 FIRMS 主动火点观测记录
-        与 MCD64A1 烧毁像元面积估计进行任务内相对比较。
-      </p>
-    </div>
+
+  <div>
+    <h2>任务内相对火情关注等级</h2>
+
+    <p>
+      基于当前任务正式处理后的 FIRMS 主动火点观测记录
+      与 MCD64A1 烧毁像元面积估计进行任务内相对比较。
+    </p>
   </div>
+
+  {% if task_risk_assessment %}
+
+    <a
+      class="secondary-button"
+      href="{{
+        url_for(
+          'export_task_csv',
+          task_id=task_id
+        )
+      }}"
+    >
+      导出任务结果 CSV
+    </a>
+
+  {% endif %}
+
+</div>
 
   {% if task_risk_assessment %}
 

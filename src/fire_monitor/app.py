@@ -366,6 +366,7 @@ def create_app(
             render_template(
                 "task_detail.html",
                 task=task,
+                task_id=task_id,
                 files=files,
                 readiness=readiness,
                 scope_labels=SCOPE_LABELS,
@@ -951,6 +952,231 @@ def create_app(
         payload["limit"] = limit
 
         return jsonify(payload)
+
+    @app.get(
+        "/tasks/<task_id>/export.csv"
+    )
+    def export_task_csv(
+            task_id: str,
+    ):
+        task = (
+            task_service
+            .get_task(task_id)
+        )
+
+        if task is None:
+            return (
+                "分析任务不存在。",
+                404,
+            )
+
+        firms_runs = (
+            database.list_import_runs(
+                task_id=task_id,
+                data_kind=(
+                    "active_fire_observations"
+                ),
+                limit=50,
+            )
+        )
+
+        mcd64_runs = (
+            database.list_import_runs(
+                task_id=task_id,
+                data_kind=(
+                    "burned_pixels_tif"
+                ),
+                limit=50,
+            )
+        )
+
+        has_completed_processing = (
+                any(
+                    run["status"] == "completed"
+                    for run in firms_runs
+                )
+                or any(
+            run["status"] == "completed"
+            for run in mcd64_runs
+        )
+        )
+
+        if not has_completed_processing:
+            raise ValueError(
+                "当前任务尚未完成 FIRMS "
+                "或 MCD64A1 正式处理，"
+                "暂不能导出任务风险评估结果。"
+            )
+
+        assessment = (
+            risk_assessment_service
+            .assess_task(
+                task_id
+            )
+        )
+
+        buffer = StringIO(
+            newline=""
+        )
+
+        writer = csv.writer(
+            buffer
+        )
+
+        # -----------------------------
+        # 任务与规则说明
+        # -----------------------------
+
+        writer.writerow(
+            [
+                "数据说明",
+                "值",
+            ]
+        )
+
+        writer.writerow(
+            [
+                "分析任务 ID",
+                task_id,
+            ]
+        )
+
+        writer.writerow(
+            [
+                "评估类型",
+                "任务内相对火情关注等级",
+            ]
+        )
+
+        writer.writerow(
+            [
+                "规则标识",
+                assessment[
+                    "rule_id"
+                ],
+            ]
+        )
+
+        writer.writerow(
+            [
+                "规则版本",
+                assessment[
+                    "rule_version"
+                ],
+            ]
+        )
+
+        writer.writerow(
+            [
+                "评估范围",
+                "当前分析任务内行政区相对比较",
+            ]
+        )
+
+        writer.writerow(
+            [
+                "重要说明",
+                assessment[
+                    "disclaimer"
+                ],
+            ]
+        )
+
+        writer.writerow([])
+
+        # -----------------------------
+        # 行政区评估结果
+        # -----------------------------
+
+        writer.writerow(
+            [
+                "行政区",
+                "FIRMS 主动火点观测记录数",
+                "MCD64A1 烧毁像元数",
+                "MCD64A1 烧毁像元面积估计 km²",
+                "FIRMS 相对位置",
+                "MCD64A1 面积相对位置",
+                "相对分值",
+                "相对关注等级",
+                "评估说明",
+            ]
+        )
+
+        for item in assessment[
+            "regions"
+        ]:
+            writer.writerow(
+                [
+                    item[
+                        "region_name"
+                    ],
+                    item[
+                        "active_fire_count"
+                    ],
+                    item[
+                        "burned_pixel_count"
+                    ],
+                    item[
+                        "burned_area_km2"
+                    ],
+                    (
+                        item[
+                            "active_fire_relative_position"
+                        ]
+                        if item[
+                               "active_fire_relative_position"
+                           ]
+                           is not None
+                        else ""
+                    ),
+                    (
+                        item[
+                            "burned_area_relative_position"
+                        ]
+                        if item[
+                               "burned_area_relative_position"
+                           ]
+                           is not None
+                        else ""
+                    ),
+                    (
+                        item[
+                            "relative_score"
+                        ]
+                        if item[
+                               "relative_score"
+                           ]
+                           is not None
+                        else ""
+                    ),
+                    item[
+                        "attention_level"
+                    ],
+                    item[
+                        "explanation"
+                    ],
+                ]
+            )
+
+        filename = (
+            f"fire_monitor_task_"
+            f"{task_id}.csv"
+        )
+
+        return Response(
+            "\ufeff"
+            + buffer.getvalue(),
+            content_type=(
+                "text/csv; "
+                "charset=utf-8"
+            ),
+            headers={
+                "Content-Disposition": (
+                    'attachment; '
+                    f'filename="{filename}"'
+                )
+            },
+        )
 
     @app.get("/api/export.csv")
     def export_csv():
