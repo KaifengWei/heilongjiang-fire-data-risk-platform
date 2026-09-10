@@ -1,167 +1,921 @@
 <!doctype html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>黑龙江省火点数据检测与风险评估平台</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
+  <title>
+    黑龙江省火点数据检测与风险评估平台
+  </title>
+
+  <link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='styles.css') }}"
+  >
 </head>
-<body>
-  <header class="site-header">
-    <div>
-      <p class="eyebrow">FIRE DATA ANALYSIS · V0.1</p>
-      <h1>黑龙江省火点数据检测与风险评估平台</h1>
-      <p class="subtitle">
-  接收用户自行获取的受支持 FIRMS 与 MCD64A1 数据，
-  对输入文件进行校验、统计、制图和可追溯分析。
-</p>
 
-<p>
-  <a class="header-link" href="{{ url_for('tasks') }}">
-    进入分析任务
-  </a>
-</p>
+
+<body class="v1-dashboard">
+
+
+<header class="v1-header">
+
+  <div class="v1-brand">
+
+    <div class="v1-brand-mark">
+      F
     </div>
-    <div id="dataState" class="data-state">正在读取数据状态…</div>
-  </header>
 
-  <main>
-    <section class="query-panel" aria-label="查询条件">
-      <label>
-        区域
-        <select id="regionSelect"><option value="">全部已导入区域</option></select>
-      </label>
-      <label>
-        开始日期
-        <input id="startDate" type="date">
-      </label>
-      <label>
-        结束日期
-        <input id="endDate" type="date">
-      </label>
-      <label>
-        地图最多显示点数
-        <select id="mapLimit">
-          <option value="500">500</option>
-          <option value="1000" selected>1000</option>
-          <option value="2000">2000</option>
-          <option value="5000">5000</option>
-        </select>
-      </label>
-      <div class="query-actions">
-        <button id="refreshButton" type="button">查询统计</button>
-        <a id="exportLink" class="secondary-button" href="/api/export.csv">导出本次查询 CSV</a>
+
+    <div>
+
+      <p class="v1-kicker">
+        REMOTE SENSING FIRE MONITOR
+      </p>
+
+      <h1>
+        黑龙江省火点数据检测与风险评估平台
+      </h1>
+
+      <p>
+        主动火点 · 火烧迹地 · 行政区空间分析 · 相对关注评估
+      </p>
+
+    </div>
+
+  </div>
+
+
+  <div class="v1-header-actions">
+
+    <a
+      class="v1-header-button"
+      href="{{ url_for('tasks') }}"
+    >
+      分析任务
+    </a>
+
+  </div>
+
+</header>
+
+
+
+<main class="v1-main">
+
+
+  <!-- ===================================================
+       查询控制
+  ==================================================== -->
+
+  <section class="v1-toolbar">
+
+
+    <div class="v1-view-status">
+
+      <span class="v1-status-dot"></span>
+
+      <div>
+
+        <small>
+          当前视图
+        </small>
+
+        <strong id="currentViewText">
+          黑龙江省 · 全省总览
+        </strong>
+
       </div>
-    </section>
 
-    <section class="warning" aria-label="指标口径提示">
-      <strong>先看口径：</strong>
-      红色“主动火点观测记录”来自 FIRMS 等卫星热异常产品；绿色“烧毁像元”来自火烧迹地产品。二者不是同一个指标，不能相互替代，也不等于独立火灾事件数。
-      <br><strong>当前版本：</strong>v0.1.1 已实现本地分析任务创建、FIRMS CSV 与 MCD64A1 GeoTIFF 文件上传及基础校验、 MCD64A1 Burn Date/QA 配对检查、正式处理阶段的 QA 位质量筛选，以及查询、面积统计、 地图和 CSV 导出功能。HDF-EOS 直读和风险规则引擎尚未实现。
-    </section>
+    </div>
 
-    <section class="definition-grid input-contract" aria-label="当前文件提交范围">
 
-  <article>
-    <h3>FIRMS 主动火点</h3>
-    <p>
-      firms_only 或 combined 任务需要提交 FIRMS CSV。
-      当前系统进行字段、经纬度、日期和质量字段基础检查。
-      统计对象为主动火点观测记录，不等于独立火灾事件数。
-    </p>
-  </article>
 
-  <article>
-    <h3>MCD64A1 火烧迹地</h3>
-    <p>
-      mcd64_only 或 combined 任务需要提交同一产品月份的
-      Burn Date GeoTIFF 与 QA GeoTIFF。
-      系统检查产品日期、CRS、尺寸、GeoTransform、像元大小和空间范围。
-    </p>
-  </article>
+    <div class="v1-toolbar-fields">
 
-  <article>
-    <h3>当前 QA 边界</h3>
-    <p>
-        当前版本在正式 MCD64A1 处理中支持 standard / strict 两种平台定义的 QA 筛选策略。
-        READY 仅表示输入文件与配对条件满足，不代表 QA 筛选已经执行；
-        QA 筛选在正式处理阶段完成。
-    </p>
-  </article>
 
-</section>
+      <label>
 
-    <section class="metric-grid" aria-label="统计摘要">
-      <article class="metric-card active-card">
-        <p>主动火点观测记录数</p>
-        <strong id="activeCount">—</strong>
-        <span>条</span>
-      </article>
-      <article class="metric-card burned-card">
-        <p>烧毁像元数</p>
-        <strong id="burnedCount">—</strong>
-        <span>个</span>
-      </article>
-      <article class="metric-card area-card">
-        <p>火烧迹地面积</p>
-        <strong id="burnedArea">—</strong>
-        <span>km²</span>
-      </article>
-    </section>
+        行政区
 
-    <section class="content-grid">
-      <article class="panel map-panel">
-        <div class="panel-heading">
-          <div>
-            <h2>空间分布</h2>
-            <p id="mapNote">地图会在查询后显示。</p>
-          </div>
-          <div class="layer-controls">
-            <label><input id="showActive" type="checkbox" checked> 红色主动火点</label>
-            <label><input id="showBurned" type="checkbox" checked> 绿色烧毁像元</label>
-          </div>
+        <select id="regionSelect">
+
+          <option value="">
+            全省
+          </option>
+
+        </select>
+
+      </label>
+
+
+
+      <label>
+
+        开始日期
+
+        <input
+          id="startDate"
+          type="date"
+        >
+
+      </label>
+
+
+
+      <label>
+
+        结束日期
+
+        <input
+          id="endDate"
+          type="date"
+        >
+
+      </label>
+
+
+
+      <label>
+
+        地图点位
+
+        <select id="mapLimit">
+
+          <option value="500">
+            500
+          </option>
+
+          <option
+            value="1000"
+            selected
+          >
+            1000
+          </option>
+
+          <option value="2000">
+            2000
+          </option>
+
+          <option value="5000">
+            5000
+          </option>
+
+        </select>
+
+      </label>
+
+
+
+      <button
+        id="refreshButton"
+        class="v1-primary-button"
+        type="button"
+      >
+        查询
+      </button>
+
+
+
+      <button
+        id="resetOverviewButton"
+        class="v1-reset-button"
+        type="button"
+        hidden
+      >
+        ← 返回全省总览
+      </button>
+
+
+    </div>
+
+  </section>
+
+
+
+  <!-- ===================================================
+       核心指标
+  ==================================================== -->
+
+  <section class="v1-kpi-grid">
+
+
+    <article class="v1-kpi v1-kpi-fire">
+
+      <div class="v1-kpi-icon">
+        ●
+      </div>
+
+      <div>
+
+        <span>
+          FIRMS 主动火点观测
+        </span>
+
+        <strong id="activeCount">
+          —
+        </strong>
+
+        <small>
+          条记录
+        </small>
+
+      </div>
+
+    </article>
+
+
+
+    <article class="v1-kpi v1-kpi-region">
+
+      <div class="v1-kpi-icon">
+        ◫
+      </div>
+
+      <div>
+
+        <span id="compareTitle">
+          当前分析区域
+        </span>
+
+        <strong id="regionMetric">
+          全省
+        </strong>
+
+        <small id="regionMetricNote">
+          黑龙江省行政区范围
+        </small>
+
+      </div>
+
+    </article>
+
+
+
+    <article class="v1-kpi v1-kpi-burn">
+
+      <div class="v1-kpi-icon">
+        ■
+      </div>
+
+      <div>
+
+        <span>
+          MCD64A1 烧毁像元面积估计
+        </span>
+
+        <strong id="burnedArea">
+          —
+        </strong>
+
+        <small>
+          km²
+        </small>
+
+      </div>
+
+    </article>
+
+
+
+    <article class="v1-kpi v1-kpi-peak">
+
+      <div class="v1-kpi-icon">
+        ↑
+      </div>
+
+      <div>
+
+        <span>
+          FIRMS 峰值日期
+        </span>
+
+        <strong id="peakDay">
+          —
+        </strong>
+
+        <small id="peakDayLabel">
+          暂无数据
+        </small>
+
+      </div>
+
+    </article>
+
+
+  </section>
+
+
+
+  <!-- ===================================================
+       主工作区
+  ==================================================== -->
+
+  <section class="v1-primary-grid">
+
+
+    <!-- 地图 -->
+
+    <article class="v1-card v1-map-card">
+
+
+      <div class="v1-card-heading">
+
+
+        <div>
+
+          <p class="v1-section-kicker">
+            SPATIAL VIEW
+          </p>
+
+          <h2>
+            火情空间分布
+          </h2>
+
         </div>
-          <div class="map-viewport">
+
+
+
+        <div class="v1-map-tools">
+
+
+          <label>
+
+            <input
+              id="showActive"
+              type="checkbox"
+              checked
+            >
+
+            <span class="v1-dot-fire"></span>
+
+            主动火点
+
+          </label>
+
+
+
+          <label>
+
+            <input
+              id="showBurned"
+              type="checkbox"
+              checked
+            >
+
+            <span class="v1-dot-burn"></span>
+
+            烧毁像元
+
+          </label>
+
+
+        </div>
+
+
+      </div>
+
+
+
+      <div class="v1-map-stage">
+
+
         <canvas
-            id="mapCanvas"
-            width="1200"
-            height="720"
-            aria-label="黑龙江省行政区、主动火点与烧毁像元空间分布图"
-        ></canvas>
+          id="mapCanvas"
+          width="1200"
+          height="680"
+        >
+        </canvas>
+
 
         <div
-            id="mapTooltip"
-            class="map-tooltip"
+          id="mapTooltip"
+          class="v1-map-tooltip"
+          hidden
+        >
+        </div>
+
+
+
+        <div class="v1-map-floating">
+
+
+          <div>
+
+            <span>
+              当前范围
+            </span>
+
+            <strong id="mapScopeText">
+              全省
+            </strong>
+
+          </div>
+
+
+          <button
+            id="mapResetButton"
+            type="button"
             hidden
-        ></div>
+          >
+            返回全省
+          </button>
+
 
         </div>
-        <p class="map-help">
-        将鼠标移到行政区可查看名称；单击行政区可直接按该区域查询。
+
+
+      </div>
+
+
+
+      <div class="v1-map-bottom">
+
+
+        <span id="mapNote">
+          正在加载空间数据…
+        </span>
+
+
+        <strong>
+          悬停查看行政区 · 单击进入区域
+        </strong>
+
+
+      </div>
+
+
+    </article>
+
+
+
+    <!-- 右侧组合面板 -->
+
+    <aside class="v1-side-stack">
+
+
+      <!-- 区域对比 -->
+
+      <article class="v1-card v1-compare-card">
+
+
+        <div class="v1-card-heading">
+
+          <div>
+
+            <p class="v1-section-kicker">
+              REGIONAL COMPARISON
+            </p>
+
+            <h2>
+              区域对比
+            </h2>
+
+          </div>
+
+        </div>
+
+
+
+        <div class="v1-compare-body">
+
+
+          <div
+            id="compareGauge"
+            class="v1-gauge"
+            style="--percentage: 100;"
+          >
+
+            <div class="v1-gauge-inner">
+
+              <strong id="comparePercent">
+                100%
+              </strong>
+
+              <span>
+                全省占比
+              </span>
+
+            </div>
+
+          </div>
+
+
+
+          <div class="v1-compare-text">
+
+            <span id="compareRegionName">
+              黑龙江省
+            </span>
+
+            <strong id="compareFireValue">
+              —
+            </strong>
+
+            <small>
+              FIRMS 主动火点观测
+            </small>
+
+
+            <div class="v1-compare-divider">
+            </div>
+
+
+            <p id="compareExplanation">
+              当前展示全省查询结果。
+            </p>
+
+          </div>
+
+
+        </div>
+
+
+      </article>
+
+
+
+      <!-- 时间趋势 -->
+
+      <article class="v1-card v1-trend-card">
+
+
+        <div class="v1-card-heading">
+
+          <div>
+
+            <p class="v1-section-kicker">
+              TEMPORAL TREND
+            </p>
+
+            <h2>
+              时间活动趋势
+            </h2>
+
+          </div>
+
+        </div>
+
+
+
+        <div
+          id="dailyMiniChart"
+          class="v1-trend-chart"
+        >
+
+          <div class="v1-empty">
+            暂无数据
+          </div>
+
+        </div>
+
+
+
+        <div
+          id="trendHighlight"
+          class="v1-trend-highlight"
+        >
+          —
+        </div>
+
+
+      </article>
+
+
+    </aside>
+
+
+  </section>
+
+
+
+  <!-- ===================================================
+       特征功能：遥感处理链
+  ==================================================== -->
+
+  <section class="v1-card v1-pipeline-card">
+
+
+    <div class="v1-card-heading">
+
+
+      <div>
+
+        <p class="v1-section-kicker">
+          PROCESS TRACE
         </p>
-      </article>
 
-      <article class="panel data-panel">
-        <div class="panel-heading"><div><h2>数据来源与状态</h2><p>每次导入均保留来源、导入时间和统计数量。</p></div></div>
-        <div id="sourceBreakdown" class="source-breakdown">暂无数据。</div>
-        <h3>最近导入</h3>
-        <div class="table-wrap"><table><thead><tr><th>类型</th><th>状态</th><th>写入记录</th><th>来源</th></tr></thead><tbody id="importRows"></tbody></table></div>
-      </article>
-    </section>
+        <h2>
+          遥感数据处理链
+        </h2>
 
-    <section class="panel trend-panel">
-      <div class="panel-heading"><div><h2>逐日统计</h2><p>按实际数据日期汇总；没有数据的日期不虚构为 0。</p></div></div>
-      <div class="table-wrap"><table><thead><tr><th>日期</th><th>主动火点观测记录数</th><th>烧毁像元数</th><th>火烧迹地面积（km²）</th></tr></thead><tbody id="dailyRows"><tr><td colspan="4" class="empty">请先执行查询。</td></tr></tbody></table></div>
-    </section>
+        <p>
+          直接读取最近一次正式处理记录，展示数据从原始输入到有效结果的实际筛选过程。
+        </p>
 
-    <section class="definition-grid" aria-label="指标解释">
-      <article><h3>主动火点观测记录</h3><p>某颗卫星在某次过境时探测到的热异常记录。重复过境、不同传感器可能都记录同一处燃烧，故不是独立火灾事件数。</p></article>
-      <article><h3>烧毁像元</h3><p>火烧迹地产品中被判为发生过燃烧的栅格单元。它适合计算烧毁范围，但不应称为官方主动火点数。</p></article>
-      <article><h3>火烧迹地面积</h3><p>本系统对选中烧毁像元的实际地表面积求和。对经纬度栅格，按纬度计算单元球面面积，不采用固定 0.25 km² 假设。</p></article>
-    </section>
-  </main>
+      </div>
 
-  <footer>本地单机系统 · 数据口径与原始来源请见项目 README 和导入记录。</footer>
-  <script src="{{ url_for('static', filename='app.js') }}"></script>
+
+
+      <div
+        id="pipelineTabs"
+        class="v1-pipeline-tabs"
+      >
+
+        <button
+          type="button"
+          data-kind="firms"
+          class="active"
+        >
+          FIRMS
+        </button>
+
+
+        <button
+          type="button"
+          data-kind="mcd64"
+          hidden
+        >
+          MCD64A1
+        </button>
+
+      </div>
+
+
+    </div>
+
+
+
+    <div
+      id="pipelineBody"
+      class="v1-pipeline-body"
+    >
+
+      <div class="v1-empty">
+        暂无正式处理记录
+      </div>
+
+    </div>
+
+
+  </section>
+
+
+
+  <!-- ===================================================
+       下部信息
+  ==================================================== -->
+
+  <section class="v1-secondary-grid">
+
+
+    <!-- 高值日期 -->
+
+    <article class="v1-card">
+
+
+      <div class="v1-card-heading">
+
+        <div>
+
+          <p class="v1-section-kicker">
+            ACTIVITY RANKING
+          </p>
+
+          <h2>
+            高值日期
+          </h2>
+
+        </div>
+
+      </div>
+
+
+      <div
+        id="topDaysList"
+        class="v1-rank-list"
+      >
+
+        <div class="v1-empty">
+          暂无数据
+        </div>
+
+      </div>
+
+
+    </article>
+
+
+
+    <!-- 数据状态 -->
+
+    <article class="v1-card">
+
+
+      <div class="v1-card-heading">
+
+        <div>
+
+          <p class="v1-section-kicker">
+            DATA STATUS
+          </p>
+
+          <h2>
+            数据来源与运行状态
+          </h2>
+
+        </div>
+
+      </div>
+
+
+
+      <div
+        id="sourceSummary"
+        class="v1-source-summary"
+      >
+        正在加载…
+      </div>
+
+
+
+      <details class="v1-details">
+
+        <summary>
+          查看最近处理记录
+        </summary>
+
+
+        <div class="v1-table-wrap">
+
+          <table>
+
+            <thead>
+
+              <tr>
+
+                <th>
+                  数据
+                </th>
+
+                <th>
+                  状态
+                </th>
+
+                <th>
+                  记录
+                </th>
+
+                <th>
+                  来源
+                </th>
+
+              </tr>
+
+            </thead>
+
+
+            <tbody id="importRows">
+
+              <tr>
+
+                <td
+                  colspan="4"
+                  class="v1-empty"
+                >
+                  暂无记录
+                </td>
+
+              </tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+
+      </details>
+
+
+    </article>
+
+
+  </section>
+
+
+
+  <!-- ===================================================
+       明细全部收起
+  ==================================================== -->
+
+  <section class="v1-card v1-detail-card">
+
+
+    <details>
+
+
+      <summary>
+
+        <span>
+          查询数据明细
+        </span>
+
+        <small>
+          展开查看逐日统计与数据记录
+        </small>
+
+      </summary>
+
+
+
+      <div class="v1-table-wrap">
+
+
+        <table>
+
+
+          <thead>
+
+            <tr>
+
+              <th>
+                日期
+              </th>
+
+              <th>
+                FIRMS 主动火点观测
+              </th>
+
+              <th>
+                MCD64A1 烧毁像元
+              </th>
+
+              <th>
+                烧毁像元面积估计 km²
+              </th>
+
+            </tr>
+
+          </thead>
+
+
+
+          <tbody id="dailyRows">
+
+            <tr>
+
+              <td
+                colspan="4"
+                class="v1-empty"
+              >
+                暂无数据
+              </td>
+
+            </tr>
+
+          </tbody>
+
+
+        </table>
+
+
+      </div>
+
+
+    </details>
+
+
+  </section>
+
+
+</main>
+
+
+
+<footer class="v1-footer">
+
+  <span>
+    FIRMS 表示主动火点观测记录，不等同于独立火灾事件。
+  </span>
+
+  <a
+    id="exportLink"
+    href="/api/export.csv"
+  >
+    导出当前查询 CSV
+  </a>
+
+</footer>
+
+
+
+<script
+  src="{{ url_for('static', filename='app.js') }}"
+>
+</script>
+
+
 </body>
 </html>

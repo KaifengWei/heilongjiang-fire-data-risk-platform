@@ -3,8 +3,490 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ task.name }} - 分析任务</title>
+  <title>{{ task.name }} - 任务详情</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
+  <style>
+    /* Day14：任务详情页产品化布局。仅作用于本页，后续稳定后可迁移至 styles.css。 */
+    .task-dashboard { display: grid; gap: 18px; }
+    .task-dashboard .panel { overflow: hidden; }
+
+    .task-hero-v2 {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr);
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .task-overview-card,
+    .task-readiness-card {
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+      box-shadow: 0 6px 22px rgba(22, 50, 77, .06);
+    }
+
+    .task-overview-top,
+    .module-heading,
+    .result-heading,
+    .compact-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .task-kicker,
+    .module-kicker {
+      margin: 0 0 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .task-overview-card h2,
+    .module-heading h2,
+    .result-heading h2 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    .task-meta-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .readiness-state {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0 4px;
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: .02em;
+    }
+
+    .readiness-state.ready { color: #176448; }
+    .readiness-state.not-ready { color: #a24919; }
+
+    .readiness-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      background: currentColor;
+      box-shadow: 0 0 0 5px currentColor;
+      opacity: .75;
+    }
+
+    .readiness-caption {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .result-shell {
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+      box-shadow: 0 7px 24px rgba(22, 50, 77, .07);
+      overflow: hidden;
+    }
+
+    .result-heading {
+      padding: 20px 22px 14px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(115deg, #f8fbfc, #eef6f7);
+    }
+
+    .result-heading p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+
+    .result-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--line);
+    }
+
+    .result-kpi {
+      min-width: 0;
+      padding: 20px 22px;
+      background: #fff;
+    }
+
+    .result-kpi .label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .result-kpi strong {
+      display: block;
+      overflow-wrap: anywhere;
+      color: var(--ink);
+      font-size: clamp(25px, 3vw, 39px);
+      line-height: 1.05;
+    }
+
+    .result-kpi small {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .result-kpi.primary strong { color: #b42e2b; }
+    .result-kpi.attention strong { color: #176b87; font-size: clamp(20px, 2.3vw, 31px); }
+
+    .result-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, .95fr);
+      gap: 22px;
+      padding: 22px;
+    }
+
+    .ranking-card,
+    .attention-card {
+      min-width: 0;
+      padding: 18px;
+      border: 1px solid #dce7ed;
+      border-radius: 13px;
+      background: #fbfdfe;
+    }
+
+    .ranking-card h3,
+    .attention-card h3 { margin: 0 0 4px; }
+    .ranking-card > p,
+    .attention-card > p { margin: 0 0 15px; color: var(--muted); font-size: 12px; }
+
+    .rank-list { display: grid; gap: 13px; }
+    .rank-row { display: grid; grid-template-columns: minmax(72px, 105px) 1fr auto; gap: 10px; align-items: center; }
+    .rank-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; }
+    .rank-track { height: 10px; overflow: hidden; border-radius: 999px; background: #e8eff3; }
+    .rank-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #d94e41, #ef8d55); }
+    .rank-value { min-width: 58px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 800; }
+
+    .attention-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .attention-item { padding: 12px; border: 1px solid #e0e9ee; border-radius: 10px; background: #fff; }
+    .attention-item strong { display: block; margin-bottom: 7px; }
+    .attention-item .score { margin-top: 7px; color: var(--muted); font-size: 12px; }
+
+    .analysis-module {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+      box-shadow: 0 5px 18px rgba(22, 50, 77, .05);
+      overflow: hidden;
+    }
+
+    .module-heading { padding: 20px 22px 15px; border-bottom: 1px solid var(--line); }
+    .module-heading p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+    .module-body { padding: 20px 22px; }
+
+    .module-firms { border-top: 4px solid #d94e41; }
+    .module-mcd64 { border-top: 4px solid #2e8b67; }
+
+    .module-summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 17px;
+    }
+
+    .module-stat {
+      padding: 14px;
+      border: 1px solid #e0e9ee;
+      border-radius: 11px;
+      background: #f8fbfc;
+    }
+    .module-stat span { display: block; color: var(--muted); font-size: 12px; }
+    .module-stat strong { display: block; margin-top: 4px; font-size: 20px; overflow-wrap: anywhere; }
+
+    .primary-action {
+      display: inline-flex;
+      min-height: 42px;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 18px;
+      border: 1px solid #176b87;
+      border-radius: 9px;
+      color: #fff;
+      background: #176b87;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 800;
+    }
+    .primary-action:hover { background: #115b75; }
+    .primary-action:disabled { cursor: wait; opacity: .68; }
+
+    .processing-notice {
+      margin-top: 16px;
+      padding: 16px;
+      border: 1px solid #bcd7e2;
+      border-radius: 12px;
+      background: #f3fafc;
+    }
+    .processing-notice[hidden] { display: none; }
+    .processing-notice strong { display: block; font-size: 15px; }
+    .processing-notice p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+
+    .indeterminate-track {
+      position: relative;
+      height: 10px;
+      margin-top: 13px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #dce9ee;
+    }
+    .indeterminate-track::after {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 -36%;
+      width: 36%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #176b87, #38a5a1);
+      animation: task-progress 1.15s ease-in-out infinite;
+    }
+    @keyframes task-progress { to { left: 100%; } }
+
+    .process-flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 12px;
+      color: #4f6879;
+      font-size: 12px;
+    }
+    .process-flow span { padding: 4px 8px; border-radius: 999px; background: #e7f1f4; }
+
+    .upload-zone {
+      display: grid;
+      grid-template-columns: minmax(180px, .8fr) minmax(260px, 1.5fr) auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .upload-zone label { min-width: 0; }
+
+    .compact-details {
+      margin-top: 15px;
+      border: 1px solid #dde7ec;
+      border-radius: 11px;
+      background: #fbfdfe;
+    }
+    .compact-details > summary {
+      padding: 12px 14px;
+      cursor: pointer;
+      color: #355267;
+      font-weight: 800;
+      user-select: none;
+    }
+    .compact-details[open] > summary { border-bottom: 1px solid #dde7ec; }
+    .details-content { padding: 14px; }
+
+    .technical-note {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .empty-compact {
+      padding: 15px;
+      border: 1px dashed #c5d5de;
+      border-radius: 10px;
+      color: var(--muted);
+      background: #f8fbfc;
+    }
+
+    .result-table td:first-child { font-weight: 800; }
+    .result-table .numeric { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .task-actions-row { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; }
+
+    .minimal-disclaimer {
+      margin: 0;
+      padding: 10px 12px;
+      border-radius: 8px;
+      color: #5c7181;
+      background: #f2f6f8;
+      font-size: 12px;
+    }
+
+    @media (max-width: 1050px) {
+      .task-hero-v2,
+      .result-body { grid-template-columns: 1fr; }
+      .result-kpis,
+      .module-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 680px) {
+      .result-kpis,
+      .module-summary,
+      .attention-grid { grid-template-columns: 1fr; }
+      .upload-zone { grid-template-columns: 1fr; }
+      .rank-row { grid-template-columns: 90px 1fr; }
+      .rank-value { grid-column: 2; text-align: left; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .indeterminate-track::after { animation: none; left: 32%; }
+    }
+
+    /* =========================================================
+   Day14-B：结果驾驶舱强化
+   ========================================================= */
+
+.result-kpis {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.result-body {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.result-kpi.period strong {
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.focus-card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid #dce7ed;
+  border-radius: 13px;
+  background:
+    linear-gradient(
+      145deg,
+      #f8fbfc 0%,
+      #eef6f8 100%
+    );
+}
+
+.focus-card h3 {
+  margin: 0 0 4px;
+}
+
+.focus-card > p {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.focus-region {
+  padding: 18px;
+  border: 1px solid #d7e5eb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.focus-region-name {
+  margin-bottom: 10px;
+  font-size: 23px;
+  font-weight: 900;
+}
+
+.focus-region-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.focus-region-score strong {
+  color: var(--ink);
+  font-size: 17px;
+}
+
+.level-distribution {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.level-item {
+  padding: 11px 12px;
+  border: 1px solid #e0e9ee;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.level-item span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.level-item strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 20px;
+}
+
+.rank-fill.mcd64-fill {
+  background:
+    linear-gradient(
+      90deg,
+      #2e8b67,
+      #68b98f
+    );
+}
+
+.result-table-summary {
+  margin: 0 22px 22px;
+}
+
+.assessment-overview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.assessment-chip {
+  min-width: 125px;
+  padding: 10px 12px;
+  border: 1px solid #dde7ec;
+  border-radius: 10px;
+  background: #f8fbfc;
+}
+
+.assessment-chip span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.assessment-chip strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 16px;
+}
+
+.assessment-table-details {
+  margin-top: 0;
+}
+
+@media (max-width: 680px) {
+  .level-distribution {
+    grid-template-columns: 1fr;
+  }
+}
+
+  </style>
 </head>
 <body>
 
@@ -12,9 +494,7 @@
   <div>
     <p class="eyebrow">{{ task.task_id }}</p>
     <h1>{{ task.name }}</h1>
-    <p class="subtitle">
-      输入数据校验、任务准备状态和文件追溯记录。
-    </p>
+    <p class="subtitle">卫星遥感火情监测与行政区分析</p>
   </div>
 
   <nav class="top-nav">
@@ -23,10 +503,16 @@
   </nav>
 </header>
 
-
-
-<main>
+<main class="task-dashboard">
   {% set scope = (task.parameters or {}).get('analysis_scope', 'combined') %}
+  {% set has_firms = scope in ['firms_only', 'combined'] %}
+  {% set has_mcd64 = scope in ['mcd64_only', 'combined'] %}
+  {% set firms_total = task_region_statistics | sum(attribute='active_fire_count') if task_region_statistics else 0 %}
+  {% set burned_total = task_region_statistics | sum(attribute='burned_pixel_count') if task_region_statistics else 0 %}
+  {% set burned_area_total = task_region_statistics | sum(attribute='burned_area_km2') if task_region_statistics else 0 %}
+  {% set result_region_count = task_region_statistics | length if task_region_statistics else 0 %}
+  {% set firms_ranked = task_region_statistics | sort(attribute='active_fire_count', reverse=true) if task_region_statistics else [] %}
+  {% set top_region = firms_ranked[0] if firms_ranked else none %}
 
   {% if page_error %}
   <section class="message-error">
@@ -35,810 +521,160 @@
   </section>
   {% endif %}
 
-  <section class="task-summary-grid">
-
-    <article class="panel">
-      <h2>任务信息</h2>
-
-
-
-      <dl class="detail-list">
+  <!-- 任务概览 -->
+  <section class="task-hero-v2">
+    <article class="task-overview-card">
+      <div class="task-overview-top">
         <div>
-          <dt>任务状态</dt>
-          <dd>
-            <span class="status-badge status-{{ task.status }}">
-              {{ task.status }}
-            </span>
-          </dd>
+          <p class="task-kicker">当前分析任务</p>
+          <h2>{{ task.name }}</h2>
+          <div class="task-meta-line">
+            <span>{{ scope_labels.get(scope, scope) }}</span>
+            <span>{{ task.analysis_start or '未限定' }} — {{ task.analysis_end or '未限定' }}</span>
+            <span>软件版本 {{ task.software_version }}</span>
+          </div>
         </div>
-
-        <div>
-          <dt>分析范围</dt>
-          <dd>{{ scope_labels.get(scope, scope) }}</dd>
-        </div>
-
-        <div>
-          <dt>分析时间</dt>
-          <dd>
-            {{ task.analysis_start or '未限定' }}
-            —
-            {{ task.analysis_end or '未限定' }}
-          </dd>
-        </div>
-
-        <div>
-          <dt>软件版本</dt>
-          <dd>{{ task.software_version }}</dd>
-        </div>
-
-        <div>
-          <dt>创建时间</dt>
-          <dd>{{ task.created_at }}</dd>
-        </div>
-      </dl>
+        <span class="status-badge status-{{ task.status }}">{{ task.status }}</span>
+      </div>
     </article>
 
-    <article class="panel readiness-panel">
-      <h2>输入准备状态</h2>
-
+    <article class="task-readiness-card">
+      <p class="task-kicker">数据准备状态</p>
       {% if readiness.ready %}
-        <div class="readiness-ready">
+        <div class="readiness-state ready">
+          <span class="readiness-dot" aria-hidden="true"></span>
           READY
         </div>
-        <p>
-          当前任务已经具备所选分析范围要求的基础输入条件。
-        </p>
+        <p class="readiness-caption">输入数据已满足当前分析范围的执行条件。</p>
       {% else %}
-        <div class="readiness-not-ready">
+        <div class="readiness-state not-ready">
+          <span class="readiness-dot" aria-hidden="true"></span>
           NOT READY
         </div>
-
-        <p>
-          当前任务尚不能进入正式数据处理。
-        </p>
-
+        <p class="readiness-caption">请检查或补充当前任务需要的输入文件。</p>
         {% if readiness.reasons %}
-        <ul class="reason-list">
-          {% for reason in readiness.reasons %}
-            <li>{{ reason }}</li>
-          {% endfor %}
-        </ul>
+          <details class="compact-details">
+            <summary>查看未就绪原因</summary>
+            <div class="details-content">
+              <ul class="reason-list">
+                {% for reason in readiness.reasons %}
+                  <li>{{ reason }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          </details>
         {% endif %}
       {% endif %}
+    </article>
+  </section>
 
-      {% if readiness.warnings %}
-      <div class="warning compact-warning">
-        <strong>警告：</strong>
-        <ul>
-          {% for warning in readiness.warnings %}
-            <li>{{ warning }}</li>
-          {% endfor %}
-        </ul>
-      </div>
+<!-- ======================================================
+     本次分析结果：优先展示真正需要看的内容
+====================================================== -->
+{% if task_region_statistics %}
+
+{% set burned_ranked =
+  task_region_statistics
+  | sort(attribute='burned_area_km2', reverse=true)
+%}
+
+{% set risk_summary =
+  namespace(
+    signal_count=0,
+    high=0,
+    higher=0,
+    medium=0,
+    low=0,
+    no_signal=0,
+    focus=none,
+    focus_score=-1
+  )
+%}
+
+{% if task_risk_assessment %}
+
+  {% for item in task_risk_assessment.regions %}
+
+    {% if item.relative_score is not none %}
+
+      {% set risk_summary.signal_count =
+        risk_summary.signal_count + 1
+      %}
+
+      {% if item.relative_score > risk_summary.focus_score %}
+
+        {% set risk_summary.focus = item %}
+        {% set risk_summary.focus_score =
+          item.relative_score
+        %}
+
       {% endif %}
 
-      <form
-        method="post"
-        action="{{ url_for('refresh_task_readiness', task_id=task.task_id) }}"
-      >
-        <button type="submit">
-          重新检查准备状态
-        </button>
-      </form>
-
-      <p class="scope-note">
-        “READY”只表示输入文件满足当前基础合同与配对要求，
-        不表示 FIRMS 正式质量筛选、MCD64A1 QA 位筛选、
-        风险评估或统计计算已经完成。
-      </p>
-    </article>
-
-  </section>
-
-  <section class="panel">
-    <div class="panel-heading">
-      <div>
-        <h2>提交输入文件</h2>
-        <p>
-          文件将复制到当前任务独立目录，并记录 SHA256 和校验结果。
-        </p>
-      </div>
-    </div>
-
-    <form
-      method="post"
-      enctype="multipart/form-data"
-      action="{{ url_for('upload_task_file', task_id=task.task_id) }}"
-      class="upload-form"
-    >
-
-      <label>
-        文件角色
-        <select name="file_role" required>
-          <option value="">请选择</option>
-          <option value="firms_csv">
-            FIRMS 主动火点 CSV
-          </option>
-          <option value="mcd64_burn_date">
-            MCD64A1 Burn Date GeoTIFF
-          </option>
-          <option value="mcd64_qa">
-            MCD64A1 QA GeoTIFF
-          </option>
-        </select>
-      </label>
-
-      <label>
-        本地文件
-        <input type="file" name="file" required>
-      </label>
-
-      <div class="form-actions">
-        <button type="submit">
-          上传并校验
-        </button>
-      </div>
-
-    </form>
-
-    <div class="warning">
-      <strong>MCD64A1 文件名要求：</strong>
-      当前版本需要从文件名识别
-      <code>AYYYYDDD</code>，
-      例如
-      <code>MCD64A1.A2026060.burndate.tif</code>。
-      请不要删除这一产品日期标识。
-    </div>
-  </section>
-
-  <section class="panel task-list-panel">
-    <div class="panel-heading">
-      <div>
-        <h2>输入文件记录</h2>
-        <p>
-          这里显示数据库实际登记的文件，不代表所有文件均已通过校验。
-        </p>
-      </div>
-    </div>
-
-    {% if files %}
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>原始文件名</th>
-            <th>角色</th>
-            <th>校验状态</th>
-            <th>文件大小</th>
-            <th>SHA256</th>
-            <th>说明</th>
-          </tr>
-        </thead>
-
-        <tbody>
-        {% for file in files %}
-          <tr>
-            <td>{{ file.original_filename }}</td>
-
-            <td>
-              {{ file_role_labels.get(file.file_role, file.file_role) }}
-            </td>
-
-            <td>
-              <span class="status-badge status-{{ file.validation_status }}">
-                {{ file.validation_status }}
-              </span>
-            </td>
-
-            <td>{{ file.size_bytes }} B</td>
-
-            <td>
-              <code class="hash-value">
-                {{ file.sha256 }}
-              </code>
-            </td>
-
-            <td>
-              {{ file.validation_message or '—' }}
-            </td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    {% else %}
-      <p class="empty-state">
-        当前任务还没有登记任何输入文件。
-      </p>
     {% endif %}
-  </section>
 
-  <section class="panel task-list-panel">
 
-  <div class="panel-heading">
-    <div>
-      <h2>FIRMS 正式处理</h2>
-      <p>
-        对已上传的 FIRMS CSV 执行字段规范化、质量筛选、
-        任务日期约束、行政区落区和重复观测处理。
-      </p>
-    </div>
-  </div>
+    {% if item.attention_level == '高关注' %}
 
-  {% if scope not in ['firms_only', 'combined'] %}
+      {% set risk_summary.high =
+        risk_summary.high + 1
+      %}
 
-    <p class="empty-state">
-      当前任务分析范围不包含 FIRMS。
-    </p>
+    {% elif item.attention_level == '较高关注' %}
 
-  {% elif not firms_input_files %}
+      {% set risk_summary.higher =
+        risk_summary.higher + 1
+      %}
 
-    <div class="warning">
-      当前没有通过基础校验的 FIRMS CSV，
-      暂时不能执行正式处理。
-    </div>
+    {% elif item.attention_level == '中关注' %}
 
-  {% elif region_count == 0 %}
+      {% set risk_summary.medium =
+        risk_summary.medium + 1
+      %}
 
-    <div class="warning">
-      <strong>尚不能执行：</strong>
-      当前数据库没有行政区边界。
-      FIRMS 正式处理必须完成空间落区，
-      因此不会在没有边界数据时直接写入统计结果。
-    </div>
+    {% elif item.attention_level == '低关注' %}
 
-  {% else %}
+      {% set risk_summary.low =
+        risk_summary.low + 1
+      %}
 
-    <form
-      method="post"
-      action="{{ url_for('process_task_firms', task_id=task.task_id) }}"
-    >
-      <button type="submit">
-        执行 FIRMS 处理
-      </button>
-    </form>
+    {% elif item.attention_level == '无遥感信号' %}
 
-  {% endif %}
+      {% set risk_summary.no_signal =
+        risk_summary.no_signal + 1
+      %}
 
-  <p class="scope-note">
-    此操作处理的是主动火点观测记录，
-    不将相邻火点自动合并为独立火灾事件。
-  </p>
+    {% endif %}
 
-</section>
+  {% endfor %}
 
-{% if firms_runs %}
-<section class="panel task-list-panel">
-
-  <div class="panel-heading">
-    <div>
-      <h2>FIRMS 处理记录</h2>
-      <p>
-        以下数据直接来自数据库中的 import_runs 处理记录。
-      </p>
-    </div>
-  </div>
-
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>运行 ID</th>
-          <th>状态</th>
-          <th>输入记录</th>
-          <th>规范化通过</th>
-          <th>规范化筛除</th>
-          <th>日期范围外</th>
-          <th>行政区外</th>
-          <th>文件内重复</th>
-          <th>新增观测</th>
-          <th>已有观测</th>
-          <th>SP替换</th>
-        </tr>
-      </thead>
-
-      <tbody>
-      {% for run in firms_runs %}
-
-        {% set report = run.metadata or {} %}
-
-        <tr>
-          <td>
-            {{ run.id }}
-            <div class="mono-small">
-              {{ run.started_at }}
-            </div>
-          </td>
-
-          <td>
-            <span class="status-badge status-{{ run.status }}">
-              {{ run.status }}
-            </span>
-          </td>
-
-          <td>
-            {{ report.get('input_rows', run.input_count) }}
-          </td>
-
-          <td>
-            {{ report.get('normalization_accepted', '—') }}
-          </td>
-
-          <td>
-            {{ report.get('normalization_rejected', '—') }}
-          </td>
-
-          <td>
-            {{ report.get('outside_task_date_range', '—') }}
-          </td>
-
-          <td>
-            {{ report.get('outside_configured_regions', '—') }}
-          </td>
-
-          <td>
-            {{ report.get('duplicate_source_records_in_file', '—') }}
-          </td>
-
-          <td>
-            {{ report.get('new_observations', run.stored_count) }}
-          </td>
-
-          <td>
-            {{ report.get('existing_observations', '—') }}
-          </td>
-
-          <td>
-            {{ report.get('preferred_source_updates', '—') }}
-          </td>
-        </tr>
-
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  {% set latest = firms_runs[0].metadata or {} %}
-
-  {% if latest.get('rejection_counts') %}
-  <div class="warning">
-    <strong>最近一次规范化筛除：</strong>
-
-    {% for key, value in latest.get('rejection_counts', {}).items() %}
-      <code>{{ key }}</code>
-      = {{ value }}
-      {% if not loop.last %}；{% endif %}
-    {% endfor %}
-  </div>
-  {% endif %}
-
-</section>
 {% endif %}
 
-  {% if mcd64_pairs %}
-  <section class="panel task-list-panel">
-    <div class="panel-heading">
-      <div>
-        <h2>MCD64A1 有效配对</h2>
-        <p>
-          只有空间信息一致的 Burn Date / QA 才会出现在这里。
-        </p>
-      </div>
-    </div>
 
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>产品日期</th>
-            <th>Burn Date 文件 ID</th>
-            <th>QA 文件 ID</th>
-            <th>配对状态</th>
-          </tr>
-        </thead>
-        <tbody>
-        {% for pair in mcd64_pairs %}
-          <tr>
-            <td>{{ pair.product_date }}</td>
-            <td>{{ pair.burn_date_file_id }}</td>
-            <td>{{ pair.qa_file_id }}</td>
-            <td>{{ pair.pair_status }}</td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </section>
-  {% endif %}
+<section
+  class="result-shell"
+  id="taskResults"
+>
 
-    <section class="panel task-list-panel">
+  <div class="result-heading">
 
-    <div class="panel-heading">
-      <div>
-        <h2>MCD64A1 正式处理</h2>
+    <div>
 
-        <p>
-          对有效 Burn Date / QA 配对执行 QA 位筛选、
-          行政区落区和烧毁像元面积估计。
-        </p>
-      </div>
-    </div>
-
-    {% if scope not in ['mcd64_only', 'combined'] %}
-
-      <p class="empty-state">
-        当前任务分析范围不包含 MCD64A1。
+      <p class="module-kicker">
+        ANALYSIS RESULT
       </p>
 
-    {% elif not mcd64_pairs %}
-
-      <div class="warning">
-        当前没有通过配对校验的
-        MCD64A1 Burn Date / QA 文件，
-        暂时不能执行正式处理。
-      </div>
-
-    {% elif region_count == 0 %}
-
-      <div class="warning">
-        <strong>尚不能执行：</strong>
-        当前数据库没有行政区边界。
-        MCD64A1 正式处理必须完成空间落区，
-        因此不会在没有边界数据时直接计算区域面积。
-      </div>
-
-    {% else %}
-
-      <form
-        method="post"
-        action="{{ url_for('process_task_mcd64', task_id=task.task_id) }}"
-        class="upload-form"
-      >
-
-        <label>
-          QA 筛选策略
-
-          <select
-            name="qa_policy"
-            required
-          >
-            <option
-              value="standard"
-              selected
-            >
-              standard — 保留 shortened mapping period
-            </option>
-
-            <option value="strict">
-              strict — 排除 shortened mapping period
-            </option>
-          </select>
-        </label>
-
-        <div class="form-actions">
-          <button type="submit">
-            执行 MCD64A1 处理
-          </button>
-        </div>
-
-      </form>
-
-    {% endif %}
-
-    <p class="scope-note">
-      这里计算的是 MCD64A1 遥感产品经当前质量策略筛选后的
-      烧毁像元面积估计，不等同于地面核定灾损面积。
-    </p>
-
-  </section>
-
-  {% if mcd64_runs %}
-  <section class="panel task-list-panel">
-
-    <div class="panel-heading">
-      <div>
-        <h2>MCD64A1 处理记录</h2>
-
-        <p>
-          以下结果来自数据库中的 import_runs，
-          每一行对应一个月度 Burn Date / QA 文件对的正式处理。
-        </p>
-      </div>
-    </div>
-
-    <div class="table-wrap">
-      <table>
-
-        <thead>
-          <tr>
-            <th>运行 ID</th>
-            <th>状态</th>
-            <th>策略</th>
-            <th>正值候选</th>
-            <th>月份外</th>
-            <th>QA拒绝</th>
-            <th>shortened</th>
-            <th>relabeling</th>
-            <th>行政区外</th>
-            <th>有效像元</th>
-            <th>新增像元</th>
-            <th>面积 km²</th>
-          </tr>
-        </thead>
-
-        <tbody>
-
-        {% for run in mcd64_runs %}
-
-          {% set report = run.metadata or {} %}
-
-          <tr>
-
-            <td>
-              {{ run.id }}
-
-              <div class="mono-small">
-                {{ run.started_at }}
-              </div>
-            </td>
-
-            <td>
-              <span class="status-badge status-{{ run.status }}">
-                {{ run.status }}
-              </span>
-            </td>
-
-            <td>
-              {{ report.get('qa_policy', '—') }}
-            </td>
-
-            <td>
-              {{
-                report.get(
-                  'positive_burn_date_pixels',
-                  run.input_count
-                )
-              }}
-            </td>
-
-            <td>
-              {{
-                report.get(
-                  'positive_values_outside_expected_month',
-                  '—'
-                )
-              }}
-            </td>
-
-            <td>
-              {{
-                report.get(
-                  'qa_rejected_pixels',
-                  '—'
-                )
-              }}
-            </td>
-
-            <td>
-              {{
-                report.get(
-                  'qa_shortened_mapping_period_pixels',
-                  '—'
-                )
-              }}
-            </td>
-
-            <td>
-              {{
-                report.get(
-                  'qa_contextually_relabeled_pixels',
-                  '—'
-                )
-              }}
-            </td>
-
-            <td>
-              {{
-                report.get(
-                  'outside_configured_regions',
-                  '—'
-                )
-              }}
-            </td>
-
-            <td>
-              {{
-                report.get(
-                  'run_burned_pixel_count',
-                  run.stored_count
-                )
-              }}
-            </td>
-
-            <td>
-              {{
-                report.get(
-                  'new_burned_pixels',
-                  '—'
-                )
-              }}
-            </td>
-
-            <td>
-              {{
-                report.get(
-                  'run_burned_area_km2',
-                  '—'
-                )
-              }}
-            </td>
-
-          </tr>
-
-        {% endfor %}
-
-        </tbody>
-
-      </table>
-    </div>
-
-    {% set latest_mcd64 = mcd64_runs[0].metadata or {} %}
-
-    {% if latest_mcd64.get('qa_rejection_counts') %}
-    <div class="warning">
-
-      <strong>最近一次 QA 拒绝原因：</strong>
-
-      {% for key, value in latest_mcd64.get('qa_rejection_counts', {}).items() %}
-
-        <code>{{ key }}</code>
-        = {{ value }}
-
-        {% if not loop.last %}
-          ；
-        {% endif %}
-
-      {% endfor %}
-
-    </div>
-    {% endif %}
-
-  </section>
-  {% endif %}
-
-  <section class="panel task-list-panel">
-
-    <div class="panel-heading">
-      <div>
-        <h2>当前任务统计结果</h2>
-
-        <p>
-          以下结果仅统计当前分析任务正式处理并关联的数据，
-          不包含其他分析任务的历史结果。
-        </p>
-      </div>
-    </div>
-
-    {% if task_region_statistics %}
-
-      <dl class="detail-list">
-
-        <div>
-          <dt>FIRMS 主动火点观测记录数</dt>
-          <dd>
-            {{
-              task_region_statistics
-              | sum(attribute='active_fire_count')
-            }}
-          </dd>
-        </div>
-
-        <div>
-          <dt>MCD64A1 烧毁像元数</dt>
-          <dd>
-            {{
-              task_region_statistics
-              | sum(attribute='burned_pixel_count')
-            }}
-          </dd>
-        </div>
-
-        <div>
-          <dt>烧毁像元面积估计</dt>
-          <dd>
-            {{
-              (
-                task_region_statistics
-                | sum(attribute='burned_area_km2')
-              )
-              | round(6)
-            }}
-            km²
-          </dd>
-        </div>
-
-      </dl>
-
-
-      <div class="table-wrap">
-
-        <table>
-
-          <thead>
-            <tr>
-              <th>行政区</th>
-              <th>FIRMS 主动火点观测记录</th>
-              <th>MCD64A1 烧毁像元</th>
-              <th>烧毁像元面积估计 km²</th>
-            </tr>
-          </thead>
-
-          <tbody>
-
-          {% for item in task_region_statistics %}
-
-            <tr>
-              <td>
-                {{ item.region_name }}
-              </td>
-
-              <td>
-                {{ item.active_fire_count }}
-              </td>
-
-              <td>
-                {{ item.burned_pixel_count }}
-              </td>
-
-              <td>
-                {{
-                  item.burned_area_km2
-                  | round(6)
-                }}
-              </td>
-            </tr>
-
-          {% endfor %}
-
-          </tbody>
-
-        </table>
-
-      </div>
-
-
-      <p class="scope-note">
-        FIRMS 数值表示卫星主动火点观测记录数，
-        不等同于独立火灾事件数。
-        MCD64A1 面积为遥感产品筛选后的烧毁像元面积估计，
-        不等同于地面核定灾损面积。
+      <h2>
+        本次分析结果
+      </h2>
+
+      <p>
+        核心遥感结果与重点行政区
       </p>
 
-    {% else %}
+    </div>
 
-      <p class="empty-state">
-        当前任务尚无正式处理后的统计结果。
-      </p>
 
-    {% endif %}
-
-  </section>
-
-<section class="panel task-list-panel">
-
-  <div class="panel-heading">
-
-  <div>
-    <h2>任务内相对火情关注等级</h2>
-
-    <p>
-      基于当前任务正式处理后的 FIRMS 主动火点观测记录
-      与 MCD64A1 烧毁像元面积估计进行任务内相对比较。
-    </p>
-  </div>
-
-  {% if task_risk_assessment %}
+    {% if task_risk_assessment %}
 
     <a
       class="secondary-button"
@@ -852,55 +688,520 @@
       导出任务结果 CSV
     </a>
 
-  {% endif %}
+    {% endif %}
 
-</div>
+  </div>
 
-  {% if task_risk_assessment %}
 
-    <dl class="detail-list">
 
-      <div>
-        <dt>规则版本</dt>
-        <dd>
-          {{ task_risk_assessment.rule_version }}
-        </dd>
+  <!-- 核心指标 -->
+
+  <div class="result-kpis">
+
+
+    {% if has_firms %}
+
+    <div class="result-kpi primary">
+
+      <span class="label">
+        FIRMS 主动火点观测
+      </span>
+
+      <strong>
+        {{ firms_total }}
+      </strong>
+
+      <small>
+        条
+      </small>
+
+    </div>
+
+    {% endif %}
+
+
+
+    {% if has_mcd64 %}
+
+    <div class="result-kpi">
+
+      <span class="label">
+        MCD64A1 烧毁像元
+      </span>
+
+      <strong>
+        {{ burned_total }}
+      </strong>
+
+      <small>
+        个筛选后像元
+      </small>
+
+    </div>
+
+
+    <div class="result-kpi">
+
+      <span class="label">
+        MCD64A1 烧毁像元面积估计
+      </span>
+
+      <strong>
+        {{ burned_area_total | round(2) }}
+      </strong>
+
+      <small>
+        km²
+      </small>
+
+    </div>
+
+    {% endif %}
+
+
+
+    <div class="result-kpi">
+
+      <span class="label">
+        有遥感信号行政区
+      </span>
+
+      <strong>
+
+        {% if task_risk_assessment %}
+
+          {{ risk_summary.signal_count }}
+
+        {% else %}
+
+          {{ result_region_count }}
+
+        {% endif %}
+
+      </strong>
+
+      <small>
+        / {{ region_count }} 个行政区
+      </small>
+
+    </div>
+
+
+
+    <div class="result-kpi attention">
+
+      <span class="label">
+        当前重点关注行政区
+      </span>
+
+      {% if risk_summary.focus %}
+
+        <strong>
+          {{ risk_summary.focus.region_name }}
+        </strong>
+
+        <small>
+          {{ risk_summary.focus.attention_level }}
+        </small>
+
+      {% elif top_region and top_region.active_fire_count > 0 %}
+
+        <strong>
+          {{ top_region.region_name }}
+        </strong>
+
+        <small>
+          FIRMS 观测记录最多
+        </small>
+
+      {% else %}
+
+        <strong>
+          —
+        </strong>
+
+        <small>
+          当前无可用遥感信号
+        </small>
+
+      {% endif %}
+
+    </div>
+
+
+
+    <div class="result-kpi period">
+
+      <span class="label">
+        分析周期
+      </span>
+
+      <strong>
+        {{ task.analysis_start or '未限定' }}
+        <br>
+        {{ task.analysis_end or '未限定' }}
+      </strong>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- 可视化排行 -->
+
+  <div class="result-body">
+
+
+    {% if has_firms %}
+
+    <article class="ranking-card">
+
+      <h3>
+        FIRMS 行政区 TOP 5
+      </h3>
+
+      <p>
+        按主动火点观测记录数排序
+      </p>
+
+
+      {% if firms_total > 0
+            and top_region
+            and top_region.active_fire_count > 0 %}
+
+      <div class="rank-list">
+
+        {% for item in firms_ranked[:5] %}
+
+          {% if item.active_fire_count > 0 %}
+
+          <div class="rank-row">
+
+            <div
+              class="rank-name"
+              title="{{ item.region_name }}"
+            >
+              {{ item.region_name }}
+            </div>
+
+
+            <div
+              class="rank-track"
+              aria-hidden="true"
+            >
+
+              <div
+                class="rank-fill"
+                style="
+                  width:
+                  {{
+                    (
+                      item.active_fire_count
+                      /
+                      top_region.active_fire_count
+                      *
+                      100
+                    )
+                    | round(1)
+                  }}%;
+                "
+              >
+              </div>
+
+            </div>
+
+
+            <div class="rank-value">
+              {{ item.active_fire_count }}
+            </div>
+
+          </div>
+
+          {% endif %}
+
+        {% endfor %}
+
       </div>
 
-      <div>
-        <dt>评估范围</dt>
-        <dd>
-          当前分析任务内行政区相对比较
-        </dd>
+
+      {% else %}
+
+      <div class="empty-compact">
+        当前没有 FIRMS 行政区统计结果。
       </div>
 
-      <div>
-        <dt>规则标识</dt>
-        <dd>
-          {{ task_risk_assessment.rule_id }}
-        </dd>
+      {% endif %}
+
+    </article>
+
+    {% endif %}
+
+
+
+    {% if has_mcd64 %}
+
+    <article class="ranking-card">
+
+      <h3>
+        MCD64A1 面积 TOP 5
+      </h3>
+
+      <p>
+        按烧毁像元面积估计排序
+      </p>
+
+
+      {% if burned_area_total > 0
+            and burned_ranked
+            and burned_ranked[0].burned_area_km2 > 0 %}
+
+      {% set max_burned_area =
+        burned_ranked[0].burned_area_km2
+      %}
+
+      <div class="rank-list">
+
+        {% for item in burned_ranked[:5] %}
+
+          {% if item.burned_area_km2 > 0 %}
+
+          <div class="rank-row">
+
+            <div
+              class="rank-name"
+              title="{{ item.region_name }}"
+            >
+              {{ item.region_name }}
+            </div>
+
+
+            <div
+              class="rank-track"
+              aria-hidden="true"
+            >
+
+              <div
+                class="rank-fill mcd64-fill"
+                style="
+                  width:
+                  {{
+                    (
+                      item.burned_area_km2
+                      /
+                      max_burned_area
+                      *
+                      100
+                    )
+                    | round(1)
+                  }}%;
+                "
+              >
+              </div>
+
+            </div>
+
+
+            <div class="rank-value">
+              {{ item.burned_area_km2 | round(2) }}
+            </div>
+
+          </div>
+
+          {% endif %}
+
+        {% endfor %}
+
       </div>
 
-    </dl>
 
-    <div class="table-wrap">
+      {% else %}
 
-      <table class="risk-table">
+      <div class="empty-compact">
+        当前没有 MCD64A1 面积统计结果。
+      </div>
+
+      {% endif %}
+
+    </article>
+
+    {% endif %}
+
+
+
+    <!-- 相对关注摘要 -->
+
+    <article class="focus-card">
+
+      <h3>
+        相对关注概览
+      </h3>
+
+      <p>
+        当前任务内部行政区相对比较
+      </p>
+
+
+      {% if task_risk_assessment
+            and risk_summary.focus %}
+
+      <div class="focus-region">
+
+        <div class="focus-region-name">
+          {{ risk_summary.focus.region_name }}
+        </div>
+
+
+        <span
+          class="attention-badge"
+          data-level="{{
+            risk_summary.focus.attention_level
+          }}"
+        >
+          {{ risk_summary.focus.attention_level }}
+        </span>
+
+
+        <div class="focus-region-score">
+
+          <span>
+            相对分值
+          </span>
+
+          <strong>
+            {{
+              risk_summary.focus.relative_score
+              | round(3)
+            }}
+          </strong>
+
+        </div>
+
+      </div>
+
+
+      <div class="level-distribution">
+
+        <div class="level-item">
+
+          <span>
+            高关注
+          </span>
+
+          <strong>
+            {{ risk_summary.high }}
+          </strong>
+
+        </div>
+
+
+        <div class="level-item">
+
+          <span>
+            较高关注
+          </span>
+
+          <strong>
+            {{ risk_summary.higher }}
+          </strong>
+
+        </div>
+
+
+        <div class="level-item">
+
+          <span>
+            中关注
+          </span>
+
+          <strong>
+            {{ risk_summary.medium }}
+          </strong>
+
+        </div>
+
+
+        <div class="level-item">
+
+          <span>
+            低关注
+          </span>
+
+          <strong>
+            {{ risk_summary.low }}
+          </strong>
+
+        </div>
+
+      </div>
+
+
+      {% else %}
+
+      <div class="empty-compact">
+        当前任务没有可计算相对关注等级的遥感信号。
+      </div>
+
+      {% endif %}
+
+    </article>
+
+  </div>
+
+
+
+  <!-- 完整统计表默认折叠 -->
+
+  <details
+    class="compact-details result-table-summary"
+  >
+
+    <summary>
+      查看全部行政区统计
+    </summary>
+
+
+    <div class="details-content table-wrap">
+
+      <table class="result-table">
 
         <thead>
+
           <tr>
-            <th>行政区</th>
-            <th>相对关注等级</th>
-            <th>FIRMS 主动火点观测记录</th>
-            <th>MCD64A1 烧毁像元面积估计 km²</th>
-            <th>相对分值</th>
-            <th>评估说明</th>
+
+            <th>
+              行政区
+            </th>
+
+            {% if has_firms %}
+
+            <th>
+              FIRMS 主动火点观测记录
+            </th>
+
+            {% endif %}
+
+
+            {% if has_mcd64 %}
+
+            <th>
+              MCD64A1 烧毁像元
+            </th>
+
+            <th>
+              烧毁像元面积估计 km²
+            </th>
+
+            {% endif %}
+
           </tr>
+
         </thead>
+
 
         <tbody>
 
-        {% for item in task_risk_assessment.regions %}
+          {% for item in task_region_statistics %}
 
           <tr>
 
@@ -908,44 +1209,34 @@
               {{ item.region_name }}
             </td>
 
-            <td>
-              <span
-                class="attention-badge"
-                data-level="{{ item.attention_level }}"
-              >
-                {{ item.attention_level }}
-              </span>
-            </td>
 
-            <td>
+            {% if has_firms %}
+
+            <td class="numeric">
               {{ item.active_fire_count }}
             </td>
 
-            <td>
+            {% endif %}
+
+
+            {% if has_mcd64 %}
+
+            <td class="numeric">
+              {{ item.burned_pixel_count }}
+            </td>
+
+            <td class="numeric">
               {{
                 item.burned_area_km2
                 | round(6)
               }}
             </td>
 
-            <td>
-              {% if item.relative_score is not none %}
-                {{
-                  item.relative_score
-                  | round(3)
-                }}
-              {% else %}
-                —
-              {% endif %}
-            </td>
-
-            <td class="risk-explanation">
-              {{ item.explanation }}
-            </td>
+            {% endif %}
 
           </tr>
 
-        {% endfor %}
+          {% endfor %}
 
         </tbody>
 
@@ -953,30 +1244,628 @@
 
     </div>
 
-    <p class="scope-note">
-      相对分值仅表示当前任务内部各行政区在可用遥感指标中的相对位置，
-      不是火灾发生概率，也不是绝对风险概率。
-    </p>
-
-    <p class="risk-disclaimer">
-      {{ task_risk_assessment.disclaimer }}
-    </p>
-
-  {% else %}
-
-    <p class="empty-state">
-      当前任务尚未完成 FIRMS 或 MCD64A1 正式处理，
-      暂不生成相对火情关注等级。
-    </p>
-
-  {% endif %}
+  </details>
 
 </section>
+
+{% endif %}
+
+  <!-- 当前任务需要的输入与执行入口 -->
+  <section class="analysis-module">
+    <div class="module-heading">
+      <div>
+        <p class="module-kicker">INPUT</p>
+        <h2>输入数据</h2>
+        <p>只显示当前任务分析范围需要的数据角色。</p>
+      </div>
+    </div>
+
+    <div class="module-body">
+      <form method="post" enctype="multipart/form-data" action="{{ url_for('upload_task_file', task_id=task.task_id) }}" class="upload-zone">
+        <label>
+          数据类型
+          <select name="file_role" required>
+            <option value="">请选择</option>
+            {% if has_firms %}<option value="firms_csv">FIRMS 主动火点 CSV</option>{% endif %}
+            {% if has_mcd64 %}
+              <option value="mcd64_burn_date">MCD64A1 Burn Date GeoTIFF</option>
+              <option value="mcd64_qa">MCD64A1 QA GeoTIFF</option>
+            {% endif %}
+          </select>
+        </label>
+
+        <label>
+          本地文件
+          <input type="file" name="file" required>
+        </label>
+
+        <button type="submit">上传并校验</button>
+      </form>
+
+      {% if readiness.warnings %}
+      <details class="compact-details">
+        <summary>查看输入警告</summary>
+        <div class="details-content">
+          <ul class="reason-list">
+            {% for warning in readiness.warnings %}<li>{{ warning }}</li>{% endfor %}
+          </ul>
+        </div>
+      </details>
+      {% endif %}
+
+      <details class="compact-details">
+        <summary>已上传文件与校验记录（{{ files | length }}）</summary>
+        <div class="details-content">
+          {% if files %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>原始文件名</th>
+                  <th>角色</th>
+                  <th>校验状态</th>
+                  <th>文件大小</th>
+                  <th>说明</th>
+                  <th>SHA256</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for file in files %}
+                <tr>
+                  <td>{{ file.original_filename }}</td>
+                  <td>{{ file_role_labels.get(file.file_role, file.file_role) }}</td>
+                  <td><span class="status-badge status-{{ file.validation_status }}">{{ file.validation_status }}</span></td>
+                  <td>{{ file.size_bytes }} B</td>
+                  <td>{{ file.validation_message or '—' }}</td>
+                  <td><code class="hash-value">{{ file.sha256 }}</code></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+            <div class="empty-compact">当前任务尚未上传文件。</div>
+          {% endif %}
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- FIRMS：仅在任务包含 FIRMS 时展示 -->
+  {% if has_firms %}
+  <section class="analysis-module module-firms">
+    <div class="module-heading">
+      <div>
+        <p class="module-kicker">FIRMS</p>
+        <h2>主动火点分析</h2>
+        <p>上传、筛选、行政区空间匹配和结果入库集中在一个模块中。</p>
+      </div>
+      {% if firms_runs %}
+        <span class="status-badge status-{{ firms_runs[0].status }}">{{ firms_runs[0].status }}</span>
+      {% else %}
+        <span class="status-badge status-pending">待处理</span>
+      {% endif %}
+    </div>
+
+    <div class="module-body">
+      {% set latest_firms = firms_runs[0].metadata if firms_runs and firms_runs[0].metadata else {} %}
+      <div class="module-summary">
+        <div class="module-stat">
+          <span>当前任务结果</span>
+          <strong>{{ firms_total }}</strong>
+        </div>
+        <div class="module-stat">
+          <span>最近输入记录</span>
+          <strong>{{ latest_firms.get('input_rows', firms_runs[0].input_count if firms_runs else '—') }}</strong>
+        </div>
+        <div class="module-stat">
+          <span>质量/规范化筛除</span>
+          <strong>{{ latest_firms.get('normalization_rejected', '—') }}</strong>
+        </div>
+        <div class="module-stat">
+          <span>行政区外</span>
+          <strong>{{ latest_firms.get('outside_configured_regions', '—') }}</strong>
+        </div>
+      </div>
+
+      {% if not firms_input_files %}
+        <div class="warning">当前没有通过基础校验的 FIRMS CSV，请先在上方上传数据。</div>
+      {% elif region_count == 0 %}
+        <div class="warning">当前没有行政区边界数据，无法执行空间落区。</div>
+      {% else %}
+        <form method="post" action="{{ url_for('process_task_firms', task_id=task.task_id) }}" class="task-actions-row js-processing-form" data-processing-target="firmsProcessingNotice">
+          <button type="submit" class="primary-action js-processing-button">执行 FIRMS 处理</button>
+          {% if firms_runs %}<span class="scope-note">重新执行会按既有去重与来源规则处理，不会把同一规范化观测简单重复计数。</span>{% endif %}
+        </form>
+
+        <div id="firmsProcessingNotice" class="processing-notice" hidden aria-live="polite">
+          <strong>正在执行 FIRMS 正式处理，请稍候</strong>
+          <p>后台正在完成读取与规范化、质量筛选、任务日期筛选、行政区空间匹配和写入统计。处理完成后页面会自动刷新。</p>
+          <div class="indeterminate-track" aria-hidden="true"></div>
+          <div class="process-flow" aria-hidden="true">
+            <span>读取与规范化</span>
+            <span>质量筛选</span>
+            <span>日期约束</span>
+            <span>行政区匹配</span>
+            <span>写入与统计</span>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if firms_runs %}
+      <details class="compact-details">
+        <summary>FIRMS 处理记录（{{ firms_runs | length }}）</summary>
+        <div class="details-content">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>运行 ID</th>
+                  <th>状态</th>
+                  <th>输入记录</th>
+                  <th>规范化通过</th>
+                  <th>规范化筛除</th>
+                  <th>日期范围外</th>
+                  <th>行政区外</th>
+                  <th>文件内重复</th>
+                  <th>新增观测</th>
+                  <th>已有观测</th>
+                  <th>SP替换</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for run in firms_runs %}
+                  {% set report = run.metadata or {} %}
+                  <tr>
+                    <td>{{ run.id }}<div class="mono-small">{{ run.started_at }}</div></td>
+                    <td><span class="status-badge status-{{ run.status }}">{{ run.status }}</span></td>
+                    <td>{{ report.get('input_rows', run.input_count) }}</td>
+                    <td>{{ report.get('normalization_accepted', '—') }}</td>
+                    <td>{{ report.get('normalization_rejected', '—') }}</td>
+                    <td>{{ report.get('outside_task_date_range', '—') }}</td>
+                    <td>{{ report.get('outside_configured_regions', '—') }}</td>
+                    <td>{{ report.get('duplicate_source_records_in_file', '—') }}</td>
+                    <td>{{ report.get('new_observations', run.stored_count) }}</td>
+                    <td>{{ report.get('existing_observations', '—') }}</td>
+                    <td>{{ report.get('preferred_source_updates', '—') }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          {% if latest_firms.get('rejection_counts') %}
+            <p class="technical-note">
+              最近一次规范化筛除：
+              {% for key, value in latest_firms.get('rejection_counts', {}).items() %}
+                <code>{{ key }}</code> = {{ value }}{% if not loop.last %}；{% endif %}
+              {% endfor %}
+            </p>
+          {% endif %}
+        </div>
+      </details>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- MCD64A1：FIRMS-only 任务完全不展示 -->
+  {% if has_mcd64 %}
+  <section class="analysis-module module-mcd64">
+    <div class="module-heading">
+      <div>
+        <p class="module-kicker">MCD64A1</p>
+        <h2>烧毁像元分析</h2>
+        <p>Burn Date 与 QA 配对、质量筛选、行政区落区和面积估计独立展示。</p>
+      </div>
+      {% if mcd64_runs %}
+        <span class="status-badge status-{{ mcd64_runs[0].status }}">{{ mcd64_runs[0].status }}</span>
+      {% else %}
+        <span class="status-badge status-pending">待处理</span>
+      {% endif %}
+    </div>
+
+    <div class="module-body">
+      <div class="module-summary">
+        <div class="module-stat"><span>烧毁像元</span><strong>{{ burned_total }}</strong></div>
+        <div class="module-stat"><span>面积估计 km²</span><strong>{{ burned_area_total | round(2) }}</strong></div>
+        <div class="module-stat"><span>有效文件对</span><strong>{{ mcd64_pairs | length }}</strong></div>
+        <div class="module-stat"><span>处理运行</span><strong>{{ mcd64_runs | length }}</strong></div>
+      </div>
+
+      {% if not mcd64_pairs %}
+        <div class="empty-compact">当前尚无通过配对校验的 Burn Date / QA 文件。上传对应 GeoTIFF 后再执行处理。</div>
+      {% elif region_count == 0 %}
+        <div class="warning">当前没有行政区边界数据，无法执行空间落区。</div>
+      {% else %}
+        <form method="post" action="{{ url_for('process_task_mcd64', task_id=task.task_id) }}" class="upload-form js-processing-form" data-processing-target="mcd64ProcessingNotice">
+          <label>
+            QA 筛选策略
+            <select name="qa_policy" required>
+              <option value="standard" selected>standard — 保留 shortened mapping period</option>
+              <option value="strict">strict — 排除 shortened mapping period</option>
+            </select>
+          </label>
+          <div class="form-actions">
+            <button type="submit" class="primary-action js-processing-button">执行 MCD64A1 处理</button>
+          </div>
+        </form>
+
+        <div id="mcd64ProcessingNotice" class="processing-notice" hidden aria-live="polite">
+          <strong>正在执行 MCD64A1 正式处理，请稍候</strong>
+          <p>后台正在完成文件配对检查、QA 筛选、行政区落区、烧毁像元存储和面积统计。处理完成后页面会自动刷新。</p>
+          <div class="indeterminate-track" aria-hidden="true"></div>
+          <div class="process-flow" aria-hidden="true">
+            <span>配对检查</span><span>QA 筛选</span><span>行政区匹配</span><span>面积统计</span>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if mcd64_pairs or mcd64_runs %}
+      <details class="compact-details">
+        <summary>MCD64A1 处理记录与配对详情</summary>
+        <div class="details-content">
+          {% if mcd64_pairs %}
+          <h3>有效配对</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>产品日期</th><th>Burn Date 文件 ID</th><th>QA 文件 ID</th><th>配对状态</th></tr></thead>
+              <tbody>
+                {% for pair in mcd64_pairs %}
+                <tr><td>{{ pair.product_date }}</td><td>{{ pair.burn_date_file_id }}</td><td>{{ pair.qa_file_id }}</td><td>{{ pair.pair_status }}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% endif %}
+
+          {% if mcd64_runs %}
+          <h3>处理运行</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>运行 ID</th><th>状态</th><th>策略</th><th>正值候选</th><th>月份外</th><th>QA拒绝</th><th>shortened</th><th>relabeling</th><th>行政区外</th><th>有效像元</th><th>新增像元</th><th>面积 km²</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for run in mcd64_runs %}
+                  {% set report = run.metadata or {} %}
+                  <tr>
+                    <td>{{ run.id }}<div class="mono-small">{{ run.started_at }}</div></td>
+                    <td><span class="status-badge status-{{ run.status }}">{{ run.status }}</span></td>
+                    <td>{{ report.get('qa_policy', '—') }}</td>
+                    <td>{{ report.get('positive_burn_date_pixels', run.input_count) }}</td>
+                    <td>{{ report.get('positive_values_outside_expected_month', '—') }}</td>
+                    <td>{{ report.get('qa_rejected_pixels', '—') }}</td>
+                    <td>{{ report.get('qa_shortened_mapping_period_pixels', '—') }}</td>
+                    <td>{{ report.get('qa_contextually_relabeled_pixels', '—') }}</td>
+                    <td>{{ report.get('outside_configured_regions', '—') }}</td>
+                    <td>{{ report.get('run_burned_pixel_count', run.stored_count) }}</td>
+                    <td>{{ report.get('new_burned_pixels', '—') }}</td>
+                    <td>{{ report.get('run_burned_area_km2', '—') }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% endif %}
+        </div>
+      </details>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+<!-- ======================================================
+     行政区相对关注等级：详细结果默认折叠
+====================================================== -->
+
+{% if task_risk_assessment %}
+
+<section class="analysis-module">
+
+  <div class="module-heading">
+
+    <div>
+
+      <p class="module-kicker">
+        ASSESSMENT
+      </p>
+
+      <h2>
+        行政区相对关注等级
+      </h2>
+
+      <p>
+        核心等级已在上方结果区展示，
+        此处保留完整明细与评估口径。
+      </p>
+
+    </div>
+
+
+    <a
+      class="secondary-button"
+      href="{{
+        url_for(
+          'export_task_csv',
+          task_id=task_id
+        )
+      }}"
+    >
+      导出任务结果 CSV
+    </a>
+
+  </div>
+
+
+  <div class="module-body">
+
+
+    <div class="assessment-overview">
+
+      <div class="assessment-chip">
+
+        <span>
+          规则版本
+        </span>
+
+        <strong>
+          {{ task_risk_assessment.rule_version }}
+        </strong>
+
+      </div>
+
+
+      <div class="assessment-chip">
+
+        <span>
+          评估范围
+        </span>
+
+        <strong>
+          当前任务
+        </strong>
+
+      </div>
+
+
+      <div class="assessment-chip">
+
+        <span>
+          行政区数量
+        </span>
+
+        <strong>
+          {{ task_risk_assessment.regions | length }}
+        </strong>
+
+      </div>
+
+    </div>
+
+
+
+    <details
+      class="compact-details assessment-table-details"
+    >
+
+      <summary>
+        查看完整行政区关注等级
+      </summary>
+
+
+      <div class="details-content">
+
+        <div class="table-wrap">
+
+          <table class="risk-table result-table">
+
+            <thead>
+
+              <tr>
+
+                <th>
+                  行政区
+                </th>
+
+                <th>
+                  相对关注等级
+                </th>
+
+
+                {% if has_firms %}
+
+                <th>
+                  FIRMS 主动火点观测
+                </th>
+
+                {% endif %}
+
+
+                {% if has_mcd64 %}
+
+                <th>
+                  MCD64A1 面积估计 km²
+                </th>
+
+                {% endif %}
+
+
+                <th>
+                  相对分值
+                </th>
+
+              </tr>
+
+            </thead>
+
+
+            <tbody>
+
+              {% for item
+                    in task_risk_assessment.regions %}
+
+              <tr>
+
+                <td>
+                  {{ item.region_name }}
+                </td>
+
+
+                <td>
+
+                  <span
+                    class="attention-badge"
+                    data-level="{{
+                      item.attention_level
+                    }}"
+                  >
+                    {{ item.attention_level }}
+                  </span>
+
+                </td>
+
+
+                {% if has_firms %}
+
+                <td class="numeric">
+                  {{ item.active_fire_count }}
+                </td>
+
+                {% endif %}
+
+
+                {% if has_mcd64 %}
+
+                <td class="numeric">
+                  {{
+                    item.burned_area_km2
+                    | round(6)
+                  }}
+                </td>
+
+                {% endif %}
+
+
+                <td class="numeric">
+
+                  {% if item.relative_score
+                        is not none %}
+
+                    {{
+                      item.relative_score
+                      | round(3)
+                    }}
+
+                  {% else %}
+
+                    —
+
+                  {% endif %}
+
+                </td>
+
+              </tr>
+
+              {% endfor %}
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </details>
+
+
+
+    <details class="compact-details">
+
+      <summary>
+        评估方法与数据口径
+      </summary>
+
+
+      <div class="details-content">
+
+        <p>
+
+          <strong>
+            规则标识：
+          </strong>
+
+          {{ task_risk_assessment.rule_id }}
+
+        </p>
+
+
+        <p class="minimal-disclaimer">
+
+          {{ task_risk_assessment.disclaimer }}
+
+        </p>
+
+
+        <p class="technical-note">
+
+          FIRMS 为主动火点观测记录，
+          不等同于独立火灾事件数；
+          MCD64A1 面积为筛选后的烧毁像元面积估计，
+          不等同于地面核定灾损面积。
+
+        </p>
+
+      </div>
+
+    </details>
+
+  </div>
+
+</section>
+
+{% endif %}
+
 </main>
 
 <footer>
-  所有输入状态均来源于当前任务真实文件和数据库记录。
+  黑龙江省火点数据检测与风险评估平台 · 当前页面结果来源于本任务正式处理数据
 </footer>
+
+<script>
+(() => {
+  const forms = document.querySelectorAll('.js-processing-form');
+
+  forms.forEach((form) => {
+    let submitted = false;
+
+    form.addEventListener('submit', (event) => {
+      if (submitted) return;
+      event.preventDefault();
+      submitted = true;
+
+      const targetId = form.dataset.processingTarget;
+      const notice = targetId ? document.getElementById(targetId) : null;
+      const button = form.querySelector('.js-processing-button');
+
+      if (notice) notice.hidden = false;
+      if (button) {
+        button.disabled = true;
+        button.textContent = '正在处理，请稍候…';
+      }
+
+      if (notice) {
+        notice.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      window.setTimeout(() => form.submit(), 120);
+    });
+  });
+})();
+</script>
 
 </body>
 </html>
