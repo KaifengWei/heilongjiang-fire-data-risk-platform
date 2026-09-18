@@ -35,7 +35,7 @@ def test_database_migration_creates_task_tables(
     assert "analysis_tasks" in tables
     assert "input_files" in tables
     assert "boundary_sets" in tables
-    assert version == 3
+    assert version == 4
 
 
 def test_existing_tables_are_preserved(
@@ -112,7 +112,7 @@ def test_create_and_read_analysis_task(
         "2026-03-31"
     )
     assert task["software_version"] == (
-        "0.1.1"
+        "1.0"
     )
     assert task["parameters"] == {
         "quality_only": True

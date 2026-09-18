@@ -43,6 +43,17 @@ from fire_monitor.services.statistics_service import (
 from fire_monitor.services.risk_assessment_service import (
     RiskAssessmentService,
 )
+from fire_monitor.services.auto_analysis_service import (
+    AutoAnalysisProcessingError,
+    AutoAnalysisService,
+    StagedUpload,
+)
+from fire_monitor.services.region_service import (
+    RegionService,
+)
+from fire_monitor.services.startup_service import (
+    StartupService,
+)
 
 SCOPE_LABELS = {
     "firms_only": "仅 FIRMS 主动火点",
@@ -93,6 +104,35 @@ def create_app(
     )
     database.initialize()
 
+    # 正式运行时，如果当前数据库还没有行政区，
+    # 则从随软件发布的默认 GeoJSON 初始化黑龙江省地市边界。
+    #
+    # testing=True 时不自动导入，避免改变现有单元测试
+    # 对“空数据库”的预期。
+    if not testing:
+        default_regions_path = (
+                settings.project_dir
+                / "data"
+                / "regions"
+                / "heilongjiang_city.geojson"
+        )
+
+        region_service = (
+            RegionService(
+                database
+            )
+        )
+
+        startup_service = (
+            StartupService(
+                database,
+                region_service,
+                default_regions_path,
+            )
+        )
+
+        startup_service.initialize_default_regions()
+
     if uploads_root is None:
         upload_root = (
             settings.project_dir
@@ -121,7 +161,7 @@ def create_app(
 
     task_service = TaskService(
         database,
-        software_version="0.1.1",
+        software_version="1.0",
     )
 
     validation_service = (
@@ -158,6 +198,14 @@ def create_app(
             database,
             statistics_service,
         )
+    )
+
+    auto_analysis_service = AutoAnalysisService(
+        task_service=task_service,
+        validation_service=validation_service,
+        readiness_service=readiness_service,
+        firms_processing_service=firms_processing_service,
+        mcd64_processing_service=mcd64_processing_service,
     )
 
     app = Flask(
@@ -210,6 +258,10 @@ def create_app(
         "risk_assessment_service"
     ] = risk_assessment_service
 
+    app.extensions[
+        "auto_analysis_service"
+    ] = auto_analysis_service
+
     def query_args() -> tuple[
         str | None,
         str | None,
@@ -256,6 +308,133 @@ def create_app(
             region,
             start,
             end,
+        )
+
+    def build_analysis_summary(
+        task: dict,
+    ) -> dict:
+        task_id = task["task_id"]
+        files = database.list_input_files(task_id)
+        roles = {item["file_role"] for item in files}
+        rows = statistics_service.task_region_statistics(task_id)
+
+        active_count = sum(int(row.get("active_fire_count", 0)) for row in rows)
+        burned_area = round(
+            sum(float(row.get("burned_area_km2", 0.0)) for row in rows),
+            6,
+        )
+        affected_regions = sum(
+            1
+            for row in rows
+            if int(row.get("active_fire_count", 0)) > 0
+            or float(row.get("burned_area_km2", 0.0)) > 0
+        )
+
+        if active_count > 0:
+            ordered = sorted(
+                rows,
+                key=lambda row: int(row.get("active_fire_count", 0)),
+                reverse=True,
+            )
+        else:
+            ordered = sorted(
+                rows,
+                key=lambda row: float(row.get("burned_area_km2", 0.0)),
+                reverse=True,
+            )
+
+        main_region = ordered[0]["region_name"] if ordered else "—"
+
+        firms_runs = database.list_import_runs(
+            task_id=task_id,
+            data_kind="active_fire_observations",
+            limit=100,
+        )
+        mcd64_runs = database.list_import_runs(
+            task_id=task_id,
+            data_kind="burned_pixels_tif",
+            limit=100,
+        )
+
+        new_observations = sum(
+            int((run.get("metadata") or {}).get("new_observations", 0) or 0)
+            for run in firms_runs
+            if run.get("status") == "completed"
+        )
+        existing_observations = sum(
+            int((run.get("metadata") or {}).get("existing_observations", 0) or 0)
+            for run in firms_runs
+            if run.get("status") == "completed"
+        )
+
+        if "firms_csv" in roles and roles & {"mcd64_burn_date", "mcd64_qa"}:
+            data_type = "FIRMS + MCD64A1"
+        elif "firms_csv" in roles:
+            data_type = "FIRMS 主动火点"
+        elif roles & {"mcd64_burn_date", "mcd64_qa"}:
+            data_type = "MCD64A1 烧毁像元"
+        else:
+            data_type = "待识别数据"
+
+        start = task.get("analysis_start")
+        end = task.get("analysis_end")
+        if start and end:
+            period = start if start == end else f"{start} 至 {end}"
+        else:
+            period = "自动识别时间范围"
+
+        return {
+            "task_id": task_id,
+            "name": task.get("name") or "分析记录",
+            "status": task.get("status"),
+            "status_label": (
+                "已分析" if any(
+                    run.get("status") == "completed"
+                    for run in [*firms_runs, *mcd64_runs]
+                ) else {
+                    "created": "待分析",
+                    "validating": "识别中",
+                    "ready": "待处理",
+                    "running": "分析中",
+                    "completed": "已分析",
+                    "failed": "失败",
+                }.get(task.get("status"), task.get("status") or "未知")
+            ),
+            "created_at": task.get("created_at"),
+            "period": period,
+            "data_type": data_type,
+            "active_fire_count": active_count,
+            "burned_area_km2": burned_area,
+            "affected_regions": affected_regions,
+            "main_region": main_region,
+            "new_observations": new_observations,
+            "existing_observations": existing_observations,
+            "has_reused_data": existing_observations > 0,
+            "input_file_count": len(files),
+            "processing_complete": any(
+                run.get("status") == "completed"
+                for run in [*firms_runs, *mcd64_runs]
+            ),
+        }
+
+    def build_analysis_records(
+        tasks: list[dict] | None = None,
+    ) -> list[dict]:
+        task_rows = tasks if tasks is not None else task_service.list_tasks(limit=30)
+        return [build_analysis_summary(task) for task in task_rows]
+
+    def render_home(
+        *,
+        page_error: str | None = None,
+        http_status: int = 200,
+    ):
+        return (
+            render_template(
+                "index.html",
+                records=build_analysis_records(),
+                page_error=page_error,
+            ),
+            http_status,
         )
 
     def render_task_detail(
@@ -342,6 +521,28 @@ def create_app(
             )
         )
 
+        task_daily_series = (
+            statistics_service
+            .task_daily_series(task_id)
+        )
+
+        analysis_summary = (
+            build_analysis_summary(task)
+        )
+
+        region_feature_collection = (
+            database.region_feature_collection()
+        )
+
+        task_region_ranking = sorted(
+            task_region_statistics,
+            key=lambda row: (
+                int(row.get("active_fire_count", 0)),
+                float(row.get("burned_area_km2", 0.0)),
+            ),
+            reverse=True,
+        )
+
         has_completed_processing = (
                 any(
                     run["status"] == "completed"
@@ -395,14 +596,87 @@ def create_app(
                 task_risk_assessment=(
                     task_risk_assessment
                 ),
+                analysis_summary=(
+                    analysis_summary
+                ),
+                task_daily_series=(
+                    task_daily_series
+                ),
+                task_region_ranking=(
+                    task_region_ranking
+                ),
+                region_feature_collection=(
+                    region_feature_collection
+                ),
             ),
             http_status,
         )
 
     @app.get("/")
     def index():
-        return render_template(
-            "index.html"
+        return render_home()
+
+    @app.post("/analyze")
+    def analyze_uploads():
+        uploaded_files = [
+            item
+            for item in request.files.getlist("files")
+            if item is not None and item.filename
+        ]
+
+        if not uploaded_files:
+            return render_home(
+                page_error="请选择需要分析的数据文件。",
+                http_status=400,
+            )
+
+        try:
+            with tempfile.TemporaryDirectory(
+                prefix="fire-auto-upload-",
+                dir=staging_root,
+            ) as temporary_dir:
+                staged_uploads = []
+
+                for index, uploaded in enumerate(uploaded_files, start=1):
+                    raw_filename = uploaded.filename.replace("\\", "/")
+                    original_filename = Path(raw_filename).name
+                    safe_name = secure_filename(original_filename)
+
+                    if not safe_name:
+                        suffix = Path(original_filename).suffix.lower()
+                        safe_name = f"uploaded_{index}{suffix}"
+
+                    temporary_path = Path(temporary_dir) / f"{index:02d}_{safe_name}"
+                    uploaded.save(temporary_path)
+                    staged_uploads.append(
+                        StagedUpload(
+                            path=temporary_path,
+                            original_filename=original_filename,
+                        )
+                    )
+
+                result = auto_analysis_service.create_and_process(staged_uploads)
+
+        except AutoAnalysisProcessingError as exc:
+            return render_task_detail(
+                exc.task_id,
+                page_error=(
+                    "文件已经完成识别，但自动分析失败："
+                    + str(exc)
+                ),
+                http_status=400,
+            )
+        except (ValueError, KeyError, FileNotFoundError, OSError) as exc:
+            return render_home(
+                page_error=str(exc),
+                http_status=400,
+            )
+
+        return redirect(
+            url_for(
+                "task_detail",
+                task_id=result["task_id"],
+            )
         )
 
     # =====================================================
@@ -418,6 +692,7 @@ def create_app(
         return render_template(
             "tasks.html",
             tasks=task_rows,
+            records=build_analysis_records(task_rows),
             scope_labels=SCOPE_LABELS,
             page_error=None,
         )

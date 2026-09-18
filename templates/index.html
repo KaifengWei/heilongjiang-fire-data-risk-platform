@@ -1,921 +1,139 @@
 <!doctype html>
 <html lang="zh-CN">
-
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
-  <title>
-    黑龙江省火点数据检测与风险评估平台
-  </title>
-
-  <link
-    rel="stylesheet"
-    href="{{ url_for('static', filename='styles.css') }}"
-  >
+  <title>黑龙江省火点数据检测与风险评估平台</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='product.css') }}">
 </head>
-
-
-<body class="v1-dashboard">
-
-
-<header class="v1-header">
-
-  <div class="v1-brand">
-
-    <div class="v1-brand-mark">
-      F
-    </div>
-
-
-    <div>
-
-      <p class="v1-kicker">
-        REMOTE SENSING FIRE MONITOR
-      </p>
-
-      <h1>
-        黑龙江省火点数据检测与风险评估平台
-      </h1>
-
-      <p>
-        主动火点 · 火烧迹地 · 行政区空间分析 · 相对关注评估
-      </p>
-
-    </div>
-
-  </div>
-
-
-  <div class="v1-header-actions">
-
-    <a
-      class="v1-header-button"
-      href="{{ url_for('tasks') }}"
-    >
-      分析任务
+<body class="app-body">
+<div class="app-shell">
+  <aside class="app-sidebar">
+    <a class="app-brand" href="{{ url_for('index') }}">
+      <span class="app-brand-mark">F</span>
+      <span class="app-brand-copy"><strong>黑龙江省火点数据</strong><small>检测与风险评估平台</small></span>
     </a>
 
+    <nav class="app-side-nav" aria-label="主导航">
+      <a class="active" href="{{ url_for('index') }}"><span class="nav-icon">⌂</span><span>首页</span></a>
+      <a href="#upload"><span class="nav-icon">＋</span><span>开始分析</span></a>
+      <a href="{{ url_for('tasks') }}"><span class="nav-icon">▤</span><span>分析记录</span></a>
+      <button type="button" data-open-help><span class="nav-icon">?</span><span>使用帮助</span></button>
+    </nav>
+
+    <div class="app-side-spacer"></div>
+    <div class="app-side-footer"><span>本地桌面分析</span><b>V1.0</b></div>
+  </aside>
+
+  <div class="app-workspace">
+    <header class="app-topbar">
+      <div>
+        <span class="app-eyebrow">HOME</span>
+        <h1>首页</h1>
+        <p>上传一份数据，软件自动识别并生成本次分析结果。</p>
+      </div>
+      <div class="app-top-actions">
+        <button class="app-button app-button-ghost" type="button" data-open-help>使用教程</button>
+        <a class="app-button app-button-primary" href="#upload">开始分析</a>
+      </div>
+    </header>
+
+    <main class="app-main">
+      {% if page_error %}
+      <div class="app-alert error reveal-item">
+        <strong>未能开始分析</strong><span>{{ page_error }}</span>
+      </div>
+      {% endif %}
+
+      <section id="upload" class="start-card reveal-item">
+        <div class="start-card-copy">
+          <span class="app-chip">一次上传 · 自动分析</span>
+          <h2>选择数据文件，后续步骤由软件自动完成</h2>
+          <p>软件会自动识别数据类型与时间范围，完成输入校验、黑龙江行政区空间分析和重复数据检查。</p>
+
+          <div class="start-flow">
+            <div><b>01</b><span><strong>选择文件</strong><small>CSV / GeoTIFF</small></span></div>
+            <i>→</i>
+            <div><b>02</b><span><strong>自动识别</strong><small>类型 / 日期 / 重复</small></span></div>
+            <i>→</i>
+            <div><b>03</b><span><strong>查看结果</strong><small>空间 / 时间 / 区域</small></span></div>
+          </div>
+        </div>
+
+        <form id="autoAnalyzeForm" class="upload-panel" method="post" action="{{ url_for('analyze_uploads') }}" enctype="multipart/form-data">
+          <div class="upload-panel-head"><div><span>上传数据</span><strong>开始一次新的分析</strong></div><span class="upload-status-dot"></span></div>
+
+          <label class="upload-dropzone" id="uploadDropzone" for="analysisFiles">
+            <input id="analysisFiles" name="files" type="file" multiple accept=".csv,.tif,.tiff" required>
+            <span class="upload-icon">＋</span>
+            <strong>点击选择文件，或拖到这里</strong>
+            <small id="selectedFileText">支持 FIRMS CSV 与 MCD64A1 GeoTIFF</small>
+          </label>
+
+          <div class="upload-format-row">
+            <span><b>FIRMS</b> CSV</span>
+            <span><b>MCD64A1</b> BurnDate + QA GeoTIFF</span>
+          </div>
+
+          <button id="analyzeButton" class="app-button app-button-primary upload-submit" type="submit">开始自动分析</button>
+
+          <div id="analysisProgress" class="analysis-progress" hidden>
+            <div><span></span></div>
+            <p>正在读取文件并生成本次分析，请保持窗口开启…</p>
+          </div>
+        </form>
+      </section>
+
+      <section class="app-section reveal-item">
+        <div class="section-heading">
+          <div><span class="app-eyebrow">RECENT ANALYSIS</span><h2>最近分析</h2><p>按每次上传单独保存，继续上一次工作也从这里进入。</p></div>
+          <a class="section-link" href="{{ url_for('tasks') }}">查看全部记录 <span>→</span></a>
+        </div>
+
+        {% if records %}
+        <div class="analysis-card-grid">
+          {% for record in records[:6] %}
+          <article class="analysis-card">
+            <div class="analysis-card-head">
+              <span class="data-pill">{{ record.data_type }}</span>
+              <span class="status-pill status-{{ record.status }}">{{ record.status_label }}</span>
+            </div>
+            <h3>{{ record.name }}</h3>
+            <p class="analysis-card-period">{{ record.period }}</p>
+
+            <div class="analysis-metrics">
+              <div><span>有效火点</span><strong>{{ '{:,}'.format(record.active_fire_count) }}</strong></div>
+              <div><span>涉及区域</span><strong>{{ record.affected_regions }}</strong></div>
+              <div><span>主要区域</span><strong class="metric-text">{{ record.main_region }}</strong></div>
+            </div>
+
+            {% if record.has_reused_data %}
+            <div class="reuse-tag">已识别 {{ '{:,}'.format(record.existing_observations) }} 条历史重合观测并复用</div>
+            {% endif %}
+
+            <div class="analysis-card-footer">
+              <span>{{ (record.created_at or '')[:16]|replace('T', ' ') }}</span>
+              <a href="{{ url_for('task_detail', task_id=record.task_id) }}">查看结果 <b>→</b></a>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-card"><span>◎</span><strong>还没有分析记录</strong><p>从上方上传第一份数据，结果会自动保存在这里。</p></div>
+        {% endif %}
+      </section>
+
+      <section class="quick-guide-grid reveal-item">
+        <article><span class="quick-icon">⌁</span><div><strong>自动识别</strong><p>从文件内容和产品标识读取数据类型与时间范围。</p></div></article>
+        <article><span class="quick-icon">◫</span><div><strong>独立记录</strong><p>每次上传形成自己的结果，历史重合数据可复用但不重复保存。</p></div></article>
+        <article><span class="quick-icon">↗</span><div><strong>结果导出</strong><p>从具体分析记录进入结果页，再导出该次分析的数据。</p></div></article>
+      </section>
+    </main>
   </div>
+</div>
 
-</header>
-
-
-
-<main class="v1-main">
-
-
-  <!-- ===================================================
-       查询控制
-  ==================================================== -->
-
-  <section class="v1-toolbar">
-
-
-    <div class="v1-view-status">
-
-      <span class="v1-status-dot"></span>
-
-      <div>
-
-        <small>
-          当前视图
-        </small>
-
-        <strong id="currentViewText">
-          黑龙江省 · 全省总览
-        </strong>
-
-      </div>
-
-    </div>
-
-
-
-    <div class="v1-toolbar-fields">
-
-
-      <label>
-
-        行政区
-
-        <select id="regionSelect">
-
-          <option value="">
-            全省
-          </option>
-
-        </select>
-
-      </label>
-
-
-
-      <label>
-
-        开始日期
-
-        <input
-          id="startDate"
-          type="date"
-        >
-
-      </label>
-
-
-
-      <label>
-
-        结束日期
-
-        <input
-          id="endDate"
-          type="date"
-        >
-
-      </label>
-
-
-
-      <label>
-
-        地图点位
-
-        <select id="mapLimit">
-
-          <option value="500">
-            500
-          </option>
-
-          <option
-            value="1000"
-            selected
-          >
-            1000
-          </option>
-
-          <option value="2000">
-            2000
-          </option>
-
-          <option value="5000">
-            5000
-          </option>
-
-        </select>
-
-      </label>
-
-
-
-      <button
-        id="refreshButton"
-        class="v1-primary-button"
-        type="button"
-      >
-        查询
-      </button>
-
-
-
-      <button
-        id="resetOverviewButton"
-        class="v1-reset-button"
-        type="button"
-        hidden
-      >
-        ← 返回全省总览
-      </button>
-
-
-    </div>
-
-  </section>
-
-
-
-  <!-- ===================================================
-       核心指标
-  ==================================================== -->
-
-  <section class="v1-kpi-grid">
-
-
-    <article class="v1-kpi v1-kpi-fire">
-
-      <div class="v1-kpi-icon">
-        ●
-      </div>
-
-      <div>
-
-        <span>
-          FIRMS 主动火点观测
-        </span>
-
-        <strong id="activeCount">
-          —
-        </strong>
-
-        <small>
-          条记录
-        </small>
-
-      </div>
-
-    </article>
-
-
-
-    <article class="v1-kpi v1-kpi-region">
-
-      <div class="v1-kpi-icon">
-        ◫
-      </div>
-
-      <div>
-
-        <span id="compareTitle">
-          当前分析区域
-        </span>
-
-        <strong id="regionMetric">
-          全省
-        </strong>
-
-        <small id="regionMetricNote">
-          黑龙江省行政区范围
-        </small>
-
-      </div>
-
-    </article>
-
-
-
-    <article class="v1-kpi v1-kpi-burn">
-
-      <div class="v1-kpi-icon">
-        ■
-      </div>
-
-      <div>
-
-        <span>
-          MCD64A1 烧毁像元面积估计
-        </span>
-
-        <strong id="burnedArea">
-          —
-        </strong>
-
-        <small>
-          km²
-        </small>
-
-      </div>
-
-    </article>
-
-
-
-    <article class="v1-kpi v1-kpi-peak">
-
-      <div class="v1-kpi-icon">
-        ↑
-      </div>
-
-      <div>
-
-        <span>
-          FIRMS 峰值日期
-        </span>
-
-        <strong id="peakDay">
-          —
-        </strong>
-
-        <small id="peakDayLabel">
-          暂无数据
-        </small>
-
-      </div>
-
-    </article>
-
-
-  </section>
-
-
-
-  <!-- ===================================================
-       主工作区
-  ==================================================== -->
-
-  <section class="v1-primary-grid">
-
-
-    <!-- 地图 -->
-
-    <article class="v1-card v1-map-card">
-
-
-      <div class="v1-card-heading">
-
-
-        <div>
-
-          <p class="v1-section-kicker">
-            SPATIAL VIEW
-          </p>
-
-          <h2>
-            火情空间分布
-          </h2>
-
-        </div>
-
-
-
-        <div class="v1-map-tools">
-
-
-          <label>
-
-            <input
-              id="showActive"
-              type="checkbox"
-              checked
-            >
-
-            <span class="v1-dot-fire"></span>
-
-            主动火点
-
-          </label>
-
-
-
-          <label>
-
-            <input
-              id="showBurned"
-              type="checkbox"
-              checked
-            >
-
-            <span class="v1-dot-burn"></span>
-
-            烧毁像元
-
-          </label>
-
-
-        </div>
-
-
-      </div>
-
-
-
-      <div class="v1-map-stage">
-
-
-        <canvas
-          id="mapCanvas"
-          width="1200"
-          height="680"
-        >
-        </canvas>
-
-
-        <div
-          id="mapTooltip"
-          class="v1-map-tooltip"
-          hidden
-        >
-        </div>
-
-
-
-        <div class="v1-map-floating">
-
-
-          <div>
-
-            <span>
-              当前范围
-            </span>
-
-            <strong id="mapScopeText">
-              全省
-            </strong>
-
-          </div>
-
-
-          <button
-            id="mapResetButton"
-            type="button"
-            hidden
-          >
-            返回全省
-          </button>
-
-
-        </div>
-
-
-      </div>
-
-
-
-      <div class="v1-map-bottom">
-
-
-        <span id="mapNote">
-          正在加载空间数据…
-        </span>
-
-
-        <strong>
-          悬停查看行政区 · 单击进入区域
-        </strong>
-
-
-      </div>
-
-
-    </article>
-
-
-
-    <!-- 右侧组合面板 -->
-
-    <aside class="v1-side-stack">
-
-
-      <!-- 区域对比 -->
-
-      <article class="v1-card v1-compare-card">
-
-
-        <div class="v1-card-heading">
-
-          <div>
-
-            <p class="v1-section-kicker">
-              REGIONAL COMPARISON
-            </p>
-
-            <h2>
-              区域对比
-            </h2>
-
-          </div>
-
-        </div>
-
-
-
-        <div class="v1-compare-body">
-
-
-          <div
-            id="compareGauge"
-            class="v1-gauge"
-            style="--percentage: 100;"
-          >
-
-            <div class="v1-gauge-inner">
-
-              <strong id="comparePercent">
-                100%
-              </strong>
-
-              <span>
-                全省占比
-              </span>
-
-            </div>
-
-          </div>
-
-
-
-          <div class="v1-compare-text">
-
-            <span id="compareRegionName">
-              黑龙江省
-            </span>
-
-            <strong id="compareFireValue">
-              —
-            </strong>
-
-            <small>
-              FIRMS 主动火点观测
-            </small>
-
-
-            <div class="v1-compare-divider">
-            </div>
-
-
-            <p id="compareExplanation">
-              当前展示全省查询结果。
-            </p>
-
-          </div>
-
-
-        </div>
-
-
-      </article>
-
-
-
-      <!-- 时间趋势 -->
-
-      <article class="v1-card v1-trend-card">
-
-
-        <div class="v1-card-heading">
-
-          <div>
-
-            <p class="v1-section-kicker">
-              TEMPORAL TREND
-            </p>
-
-            <h2>
-              时间活动趋势
-            </h2>
-
-          </div>
-
-        </div>
-
-
-
-        <div
-          id="dailyMiniChart"
-          class="v1-trend-chart"
-        >
-
-          <div class="v1-empty">
-            暂无数据
-          </div>
-
-        </div>
-
-
-
-        <div
-          id="trendHighlight"
-          class="v1-trend-highlight"
-        >
-          —
-        </div>
-
-
-      </article>
-
-
-    </aside>
-
-
-  </section>
-
-
-
-  <!-- ===================================================
-       特征功能：遥感处理链
-  ==================================================== -->
-
-  <section class="v1-card v1-pipeline-card">
-
-
-    <div class="v1-card-heading">
-
-
-      <div>
-
-        <p class="v1-section-kicker">
-          PROCESS TRACE
-        </p>
-
-        <h2>
-          遥感数据处理链
-        </h2>
-
-        <p>
-          直接读取最近一次正式处理记录，展示数据从原始输入到有效结果的实际筛选过程。
-        </p>
-
-      </div>
-
-
-
-      <div
-        id="pipelineTabs"
-        class="v1-pipeline-tabs"
-      >
-
-        <button
-          type="button"
-          data-kind="firms"
-          class="active"
-        >
-          FIRMS
-        </button>
-
-
-        <button
-          type="button"
-          data-kind="mcd64"
-          hidden
-        >
-          MCD64A1
-        </button>
-
-      </div>
-
-
-    </div>
-
-
-
-    <div
-      id="pipelineBody"
-      class="v1-pipeline-body"
-    >
-
-      <div class="v1-empty">
-        暂无正式处理记录
-      </div>
-
-    </div>
-
-
-  </section>
-
-
-
-  <!-- ===================================================
-       下部信息
-  ==================================================== -->
-
-  <section class="v1-secondary-grid">
-
-
-    <!-- 高值日期 -->
-
-    <article class="v1-card">
-
-
-      <div class="v1-card-heading">
-
-        <div>
-
-          <p class="v1-section-kicker">
-            ACTIVITY RANKING
-          </p>
-
-          <h2>
-            高值日期
-          </h2>
-
-        </div>
-
-      </div>
-
-
-      <div
-        id="topDaysList"
-        class="v1-rank-list"
-      >
-
-        <div class="v1-empty">
-          暂无数据
-        </div>
-
-      </div>
-
-
-    </article>
-
-
-
-    <!-- 数据状态 -->
-
-    <article class="v1-card">
-
-
-      <div class="v1-card-heading">
-
-        <div>
-
-          <p class="v1-section-kicker">
-            DATA STATUS
-          </p>
-
-          <h2>
-            数据来源与运行状态
-          </h2>
-
-        </div>
-
-      </div>
-
-
-
-      <div
-        id="sourceSummary"
-        class="v1-source-summary"
-      >
-        正在加载…
-      </div>
-
-
-
-      <details class="v1-details">
-
-        <summary>
-          查看最近处理记录
-        </summary>
-
-
-        <div class="v1-table-wrap">
-
-          <table>
-
-            <thead>
-
-              <tr>
-
-                <th>
-                  数据
-                </th>
-
-                <th>
-                  状态
-                </th>
-
-                <th>
-                  记录
-                </th>
-
-                <th>
-                  来源
-                </th>
-
-              </tr>
-
-            </thead>
-
-
-            <tbody id="importRows">
-
-              <tr>
-
-                <td
-                  colspan="4"
-                  class="v1-empty"
-                >
-                  暂无记录
-                </td>
-
-              </tr>
-
-            </tbody>
-
-          </table>
-
-        </div>
-
-
-      </details>
-
-
-    </article>
-
-
-  </section>
-
-
-
-  <!-- ===================================================
-       明细全部收起
-  ==================================================== -->
-
-  <section class="v1-card v1-detail-card">
-
-
-    <details>
-
-
-      <summary>
-
-        <span>
-          查询数据明细
-        </span>
-
-        <small>
-          展开查看逐日统计与数据记录
-        </small>
-
-      </summary>
-
-
-
-      <div class="v1-table-wrap">
-
-
-        <table>
-
-
-          <thead>
-
-            <tr>
-
-              <th>
-                日期
-              </th>
-
-              <th>
-                FIRMS 主动火点观测
-              </th>
-
-              <th>
-                MCD64A1 烧毁像元
-              </th>
-
-              <th>
-                烧毁像元面积估计 km²
-              </th>
-
-            </tr>
-
-          </thead>
-
-
-
-          <tbody id="dailyRows">
-
-            <tr>
-
-              <td
-                colspan="4"
-                class="v1-empty"
-              >
-                暂无数据
-              </td>
-
-            </tr>
-
-          </tbody>
-
-
-        </table>
-
-
-      </div>
-
-
-    </details>
-
-
-  </section>
-
-
-</main>
-
-
-
-<footer class="v1-footer">
-
-  <span>
-    FIRMS 表示主动火点观测记录，不等同于独立火灾事件。
-  </span>
-
-  <a
-    id="exportLink"
-    href="/api/export.csv"
-  >
-    导出当前查询 CSV
-  </a>
-
-</footer>
-
-
-
-<script
-  src="{{ url_for('static', filename='app.js') }}"
->
-</script>
-
-
+{% include '_help_modal.html' %}
+<script src="{{ url_for('static', filename='product.js') }}"></script>
 </body>
 </html>

@@ -356,6 +356,65 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
             """
         )
 
+    if current_version < 4:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS active_fire_run_membership
+            (
+                run_id INTEGER NOT NULL,
+                observation_id INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (run_id, observation_id),
+                FOREIGN KEY(run_id) REFERENCES import_runs(id),
+                FOREIGN KEY(observation_id)
+                    REFERENCES active_fire_observations(id)
+                    ON DELETE CASCADE
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_active_fire_membership_observation
+            ON active_fire_run_membership(observation_id)
+            """
+        )
+
+        # Backfill from both the canonical observation's original run and all
+        # historical source records. INSERT OR IGNORE keeps this migration safe
+        # when the same observation is visible through both paths.
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO active_fire_run_membership(
+                run_id,
+                observation_id,
+                created_at
+            )
+            SELECT
+                import_run_id,
+                id,
+                datetime('now')
+            FROM active_fire_observations
+            WHERE import_run_id IS NOT NULL
+            """
+        )
+
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO active_fire_run_membership(
+                run_id,
+                observation_id,
+                created_at
+            )
+            SELECT
+                import_run_id,
+                observation_id,
+                datetime('now')
+            FROM active_fire_observation_sources
+            WHERE import_run_id IS NOT NULL
+            """
+        )
+
     conn.execute(
         f"PRAGMA user_version = {CURRENT_SCHEMA_VERSION}"
     )

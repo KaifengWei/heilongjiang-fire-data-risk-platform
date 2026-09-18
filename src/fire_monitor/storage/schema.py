@@ -85,6 +85,28 @@ CREATE TABLE IF NOT EXISTS active_fire_observation_sources (
 CREATE INDEX IF NOT EXISTS idx_active_fire_sources_observation
 ON active_fire_observation_sources(observation_id);
 
+
+CREATE TABLE IF NOT EXISTS active_fire_run_membership (
+    run_id INTEGER NOT NULL,
+    observation_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+
+    PRIMARY KEY(
+        run_id,
+        observation_id
+    ),
+
+    FOREIGN KEY(run_id)
+        REFERENCES import_runs(id),
+
+    FOREIGN KEY(observation_id)
+        REFERENCES active_fire_observations(id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_active_fire_membership_observation
+ON active_fire_run_membership(observation_id);
+
 CREATE TABLE IF NOT EXISTS burned_pixels (
     id INTEGER PRIMARY KEY,
     dedupe_key TEXT NOT NULL UNIQUE,
@@ -196,4 +218,4 @@ ON input_files(sha256);
 """
 
 
-CURRENT_SCHEMA_VERSION = 3
+CURRENT_SCHEMA_VERSION = 4

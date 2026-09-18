@@ -1,0 +1,105 @@
+<div class="guide-modal" id="guideModal" hidden aria-hidden="true">
+  <div class="guide-backdrop" data-close-help></div>
+  <section class="guide-dialog" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+    <header class="guide-header">
+      <div>
+        <span class="app-eyebrow">QUICK START</span>
+        <h2 id="guideTitle">使用帮助</h2>
+        <p>第一次使用时，从“上传数据”开始即可。软件会自动识别数据并建立独立分析记录。</p>
+      </div>
+      <button class="guide-close" type="button" aria-label="关闭帮助" data-close-help>×</button>
+    </header>
+
+    <div class="guide-layout">
+      <nav class="guide-nav" aria-label="帮助目录">
+        <button class="active" type="button" data-help-tab="start"><b>01</b><span>开始一次分析</span></button>
+        <button type="button" data-help-tab="files"><b>02</b><span>支持什么数据</span></button>
+        <button type="button" data-help-tab="results"><b>03</b><span>怎么看结果</span></button>
+        <button type="button" data-help-tab="repeat"><b>04</b><span>重复数据处理</span></button>
+        <button type="button" data-help-tab="terms"><b>05</b><span>数据口径</span></button>
+      </nav>
+
+      <div class="guide-content">
+        <section class="guide-panel active" data-help-panel="start">
+          <span class="guide-step-label">01 / 开始分析</span>
+          <h3>选择文件后，软件会自动完成识别和分析</h3>
+          <div class="guide-visual guide-visual-upload" aria-hidden="true">
+            <div class="guide-mini-window">
+              <div class="guide-mini-title"><span></span><span></span><span></span></div>
+              <div class="guide-mini-drop"><b>＋</b><strong>选择遥感数据文件</strong><small>CSV / GeoTIFF</small></div>
+              <div class="guide-mini-button">开始自动分析</div>
+            </div>
+          </div>
+          <ol class="guide-steps-list">
+            <li><b>选择数据文件</b><span>无需先填日期，也无需先选择 FIRMS / MCD64A1 类型。</span></li>
+            <li><b>等待自动识别</b><span>软件读取文件类型、时间范围，执行校验、行政区落区和数据处理。</span></li>
+            <li><b>查看本次结果</b><span>完成后自动进入结果页，并在“分析记录”中保留这一次分析。</span></li>
+          </ol>
+        </section>
+
+        <section class="guide-panel" data-help-panel="files">
+          <span class="guide-step-label">02 / 支持数据</span>
+          <h3>当前支持两类遥感输入</h3>
+          <div class="guide-file-cards">
+            <article>
+              <span class="guide-file-icon fire">CSV</span>
+              <div><strong>NASA FIRMS 主动火点 CSV</strong><p>直接选择 CSV。软件从表头与记录中识别日期、坐标和卫星观测字段。</p></div>
+            </article>
+            <article>
+              <span class="guide-file-icon burn">TIF</span>
+              <div><strong>MCD64A1 GeoTIFF</strong><p>同时选择 Burn Date 与 QA 文件；当前处理流程使用 EPSG:4326 GeoTIFF。</p></div>
+            </article>
+          </div>
+          <div class="guide-tip"><b>建议：</b>保持 NASA 下载/转换后的产品日期标识与 BurnDate、QA 文件名标识，自动识别会更稳定。</div>
+        </section>
+
+        <section class="guide-panel" data-help-panel="results">
+          <span class="guide-step-label">03 / 结果阅读</span>
+          <h3>结果页先回答“多少、哪里、什么时候”</h3>
+          <div class="guide-result-preview" aria-hidden="true">
+            <div class="guide-preview-kpis"><span></span><span></span><span></span><span></span></div>
+            <div class="guide-preview-main">
+              <div class="guide-preview-map"><i></i><i></i><i></i><i></i></div>
+              <div class="guide-preview-bars"><em></em><em></em><em></em><em></em><em></em></div>
+            </div>
+          </div>
+          <div class="guide-result-list">
+            <div><b>结果总览</b><span>有效观测、涉及行政区、主要区域、数据类型/面积。</span></div>
+            <div><b>空间分布</b><span>通过黑龙江行政区地图查看本次数据主要集中位置。</span></div>
+            <div><b>区域排行</b><span>比较各市（地）在本次分析中的火点数量或烧毁像元面积。</span></div>
+            <div><b>时间分布</b><span>查看哪一天出现最多的主动火点观测。</span></div>
+          </div>
+        </section>
+
+        <section class="guide-panel" data-help-panel="repeat">
+          <span class="guide-step-label">04 / 重复数据</span>
+          <h3>相同数据再次上传时，不会把同一观测重复存储</h3>
+          <div class="guide-repeat-flow">
+            <div><span>第一次上传</span><strong>识别并存储规范观测</strong></div>
+            <b>→</b>
+            <div><span>再次上传</span><strong>检测历史重合记录</strong></div>
+            <b>→</b>
+            <div><span>新的分析记录</span><strong>复用已有观测并独立统计</strong></div>
+          </div>
+          <p class="guide-copy">因此每次上传仍然会形成独立分析记录，但底层不会为了同一规范化观测反复增加库存。</p>
+        </section>
+
+        <section class="guide-panel" data-help-panel="terms">
+          <span class="guide-step-label">05 / 数据口径</span>
+          <h3>结果中的几个名称分别表示什么</h3>
+          <dl class="guide-terms">
+            <div><dt>FIRMS 主动火点观测</dt><dd>卫星主动火点产品中的观测记录。平台按当前分析记录进行数量、时间和行政区统计。</dd></div>
+            <div><dt>MCD64A1 烧毁像元面积</dt><dd>筛选后的烧毁像元面积估计之和，用于描述遥感产品中的烧毁区域信息。</dd></div>
+            <div><dt>相对关注等级</dt><dd>平台在当前分析记录内部比较各行政区遥感指标得到的相对关注程度。</dd></div>
+            <div><dt>分析记录</dt><dd>一次用户上传及其识别、处理和结果的独立记录。导出只针对当前记录。</dd></div>
+          </dl>
+        </section>
+      </div>
+    </div>
+
+    <footer class="guide-footer">
+      <label class="guide-dont-show"><input id="guideDontShow" type="checkbox"> 下次启动桌面软件时不再自动显示</label>
+      <button class="app-button app-button-primary" id="guideStartButton" type="button">进入软件</button>
+    </footer>
+  </section>
+</div>

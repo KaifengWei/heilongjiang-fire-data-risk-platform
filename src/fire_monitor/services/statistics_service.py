@@ -171,26 +171,34 @@ class StatisticsService:
 
             fire_rows = conn.execute(
                 """
-                WITH task_observations AS (SELECT DISTINCT source.observation_id
-                                           FROM active_fire_observation_sources
-                                                    AS source
-                                                    JOIN import_runs AS run
-                                                         ON run.id = source.import_run_id
-                                           WHERE run.task_id = ?
-                                             AND run.data_kind =
-                                                 'active_fire_observations'
-                                             AND run.status = 'completed')
+                WITH task_observations AS (
+                    SELECT membership.observation_id
+                    FROM active_fire_run_membership AS membership
+                    JOIN import_runs AS run
+                        ON run.id = membership.run_id
+                    WHERE run.task_id = ?
+                      AND run.data_kind = 'active_fire_observations'
+                      AND run.status = 'completed'
+
+                    UNION
+
+                    SELECT source.observation_id
+                    FROM active_fire_observation_sources AS source
+                    JOIN import_runs AS run
+                        ON run.id = source.import_run_id
+                    WHERE run.task_id = ?
+                      AND run.data_kind = 'active_fire_observations'
+                      AND run.status = 'completed'
+                )
                 SELECT observation.region_name,
                        COUNT(*) AS active_fire_count
                 FROM task_observations AS task_observation
-                         JOIN active_fire_observations
-                    AS observation
-                              ON observation.id =
-                                 task_observation.observation_id
+                JOIN active_fire_observations AS observation
+                    ON observation.id = task_observation.observation_id
                 WHERE observation.region_name IS NOT NULL
                 GROUP BY observation.region_name
                 """,
-                (task_id,),
+                (task_id, task_id),
             ).fetchall()
 
             burned_rows = conn.execute(
@@ -278,3 +286,103 @@ class StatisticsService:
                 item["region_name"]
             ),
         )
+
+    def task_daily_series(
+        self,
+        task_id: str,
+    ) -> list[dict[str, Any]]:
+        """返回指定分析记录的逐日 FIRMS / MCD64A1 统计。"""
+
+        with self.database.connect() as conn:
+            fire_rows = conn.execute(
+                """
+                WITH task_observations AS (
+                    SELECT membership.observation_id
+                    FROM active_fire_run_membership AS membership
+                    JOIN import_runs AS run
+                        ON run.id = membership.run_id
+                    WHERE run.task_id = ?
+                      AND run.data_kind = 'active_fire_observations'
+                      AND run.status = 'completed'
+
+                    UNION
+
+                    SELECT source.observation_id
+                    FROM active_fire_observation_sources AS source
+                    JOIN import_runs AS run
+                        ON run.id = source.import_run_id
+                    WHERE run.task_id = ?
+                      AND run.data_kind = 'active_fire_observations'
+                      AND run.status = 'completed'
+                )
+                SELECT
+                    observation.acquired_date AS date,
+                    COUNT(*) AS active_fire_observation_count
+                FROM task_observations AS task_observation
+                JOIN active_fire_observations AS observation
+                    ON observation.id = task_observation.observation_id
+                GROUP BY observation.acquired_date
+                ORDER BY observation.acquired_date
+                """,
+                (task_id, task_id),
+            ).fetchall()
+
+            burned_rows = conn.execute(
+                """
+                WITH task_pixels AS (
+                    SELECT DISTINCT membership.burned_pixel_id
+                    FROM burned_pixel_run_membership AS membership
+                    JOIN import_runs AS run
+                        ON run.id = membership.run_id
+                    WHERE run.task_id = ?
+                      AND run.data_kind = 'burned_pixels_tif'
+                      AND run.status = 'completed'
+                )
+                SELECT
+                    pixel.burned_date AS date,
+                    COUNT(*) AS burned_pixel_count,
+                    COALESCE(SUM(pixel.cell_area_km2), 0) AS burned_area_km2
+                FROM task_pixels AS task_pixel
+                JOIN burned_pixels AS pixel
+                    ON pixel.id = task_pixel.burned_pixel_id
+                GROUP BY pixel.burned_date
+                ORDER BY pixel.burned_date
+                """,
+                (task_id,),
+            ).fetchall()
+
+        series: dict[str, dict[str, Any]] = {}
+
+        for row in fire_rows:
+            series.setdefault(
+                row["date"],
+                {
+                    "date": row["date"],
+                    "active_fire_observation_count": 0,
+                    "burned_pixel_count": 0,
+                    "burned_area_km2": 0.0,
+                },
+            )
+            series[row["date"]]["active_fire_observation_count"] = int(
+                row["active_fire_observation_count"]
+            )
+
+        for row in burned_rows:
+            series.setdefault(
+                row["date"],
+                {
+                    "date": row["date"],
+                    "active_fire_observation_count": 0,
+                    "burned_pixel_count": 0,
+                    "burned_area_km2": 0.0,
+                },
+            )
+            series[row["date"]]["burned_pixel_count"] = int(
+                row["burned_pixel_count"]
+            )
+            series[row["date"]]["burned_area_km2"] = round(
+                float(row["burned_area_km2"]),
+                6,
+            )
+
+        return [series[key] for key in sorted(series)]

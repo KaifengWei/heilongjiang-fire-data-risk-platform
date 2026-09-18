@@ -239,6 +239,23 @@ class FirmsRepository:
 
                         preferred_source_updates += 1
 
+                if import_run_id is not None:
+                    conn.execute(
+                        """
+                        INSERT OR IGNORE INTO active_fire_run_membership(
+                            run_id,
+                            observation_id,
+                            created_at
+                        )
+                        VALUES (?, ?, ?)
+                        """,
+                        (
+                            int(import_run_id),
+                            observation_id,
+                            utc_now(),
+                        ),
+                    )
+
                 source_key = row[
                     "source_record_key"
                 ]

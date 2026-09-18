@@ -3,13 +3,37 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 
 def project_root() -> Path:
-    """返回项目根目录，不依赖当前工作目录。"""
-    return Path(__file__).resolve().parents[2]
+    """返回源码模式或 PyInstaller 模式下的资源根目录。"""
+
+    if getattr(sys, "frozen", False):
+        bundle_root = getattr(
+            sys,
+            "_MEIPASS",
+            None,
+        )
+
+        if bundle_root:
+            return Path(
+                bundle_root
+            ).resolve()
+
+        return (
+            Path(sys.executable)
+            .resolve()
+            .parent
+        )
+
+    return (
+        Path(__file__)
+        .resolve()
+        .parents[2]
+    )
 
 
 @dataclass(frozen=True)

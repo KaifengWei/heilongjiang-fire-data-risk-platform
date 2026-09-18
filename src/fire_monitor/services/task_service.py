@@ -22,7 +22,7 @@ class TaskService:
         self,
         database: Database,
         *,
-        software_version: str = "0.1.1",
+        software_version: str = "1.0",
     ):
         self.database = database
         self.software_version = software_version
