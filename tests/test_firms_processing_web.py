@@ -154,7 +154,8 @@ def test_web_can_execute_firms_processing(
     )
 
     assert "火点空间分布" in page
-    assert "热辐射强度" in page
+    assert "当前情况与建议" in page
+    assert "重点关注区域" in page
 
     database = app.extensions[
         "fire_database"

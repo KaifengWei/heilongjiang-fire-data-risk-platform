@@ -520,7 +520,47 @@
     function selectRegion(region) {
       selectedRegion = region || '';
 
-      $$('.region-filter-row').forEach(button => {
+  
+    $$('[data-map-theme]').forEach(button => {
+      button.addEventListener('click', () => {
+        const theme = button.getAttribute('data-map-theme') || 'fire';
+
+        const input = {
+          fire: layerAllFires,
+          frp: layerHighFrp,
+          persistent: layerPersistent,
+        }[theme];
+
+        if (input) {
+          input.checked = true;
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        canvas.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      });
+    });
+
+    $$('[data-map-reset]').forEach(button => {
+      button.addEventListener('click', () => {
+        focusPoint = null;
+        selectRegion('');
+
+        if (layerAllFires) {
+          layerAllFires.checked = true;
+          layerAllFires.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        canvas.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      });
+    });
+
+    $$('.region-filter-row').forEach(button => {
         button.classList.toggle(
           'active',
           (button.getAttribute('data-region-filter') || '') === selectedRegion
@@ -962,6 +1002,27 @@
       button.addEventListener('click', () => {
         focusPoint = null;
         selectRegion(button.getAttribute('data-region-filter') || '');
+      });
+    });
+
+    $$('[data-history-region]').forEach(button => {
+      button.addEventListener('click', () => {
+        const region = button.getAttribute('data-history-region') || '';
+        const target = $$('.region-filter-row').find(item => (
+          (item.getAttribute('data-region-filter') || '') === region
+        ));
+
+        if (target) {
+          target.click();
+        } else {
+          focusPoint = null;
+          selectRegion(region);
+        }
+
+        canvas.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
       });
     });
 

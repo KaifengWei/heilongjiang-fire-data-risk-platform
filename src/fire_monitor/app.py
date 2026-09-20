@@ -43,6 +43,9 @@ from fire_monitor.services.statistics_service import (
 from fire_monitor.services.firms_intelligence_service import (
     FirmsIntelligenceService,
 )
+from fire_monitor.services.historical_baseline_service import (
+    HistoricalFirmsBaselineService,
+)
 from fire_monitor.services.risk_assessment_service import (
     RiskAssessmentService,
 )
@@ -95,6 +98,7 @@ def create_app(
     database_path: str | Path | None = None,
     testing: bool = False,
     uploads_root: str | Path | None = None,
+    historical_baseline_path: str | Path | None = None,
 ) -> Flask:
     """创建 Flask 应用。"""
 
@@ -196,6 +200,23 @@ def create_app(
         )
     )
 
+    baseline_path = (
+        Path(historical_baseline_path)
+        if historical_baseline_path is not None
+        else (
+            settings.project_dir
+            / "data"
+            / "baselines"
+            / "firms_noaa20_daily.json"
+        )
+    )
+
+    historical_baseline_service = (
+        HistoricalFirmsBaselineService(
+            baseline_path
+        )
+    )
+
     risk_assessment_service = (
         RiskAssessmentService(
             database,
@@ -256,6 +277,10 @@ def create_app(
     app.extensions[
         "statistics_service"
     ] = statistics_service
+
+    app.extensions[
+        "historical_baseline_service"
+    ] = historical_baseline_service
 
     app.extensions[
         "risk_assessment_service"
@@ -582,6 +607,19 @@ def create_app(
             .as_dict()
         )
 
+        historical_baseline = (
+            historical_baseline_service
+            .compare(
+                task_firms_observations,
+                analysis_start=task.get(
+                    "analysis_start"
+                ),
+                analysis_end=task.get(
+                    "analysis_end"
+                ),
+            )
+        )
+
         return (
             render_template(
                 "task_detail.html",
@@ -626,6 +664,9 @@ def create_app(
                 ),
                 firms_intelligence=(
                     firms_intelligence
+                ),
+                historical_baseline=(
+                    historical_baseline
                 ),
                 region_feature_collection=(
                     region_feature_collection

@@ -103,8 +103,135 @@
           </article>
         </div>
       </section>
+      {% if historical_baseline and historical_baseline.available %}
+      <section class="history-decision reveal-item">
+        <article
+          class="history-decision-main
+          {% if historical_baseline.province_status == '明显高于历史同期' %}is-alert
+          {% elif historical_baseline.province_status == '高于历史同期' %}is-watch
+          {% elif historical_baseline.province_status in ['低于历史同期', '明显低于历史同期'] %}is-low
+          {% else %}is-normal{% endif %}"
+        >
+          <div class="history-decision-kicker">
+            <span>历史对比结论</span>
+            <b>{{ historical_baseline.reference_year_count }} 年同期参照</b>
+          </div>
 
-      <section class="map-workspace reveal-item">
+          <div class="history-decision-status">
+            <span>当前判断</span>
+            <strong>
+              {% if historical_baseline.province_status == '接近历史同期' %}
+                本次火点活动整体与历史同期接近
+              {% elif historical_baseline.province_status == '高于历史同期' %}
+                本次火点活动高于历史同期
+              {% elif historical_baseline.province_status == '明显高于历史同期' %}
+                本次火点活动明显高于历史同期
+              {% elif historical_baseline.province_status == '低于历史同期' %}
+                本次火点活动低于历史同期
+              {% elif historical_baseline.province_status == '明显低于历史同期' %}
+                本次火点活动明显低于历史同期
+              {% else %}
+                {{ historical_baseline.province_status }}
+              {% endif %}
+            </strong>
+          </div>
+
+          <p class="history-decision-explain">
+            {% if historical_baseline.priority_regions %}
+              {% if historical_baseline.province_status == '接近历史同期' %}
+                全省总体没有明显偏离，但局部地区相对自身往年同期更活跃。
+              {% elif historical_baseline.province_status in ['高于历史同期', '明显高于历史同期'] %}
+                当前整体活动已经偏高，且部分地区相对自身往年同期更加突出。
+              {% else %}
+                当前整体活动不高，但仍有局部地区值得优先查看。
+              {% endif %}
+              建议先查看
+              {% for row in historical_baseline.priority_regions %}
+                <b>{{ row.region_name }}</b>{% if not loop.last %}、{% endif %}
+              {% endfor %}。
+            {% else %}
+              当前没有发现需要根据历史同期单独提前查看的地区，可按常规顺序浏览地图。
+            {% endif %}
+          </p>
+
+          <div class="history-decision-use">
+            <span>怎么用这条结论</span>
+            <p>先看右侧重点地区，再进入地图核对空间位置、日期变化和持续活跃情况。</p>
+          </div>
+
+          <div class="history-decision-foot">
+            比较范围：{{ historical_baseline.reference_years|first }}–{{ historical_baseline.reference_years|last }} 年相同日期窗口
+            · 仅使用早于本次任务年份的可比历史数据
+          </div>
+        </article>
+
+        <aside class="history-priority-panel">
+          <div class="history-priority-heading">
+            <div>
+              <span class="app-eyebrow">WHERE TO LOOK FIRST</span>
+              <h3>优先查看地区</h3>
+            </div>
+            <small>先看“哪里更反常”，再看“哪里数量最多”</small>
+          </div>
+
+          {% if historical_baseline.priority_regions %}
+          <div class="history-priority-list">
+            {% for row in historical_baseline.priority_regions %}
+            <article class="history-priority-item">
+              <div class="history-priority-rank">{{ '%02d'|format(loop.index) }}</div>
+
+              <div class="history-priority-copy">
+                <div class="history-priority-title">
+                  <strong>{{ row.region_name }}</strong>
+                  <span
+                    class="history-attention
+                    {% if row.attention == '优先核查' %}is-priority
+                    {% else %}is-watch{% endif %}"
+                  >{{ row.attention }}</span>
+                </div>
+
+                <p>
+                  {% if row.historical_status == '明显高于历史同期' %}
+                    本次活动超过该地区全部可比历史同期水平
+                  {% elif row.historical_status == '高于历史同期' %}
+                    本次活动高于该地区多数可比历史同期
+                  {% elif row.historical_status == '接近历史同期' %}
+                    本次活动接近该地区历史同期常见水平
+                  {% else %}
+                    {{ row.historical_status }}
+                  {% endif %}
+                </p>
+
+                <small>
+                  本次 {{ '{:,}'.format(row.current_count) }} 条有效火点观测
+                  {% if row.reasons|length > 1 %}
+                    · {{ row.reasons[1] }}
+                  {% endif %}
+                </small>
+              </div>
+
+              <button
+                class="history-map-action"
+                type="button"
+                data-history-region="{{ row.region_name }}"
+              >
+                定位到地图
+                <span>→</span>
+              </button>
+            </article>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="history-priority-empty">
+            <strong>暂无需要提前查看的地区</strong>
+            <span>可继续查看全省火点空间分布和日期变化。</span>
+          </div>
+          {% endif %}
+        </aside>
+      </section>
+      {% endif %}
+
+<section class="map-workspace reveal-item">
         <div class="map-workspace-main">
           <div class="workspace-heading">
             <div>
@@ -192,115 +319,139 @@
           {% endfor %}
         </aside>
       </section>
-<section class="insight-grid reveal-item">
-        <article class="workspace-panel">
-          <div class="workspace-heading">
-            <div>
-              <span class="app-eyebrow">SURGE DAYS</span>
-              <h2>明显增多日期</h2>
-            </div>
-            <span class="workspace-count">{{ firms_intelligence.anomaly_days|length if firms_intelligence else 0 }}</span>
+      <section class="action-guidance reveal-item">
+        <div class="action-guidance-summary">
+          <div class="action-guidance-kicker">
+            <span class="app-eyebrow">当前情况</span>
+            {% if historical_baseline and historical_baseline.available %}
+              {% if historical_baseline.province_status in ['明显高于历史同期', '高于历史同期'] %}
+              <b class="action-state is-alert">整体偏高，建议重点核查</b>
+              {% elif historical_baseline.priority_regions %}
+              <b class="action-state is-watch">局部偏高，建议重点核查</b>
+              {% else %}
+              <b class="action-state is-normal">整体平稳，常规关注</b>
+              {% endif %}
+            {% else %}
+            <b class="action-state is-watch">建议结合地图重点核查</b>
+            {% endif %}
           </div>
 
-          {% if firms_intelligence and firms_intelligence.anomaly_days %}
-          <div class="plain-event-list">
-            {% for row in firms_intelligence.anomaly_days[:6] %}
-            <button type="button" data-map-date="{{ row.date }}">
-              <div>
-                <strong>{{ row.date }}</strong>
-                <small>火点观测明显高于本次时间序列的常见水平</small>
-              </div>
-              <span>{{ '{:,}'.format(row.count) }} 条</span>
-            </button>
-            {% endfor %}
-          </div>
-          {% else %}
-          <div class="workspace-empty">本次没有检测到明显的集中增多日期。</div>
-          {% endif %}
-        </article>
+          <h2>当前情况与建议</h2>
 
-        <article class="workspace-panel">
-          <div class="workspace-heading">
-            <div>
-              <span class="app-eyebrow">PERSISTENT AREAS</span>
-              <h2>持续活跃区域</h2>
-            </div>
-            <span class="workspace-count">{{ firms_intelligence.repeated_cells|length if firms_intelligence else 0 }}</span>
-          </div>
-
-          {% if firms_intelligence and firms_intelligence.repeated_cells %}
-          <div class="persistent-area-list">
-            {% for row in firms_intelligence.repeated_cells[:6] %}
-            <button
-              type="button"
-              data-map-focus
-              data-focus-lat="{{ row.center_latitude }}"
-              data-focus-lon="{{ row.center_longitude }}"
-              data-focus-region="{{ row.region_name or '' }}"
-            >
-              <div>
-                <strong>{{ row.region_name or '局部区域' }}</strong>
-                <small>{{ row.first_date }} — {{ row.last_date }}</small>
-              </div>
-              <span>{{ row.active_days }} 个活跃日</span>
-              <em>最长连续 {{ row.longest_consecutive_days }} 天</em>
-            </button>
-            {% endfor %}
-          </div>
-          {% else %}
-          <div class="workspace-empty">本次没有发现跨多个日期重复活跃的局部区域。</div>
-          {% endif %}
-        </article>
-      </section>
-
-      <section class="frp-panel reveal-item">
-        <div>
-          <span class="app-eyebrow">THERMAL INTENSITY</span>
-          <h2>热辐射强度</h2>
-          <p>切换地图“高 FRP”模式，可直接查看本次热辐射强度较高的观测位置。</p>
+          <p class="action-guidance-lead">
+            {% if historical_baseline and historical_baseline.available and historical_baseline.priority_regions %}
+              {% if historical_baseline.province_status == '接近历史同期' %}
+                全省火点活动整体与往年同期接近，但
+              {% elif historical_baseline.province_status in ['高于历史同期', '明显高于历史同期'] %}
+                本次火点活动整体高于往年同期，其中
+              {% else %}
+                本次整体火点活动不高，但
+              {% endif %}
+              {% for row in historical_baseline.priority_regions %}
+                <b>{{ row.region_name }}</b>{% if not loop.last %}、{% endif %}
+              {% endfor %}
+              相对自身往年同期更活跃，建议重点核查这些区域的火点分布和持续情况。
+            {% elif historical_baseline and historical_baseline.available %}
+              当前没有发现明显偏离历史同期的重点地区，建议按常规方式查看全省火点分布和日期变化。
+            {% else %}
+              当前暂无历史同期参照，建议重点查看火点集中区域、明显增多日期和跨日重复活跃位置。
+            {% endif %}
+          </p>
         </div>
 
-        <div class="frp-metrics">
-          <article>
-            <span>最大 FRP</span>
-            <strong>
-              {% if firms_intelligence.frp.max_mw is not none %}
-              {{ '%.1f'|format(firms_intelligence.frp.max_mw) }}
-              {% else %}—{% endif %}
-            </strong>
-            <small>MW</small>
+        <div class="action-guidance-steps">
+          <article class="action-step">
+            <span class="action-step-index">01</span>
+            <div class="action-step-copy">
+              <h3>重点关注区域</h3>
+
+              {% if historical_baseline and historical_baseline.available and historical_baseline.priority_regions %}
+              <p>
+                {% for row in historical_baseline.priority_regions %}
+                  <b>{{ row.region_name }}</b>{% if not loop.last %}、{% endif %}
+                {% endfor %}
+                的火点活动相对自身往年同期更突出，建议重点核查这些区域的实际情况。
+              </p>
+              <div class="action-chip-row">
+                {% for row in historical_baseline.priority_regions %}
+                <button
+                  type="button"
+                  class="action-chip"
+                  data-history-region="{{ row.region_name }}"
+                >查看 {{ row.region_name }}</button>
+                {% endfor %}
+              </div>
+              {% else %}
+              <p>当前没有特别突出的重点地区，可从全省火点集中区域开始查看。</p>
+              <button type="button" class="action-link" data-map-reset>查看全省分布 →</button>
+              {% endif %}
+            </div>
           </article>
-          <article>
-            <span>高值参考线</span>
-            <strong>
-              {% if firms_intelligence.frp.p90_mw is not none %}
-              {{ '%.1f'|format(firms_intelligence.frp.p90_mw) }}
-              {% else %}—{% endif %}
-            </strong>
-            <small>MW · 本次前 10%</small>
+
+          <article class="action-step">
+            <span class="action-step-index">02</span>
+            <div class="action-step-copy">
+              {% if firms_intelligence and firms_intelligence.anomaly_days %}
+                {% set surge = firms_intelligence.anomaly_days[0] %}
+                <h3>{{ surge.date[5:7]|int }}月{{ surge.date[8:10]|int }}日火点明显增多</h3>
+                <p>
+                  当天火点数量明显增多，建议查看火点是否集中在少数区域，并结合地图判断是否需要进一步核查。
+                </p>
+                <button
+                  type="button"
+                  class="action-link"
+                  data-map-date="{{ surge.date }}"
+                >查看当天分布 →</button>
+              {% else %}
+                <h3>近期没有明显集中增多日期</h3>
+                <p>本次时间段内没有发现特别突出的单日集中增多情况。</p>
+              {% endif %}
+            </div>
           </article>
-          <article>
-            <span>包含 FRP</span>
-            <strong>{{ '{:,}'.format(firms_intelligence.frp.available_count) if firms_intelligence else 0 }}</strong>
-            <small>条观测</small>
+
+          <article class="action-step">
+            <span class="action-step-index">03</span>
+            <div class="action-step-copy">
+              {% if firms_intelligence and firms_intelligence.repeated_cells %}
+                {% set persistent = firms_intelligence.repeated_cells[0] %}
+                <h3>
+                  {% if persistent.region_name %}
+                    {{ persistent.region_name }}等地存在持续活跃位置
+                  {% else %}
+                    部分区域存在持续活跃位置
+                  {% endif %}
+                </h3>
+                <p>
+                  部分位置在多个日期重复出现火点，建议重点核查这些位置是否存在持续或重复燃烧活动。
+                </p>
+                <button
+                  type="button"
+                  class="action-link"
+                  data-map-theme="persistent"
+                >查看持续活跃位置 →</button>
+              {% else %}
+                <h3>没有发现明显持续活跃位置</h3>
+                <p>本次没有发现跨多个日期重复出现火点的突出局部区域。</p>
+              {% endif %}
+            </div>
           </article>
         </div>
       </section>
 
-      <details class="method-details reveal-item">
+<details class="method-details reveal-item">
         <summary>
           <span>数据与方法说明</span>
           <small>查看数据口径、异常日期和持续区域的计算方式</small>
         </summary>
         <div class="method-detail-content">
-          <p>FIRMS 记录表示卫星主动火点/热异常观测，不直接等同于独立火灾次数。</p>
-          <p>“明显增多日期”使用 Median + MAD 鲁棒方法识别本次时间序列中的异常高值。</p>
-          <p>“持续活跃区域”按约 5 km 局部网格汇总；切换到具体日期时，仅显示该日实际出现火点的重复活跃网格。</p>
-          <p>“高 FRP”使用本次记录 FRP 的 90% 分位作为高值参考线，仅用于本次数据内部定位。</p>
-
-          {% if task_risk_assessment %}
-          <p>{{ task_risk_assessment.disclaimer }}</p>
-          {% endif %}
+          <div class="method-brief-list">
+            <p><b>火点数据</b>：来自本次导入的 FIRMS 主动火点观测，用于查看时间和空间分布。</p>
+            <p><b>明显增多日期</b>：用于提示本次时间段内火点集中增多的日期。</p>
+            <p><b>持续活跃区域</b>：用于提示约 5 km 范围内跨多个日期重复出现火点的位置。</p>
+            {% if historical_baseline and historical_baseline.available %}
+            <p><b>历史对比</b>：使用早于本次任务年份的同期历史数据，判断当前活动是否偏离往年常见水平。</p>
+            {% endif %}
+          </div>
 
           <div class="method-file-list">
             {% for file in files %}
