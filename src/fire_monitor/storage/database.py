@@ -201,6 +201,39 @@ class Database:
 
         return tasks
 
+    def rename_analysis_task(
+        self,
+        task_id: str,
+        name: str,
+    ) -> None:
+        clean_name = name.strip()
+        if not clean_name:
+            raise ValueError("分析记录名称不能为空")
+
+        with self.connect() as conn:
+            cursor = conn.execute(
+                "UPDATE analysis_tasks SET name = ? WHERE task_id = ?",
+                (clean_name, task_id),
+            )
+            if cursor.rowcount != 1:
+                raise KeyError(f"分析任务不存在：{task_id}")
+
+    def update_analysis_task_parameters(
+        self,
+        task_id: str,
+        parameters: dict[str, Any],
+    ) -> None:
+        with self.connect() as conn:
+            cursor = conn.execute(
+                "UPDATE analysis_tasks SET parameters_json = ? WHERE task_id = ?",
+                (
+                    json.dumps(parameters, ensure_ascii=False),
+                    task_id,
+                ),
+            )
+            if cursor.rowcount != 1:
+                raise KeyError(f"分析任务不存在：{task_id}")
+
     def update_analysis_task_status(
         self,
         task_id: str,

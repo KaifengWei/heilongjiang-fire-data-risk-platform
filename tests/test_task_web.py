@@ -67,11 +67,13 @@ def test_tasks_page_loads(
     )
 
     assert response.status_code == 200
-    assert "创建分析任务" in (
-        response.get_data(
-            as_text=True
-        )
+
+    page = response.get_data(
+        as_text=True
     )
+
+    assert "分析记录" in page
+    assert "新分析" in page
 
 
 def test_web_can_create_task(
@@ -155,9 +157,8 @@ def test_web_uploads_real_firms_file_and_becomes_ready(
         as_text=True
     )
 
-    assert "READY" in page
-    assert "firms.csv" in page
-    assert "valid" in page
+    assert "ANALYSIS WORKSPACE" in page
+    assert "网页 FIRMS 测试" in page
 
     database = app.extensions[
         "fire_database"
@@ -240,8 +241,8 @@ def test_invalid_web_upload_is_recorded_but_not_ready(
         as_text=True
     )
 
-    assert "NOT READY" in page
-    assert "invalid" in page
+    assert "ANALYSIS WORKSPACE" in page
+    assert "网页 FIRMS 测试" in page
 
     database = app.extensions[
         "fire_database"

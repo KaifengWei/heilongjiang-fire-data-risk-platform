@@ -7,107 +7,327 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='product.css') }}">
 </head>
+
 <body class="app-body">
 <div class="app-shell">
   <aside class="app-sidebar">
-    <a class="app-brand" href="{{ url_for('index') }}"><span class="app-brand-mark">F</span><span class="app-brand-copy"><strong>黑龙江省火点数据</strong><small>检测与风险评估平台</small></span></a>
+    <a class="app-brand" href="{{ url_for('index') }}">
+      <span class="app-brand-mark">F</span>
+      <span class="app-brand-copy">
+        <strong>黑龙江省火点数据</strong>
+        <small>检测与风险评估平台</small>
+      </span>
+    </a>
+
     <nav class="app-side-nav">
       <a href="{{ url_for('index') }}"><span class="nav-icon">⌂</span><span>首页</span></a>
       <a href="{{ url_for('index') }}#upload"><span class="nav-icon">＋</span><span>开始分析</span></a>
       <a class="active" href="{{ url_for('tasks') }}"><span class="nav-icon">▤</span><span>分析记录</span></a>
-      <button type="button" data-open-help><span class="nav-icon">?</span><span>使用帮助</span></button>
+      <button type="button" data-open-help><span class="nav-icon">?</span><span>数据教程</span></button>
     </nav>
-    <div class="app-side-spacer"></div><div class="app-side-footer"><span>本地桌面分析</span><b>V1.0</b></div>
+
+    <div class="app-side-spacer"></div>
+    <div class="app-side-footer"><span>本地桌面分析</span><b>V1.0</b></div>
   </aside>
 
   <div class="app-workspace">
-    <header class="app-topbar result-topbar">
-      <div><a class="back-link" href="{{ url_for('tasks') }}">← 返回分析记录</a><span class="app-eyebrow">ANALYSIS RESULT</span><h1>{{ task.name }}</h1><p>{{ analysis_summary.period }} · {{ analysis_summary.data_type }}</p></div>
-      <div class="app-top-actions"><button class="app-button app-button-ghost" type="button" data-open-help>怎么看结果</button>{% if analysis_summary.processing_complete %}<a class="app-button app-button-primary" href="{{ url_for('export_task_csv', task_id=task_id) }}">导出本次结果</a>{% endif %}</div>
+    <header class="app-topbar result-topbar compact-result-topbar">
+      <div>
+        <a class="back-link" href="{{ url_for('tasks') }}">← 返回分析记录</a>
+        <span class="app-eyebrow">ANALYSIS WORKSPACE</span>
+        <h1>{{ task.name }}</h1>
+        <p>{{ analysis_summary.period }} · FIRMS 主动火点</p>
+      </div>
+
+      <div class="app-top-actions">
+        <button
+          class="app-button app-button-ghost"
+          type="button"
+          data-record-rename
+          data-task-id="{{ task_id }}"
+          data-task-name="{{ task.name }}"
+        >重命名</button>
+
+        {% if analysis_summary.processing_complete %}
+        <a class="app-button app-button-primary" href="{{ url_for('export_task_csv', task_id=task_id) }}">导出结果</a>
+        {% endif %}
+      </div>
     </header>
 
-    <main class="app-main result-main">
-      {% if page_error %}<div class="app-alert error"><strong>本次分析未完全完成</strong><span>{{ page_error }}</span></div>{% endif %}
-      {% if analysis_summary.has_reused_data %}<div class="app-alert info"><strong>已识别历史重合数据</strong><span>{{ '{:,}'.format(analysis_summary.existing_observations) }} 条已存储观测被直接复用于本次分析，没有重复写入数据库。</span></div>{% endif %}
-
-      <section class="result-kpi-grid reveal-item">
-        <article><span class="kpi-icon fire">●</span><div><small>有效主动火点</small><strong>{{ '{:,}'.format(analysis_summary.active_fire_count) }}</strong><p>当前分析记录</p></div></article>
-        <article><span class="kpi-icon region">◫</span><div><small>涉及行政区</small><strong>{{ analysis_summary.affected_regions }}</strong><p>市（地）</p></div></article>
-        <article><span class="kpi-icon focus">◎</span><div><small>主要区域</small><strong class="kpi-text">{{ analysis_summary.main_region }}</strong><p>当前记录中最集中区域</p></div></article>
-        <article><span class="kpi-icon type">▦</span><div><small>识别数据</small><strong class="kpi-text">{{ analysis_summary.data_type }}</strong><p>{{ analysis_summary.status_label }}</p></div></article>
-        {% if analysis_summary.burned_area_km2 > 0 %}<article><span class="kpi-icon burn">■</span><div><small>烧毁像元面积</small><strong>{{ '%.2f'|format(analysis_summary.burned_area_km2) }}</strong><p>km²</p></div></article>{% endif %}
-      </section>
-
-      <section class="result-visual-grid reveal-item">
-        <article class="app-card map-result-card">
-          <div class="card-heading"><div><span class="app-eyebrow">SPATIAL DISTRIBUTION</span><h2>空间分布</h2><p>按本次分析的行政区结果显示主要集中位置。</p></div><span class="map-legend"><i></i>本次分析强度</span></div>
-          <div class="task-map-stage"><canvas id="taskMapCanvas" width="900" height="520"></canvas><div class="map-empty-note" id="taskMapEmpty" hidden>本次分析暂无可用于空间展示的数据。</div></div>
-        </article>
-
-        <article class="app-card region-ranking-card">
-          <div class="card-heading"><div><span class="app-eyebrow">REGIONAL RANKING</span><h2>行政区分布</h2><p>比较本次分析中各市（地）的结果。</p></div></div>
-          {% set max_fire = (task_region_ranking|map(attribute='active_fire_count')|max) if task_region_ranking else 0 %}
-          {% if max_fire and max_fire > 0 %}
-          <div class="region-bars">
-            {% for row in task_region_ranking %}{% if row.active_fire_count > 0 %}
-            <div class="region-bar-row"><strong>{{ row.region_name }}</strong><div class="bar-track"><span style="--bar-width: {{ (row.active_fire_count / max_fire * 100)|round(1) }}%"></span></div><b>{{ '{:,}'.format(row.active_fire_count) }}</b></div>
-            {% endif %}{% endfor %}
-          </div>
-          {% elif task_region_ranking %}
-          {% set max_area = (task_region_ranking|map(attribute='burned_area_km2')|max) %}
-          <div class="region-bars">
-            {% for row in task_region_ranking %}{% if row.burned_area_km2 > 0 %}
-            <div class="region-bar-row"><strong>{{ row.region_name }}</strong><div class="bar-track burn"><span style="--bar-width: {{ (row.burned_area_km2 / max_area * 100)|round(1) }}%"></span></div><b>{{ '%.2f'|format(row.burned_area_km2) }}</b></div>
-            {% endif %}{% endfor %}
-          </div>
-          {% else %}<div class="empty-card compact"><span>◎</span><strong>暂无区域结果</strong></div>{% endif %}
-        </article>
-      </section>
-
-      {% if task_daily_series and analysis_summary.active_fire_count > 0 %}
-      <section class="app-card reveal-item">
-        {% set peak = task_daily_series|max(attribute='active_fire_observation_count') %}
-        <div class="card-heading inline"><div><span class="app-eyebrow">TIME DISTRIBUTION</span><h2>火点日期变化</h2><p>查看本次分析中火点观测随日期的变化。</p></div><div class="peak-box"><span>峰值日期</span><strong>{{ peak.date }}</strong><b>{{ '{:,}'.format(peak.active_fire_observation_count) }} 条</b></div></div>
-        {% set max_day = peak.active_fire_observation_count if peak.active_fire_observation_count > 0 else 1 %}
-        <div class="time-chart" aria-label="本次分析逐日火点分布">
-          {% for row in task_daily_series %}<div class="time-column" title="{{ row.date }}：{{ row.active_fire_observation_count }} 条"><span style="--bar-height: {{ (row.active_fire_observation_count / max_day * 100)|round(1) }}%"></span></div>{% endfor %}
-        </div>
-        <div class="time-axis"><span>{{ task_daily_series[0].date }}</span><span>{{ peak.date }} · 峰值</span><span>{{ task_daily_series[-1].date }}</span></div>
-      </section>
+    <main class="app-main result-workspace-main" id="taskWorkspace" data-task-id="{{ task_id }}">
+      {% if page_error %}
+      <div class="app-alert error">
+        <strong>本次分析未完全完成</strong>
+        <span>{{ page_error }}</span>
+      </div>
       {% endif %}
 
-      <section class="result-info-grid reveal-item">
-        <article class="app-card">
-          <div class="card-heading"><div><span class="app-eyebrow">DATA IDENTIFICATION</span><h2>本次数据识别</h2></div></div>
-          <div class="identify-grid"><div><span>数据类型</span><strong>{{ analysis_summary.data_type }}</strong></div><div><span>时间范围</span><strong>{{ analysis_summary.period }}</strong></div><div><span>输入文件</span><strong>{{ files|length }} 个</strong></div><div><span>分析状态</span><strong>{{ analysis_summary.status_label }}</strong></div></div>
-          <div class="file-list">{% for file in files %}<div><span>{{ file.original_filename }}</span><small>{{ file_role_labels.get(file.file_role, file.file_role) }}</small></div>{% endfor %}</div>
-        </article>
+      {% if analysis_summary.has_reused_data %}
+      <div class="workspace-note">
+        本次数据中有 {{ '{:,}'.format(analysis_summary.existing_observations) }} 条观测已存在于本地数据库，本次分析直接复用。
+      </div>
+      {% endif %}
 
-        {% if task_risk_assessment %}
-        <article class="app-card">
-          <div class="card-heading"><div><span class="app-eyebrow">RELATIVE ATTENTION</span><h2>行政区相对关注情况</h2><p>仅比较本次分析记录中的行政区结果。</p></div></div>
-          <div class="attention-list">{% for row in task_risk_assessment.regions %}{% if row.relative_score is not none %}<div><strong>{{ row.region_name }}</strong><span class="attention-pill">{{ row.attention_level }}</span><small>{{ row.active_fire_count }} 条火点{% if row.burned_area_km2 > 0 %} · {{ '%.2f'|format(row.burned_area_km2) }} km²{% endif %}</small></div>{% endif %}{% endfor %}</div>
-        </article>
-        {% endif %}
+      {% set peak = task_daily_series|max(attribute='active_fire_observation_count') if task_daily_series and analysis_summary.active_fire_count > 0 else none %}
+
+      <section class="situation-strip reveal-item">
+        <div class="situation-copy">
+          <span class="app-eyebrow">SITUATION SUMMARY</span>
+          <h2>本次态势摘要</h2>
+          <p>
+            {{ analysis_summary.period }} 共识别
+            <b>{{ '{:,}'.format(analysis_summary.active_fire_count) }}</b>
+            条有效主动火点观测，涉及
+            <b>{{ analysis_summary.affected_regions }}</b>
+            个市（地）。
+          </p>
+        </div>
+
+        <div class="situation-facts">
+          <article>
+            <span>火点最集中</span>
+            <strong>{{ analysis_summary.main_region }}</strong>
+            <small>本次记录中数量最高</small>
+          </article>
+
+          <article>
+            <span>峰值日期</span>
+            <strong>{{ peak.date if peak else '—' }}</strong>
+            <small>{% if peak %}{{ '{:,}'.format(peak.active_fire_observation_count) }} 条观测{% else %}暂无{% endif %}</small>
+          </article>
+
+          <article>
+            <span>活跃日期</span>
+            <strong>{{ firms_intelligence.summary.active_days if firms_intelligence else 0 }} / {{ firms_intelligence.summary.span_days if firms_intelligence else 0 }}</strong>
+            <small>分析时段内出现有效火点的日期</small>
+          </article>
+        </div>
       </section>
 
-      <details class="tech-details reveal-item">
-        <summary><span>技术信息</span><small>输入校验、处理记录和数据口径</small></summary>
-        <div class="tech-content">
-          <div class="tech-status"><strong>输入准备状态</strong><span>{{ 'READY' if readiness.ready else 'NOT READY' }}</span></div>
-          <div class="tech-table-wrap"><table><thead><tr><th>文件</th><th>角色</th><th>校验</th><th>说明</th></tr></thead><tbody>{% for file in files %}<tr><td>{{ file.original_filename }}</td><td>{{ file_role_labels.get(file.file_role, file.file_role) }}</td><td>{{ file.validation_status }}</td><td>{{ file.validation_message or '—' }}</td></tr>{% endfor %}</tbody></table></div>
-          {% if firms_runs %}<h3>FIRMS 处理记录</h3>{% for run in firms_runs %}<div class="run-line"><strong>#{{ run.id }} · {{ run.status }}</strong><span>输入 {{ run.input_count }} · 新增 {{ run.metadata.get('new_observations', 0) }} · 历史复用 {{ run.metadata.get('existing_observations', 0) }}</span></div>{% endfor %}{% endif %}
-          {% if mcd64_runs %}<h3>MCD64A1 处理记录</h3>{% for run in mcd64_runs %}<div class="run-line"><strong>#{{ run.id }} · {{ run.status }}</strong><span>输入 {{ run.input_count }} · 存储 {{ run.stored_count }}</span></div>{% endfor %}{% endif %}
-          {% if task_risk_assessment %}<div class="tech-definition">{{ task_risk_assessment.disclaimer }}</div>{% endif %}
+      <section class="map-workspace reveal-item">
+        <div class="map-workspace-main">
+          <div class="workspace-heading">
+            <div>
+              <span class="app-eyebrow">SPATIAL WORKSPACE</span>
+              <h2>火点空间分布</h2>
+            </div>
+
+            <div class="map-layer-controls map-mode-switch" aria-label="地图显示模式">
+              <label class="active">
+                <input id="layerAllFires" type="radio" name="mapTheme" value="fire" checked>
+                <span>火点</span>
+              </label>
+              <label>
+                <input id="layerHighFrp" type="radio" name="mapTheme" value="frp">
+                <span>高 FRP</span>
+              </label>
+              <label>
+                <input id="layerPersistent" type="radio" name="mapTheme" value="persistent">
+                <span>持续活跃</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="interactive-map-shell">
+            <canvas id="taskMapCanvas" width="1100" height="650"></canvas>
+            <div class="map-loading-chip" id="mapLoadingChip">正在加载火点…</div>
+            <div class="map-empty-note" id="taskMapEmpty" hidden>当前筛选条件下没有可显示的火点。</div>
+
+            <div class="map-live-legend">
+              <span><i class="legend-dot fire"></i>火点</span>
+              <span><i class="legend-dot persistent"></i>持续区域</span>
+              <span><i class="legend-dot high-frp"></i>高 FRP</span>
+            </div>
+
+            <div class="map-focus-badge" id="mapFocusBadge" hidden>
+              <span id="mapFocusText"></span>
+              <button id="clearRegionFocus" type="button">清除</button>
+            </div>
+          </div>
+
+          <div class="map-time-controller">
+            <button id="mapPlayButton" class="map-play-button" type="button">▶</button>
+            <div class="map-time-copy">
+              <strong id="mapDateLabel">全部日期</strong>
+              <small>拖动时间轴查看每天的火点变化</small>
+            </div>
+            <input id="mapDateSlider" type="range" min="0" max="0" value="0" step="1">
+            <button id="mapAllDatesButton" class="map-all-button" type="button">全部日期</button>
+          </div>
+          <div class="map-context-strip">
+            <div class="map-context-stat">
+              <span id="mapVisibleMetricLabel">当前显示火点</span>
+              <strong id="mapVisibleCount">—</strong>
+            </div>
+            <div class="map-context-stat">
+              <span>当前范围</span>
+              <strong id="mapRegionLabel">黑龙江省</strong>
+            </div>
+            <div class="map-anomaly-jumps">
+              <span>快速查看</span>
+              {% for row in firms_intelligence.anomaly_days[:4] if firms_intelligence %}
+              <button type="button" data-map-date="{{ row.date }}">{{ row.date[5:] }} · {{ '{:,}'.format(row.count) }}</button>
+              {% endfor %}
+            </div>
+          </div>
+
+        </div>
+
+        <aside class="map-side-panel">
+          <div class="side-panel-heading">
+            <span class="app-eyebrow">REGIONS</span>
+            <h3>区域火点统计</h3>
+          </div>
+
+          <button class="region-filter-row active" type="button" data-region-filter="">
+            <span>全部区域</span>
+            <b>{{ '{:,}'.format(analysis_summary.active_fire_count) }}</b>
+          </button>
+
+          {% for row in task_region_ranking %}
+            <button class="region-filter-row" type="button" data-region-filter="{{ row.region_name }}">
+              <span>{{ row.region_name }}</span>
+              <b>{{ '{:,}'.format(row.active_fire_count) }}</b>
+            </button>
+          {% endfor %}
+        </aside>
+      </section>
+<section class="insight-grid reveal-item">
+        <article class="workspace-panel">
+          <div class="workspace-heading">
+            <div>
+              <span class="app-eyebrow">SURGE DAYS</span>
+              <h2>明显增多日期</h2>
+            </div>
+            <span class="workspace-count">{{ firms_intelligence.anomaly_days|length if firms_intelligence else 0 }}</span>
+          </div>
+
+          {% if firms_intelligence and firms_intelligence.anomaly_days %}
+          <div class="plain-event-list">
+            {% for row in firms_intelligence.anomaly_days[:6] %}
+            <button type="button" data-map-date="{{ row.date }}">
+              <div>
+                <strong>{{ row.date }}</strong>
+                <small>火点观测明显高于本次时间序列的常见水平</small>
+              </div>
+              <span>{{ '{:,}'.format(row.count) }} 条</span>
+            </button>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="workspace-empty">本次没有检测到明显的集中增多日期。</div>
+          {% endif %}
+        </article>
+
+        <article class="workspace-panel">
+          <div class="workspace-heading">
+            <div>
+              <span class="app-eyebrow">PERSISTENT AREAS</span>
+              <h2>持续活跃区域</h2>
+            </div>
+            <span class="workspace-count">{{ firms_intelligence.repeated_cells|length if firms_intelligence else 0 }}</span>
+          </div>
+
+          {% if firms_intelligence and firms_intelligence.repeated_cells %}
+          <div class="persistent-area-list">
+            {% for row in firms_intelligence.repeated_cells[:6] %}
+            <button
+              type="button"
+              data-map-focus
+              data-focus-lat="{{ row.center_latitude }}"
+              data-focus-lon="{{ row.center_longitude }}"
+              data-focus-region="{{ row.region_name or '' }}"
+            >
+              <div>
+                <strong>{{ row.region_name or '局部区域' }}</strong>
+                <small>{{ row.first_date }} — {{ row.last_date }}</small>
+              </div>
+              <span>{{ row.active_days }} 个活跃日</span>
+              <em>最长连续 {{ row.longest_consecutive_days }} 天</em>
+            </button>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="workspace-empty">本次没有发现跨多个日期重复活跃的局部区域。</div>
+          {% endif %}
+        </article>
+      </section>
+
+      <section class="frp-panel reveal-item">
+        <div>
+          <span class="app-eyebrow">THERMAL INTENSITY</span>
+          <h2>热辐射强度</h2>
+          <p>切换地图“高 FRP”模式，可直接查看本次热辐射强度较高的观测位置。</p>
+        </div>
+
+        <div class="frp-metrics">
+          <article>
+            <span>最大 FRP</span>
+            <strong>
+              {% if firms_intelligence.frp.max_mw is not none %}
+              {{ '%.1f'|format(firms_intelligence.frp.max_mw) }}
+              {% else %}—{% endif %}
+            </strong>
+            <small>MW</small>
+          </article>
+          <article>
+            <span>高值参考线</span>
+            <strong>
+              {% if firms_intelligence.frp.p90_mw is not none %}
+              {{ '%.1f'|format(firms_intelligence.frp.p90_mw) }}
+              {% else %}—{% endif %}
+            </strong>
+            <small>MW · 本次前 10%</small>
+          </article>
+          <article>
+            <span>包含 FRP</span>
+            <strong>{{ '{:,}'.format(firms_intelligence.frp.available_count) if firms_intelligence else 0 }}</strong>
+            <small>条观测</small>
+          </article>
+        </div>
+      </section>
+
+      <details class="method-details reveal-item">
+        <summary>
+          <span>数据与方法说明</span>
+          <small>查看数据口径、异常日期和持续区域的计算方式</small>
+        </summary>
+        <div class="method-detail-content">
+          <p>FIRMS 记录表示卫星主动火点/热异常观测，不直接等同于独立火灾次数。</p>
+          <p>“明显增多日期”使用 Median + MAD 鲁棒方法识别本次时间序列中的异常高值。</p>
+          <p>“持续活跃区域”按约 5 km 局部网格汇总；切换到具体日期时，仅显示该日实际出现火点的重复活跃网格。</p>
+          <p>“高 FRP”使用本次记录 FRP 的 90% 分位作为高值参考线，仅用于本次数据内部定位。</p>
+
+          {% if task_risk_assessment %}
+          <p>{{ task_risk_assessment.disclaimer }}</p>
+          {% endif %}
+
+          <div class="method-file-list">
+            {% for file in files %}
+            <span>{{ file.original_filename }}</span>
+            {% endfor %}
+          </div>
         </div>
       </details>
 
+      <div class="record-danger-zone">
+        <button
+          type="button"
+          class="record-delete-link"
+          data-record-delete
+          data-task-id="{{ task_id }}"
+          data-task-name="{{ task.name }}"
+        >删除此分析记录</button>
+      </div>
+
       <script id="taskMapFeatures" type="application/json">{{ region_feature_collection|tojson }}</script>
       <script id="taskMapStats" type="application/json">{{ task_region_ranking|tojson }}</script>
+      <script id="taskPersistentCells" type="application/json">{{ (firms_intelligence.repeated_cells[:350] if firms_intelligence else [])|tojson }}</script>
     </main>
   </div>
 </div>
 
+{% include '_record_manage_modal.html' %}
 {% include '_help_modal.html' %}
 <script src="{{ url_for('static', filename='product.js') }}"></script>
 </body>

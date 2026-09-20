@@ -40,6 +40,9 @@ from fire_monitor.services.mcd64_processing_service import (
 from fire_monitor.services.statistics_service import (
     StatisticsService,
 )
+from fire_monitor.services.firms_intelligence_service import (
+    FirmsIntelligenceService,
+)
 from fire_monitor.services.risk_assessment_service import (
     RiskAssessmentService,
 )
@@ -563,6 +566,22 @@ def create_app(
             else None
         )
 
+
+        task_firms_observations = (
+            statistics_service
+            .task_firms_observations(
+                task_id
+            )
+        )
+
+        firms_intelligence = (
+            FirmsIntelligenceService()
+            .analyze(
+                task_firms_observations
+            )
+            .as_dict()
+        )
+
         return (
             render_template(
                 "task_detail.html",
@@ -604,6 +623,9 @@ def create_app(
                 ),
                 task_region_ranking=(
                     task_region_ranking
+                ),
+                firms_intelligence=(
+                    firms_intelligence
                 ),
                 region_feature_collection=(
                     region_feature_collection
@@ -682,6 +704,172 @@ def create_app(
     # =====================================================
     # 分析任务页面
     # =====================================================
+
+    def _record_management_redirect():
+        target = request.form.get("return_to", "tasks")
+        if target == "home":
+            return redirect(url_for("index"))
+        return redirect(url_for("tasks"))
+
+    @app.post("/tasks/<task_id>/rename")
+    def rename_task_record(task_id: str):
+        name = request.form.get("name", "").strip()
+        try:
+            task_service.rename_task(
+                task_id,
+                name,
+            )
+        except (ValueError, KeyError) as exc:
+            return str(exc), 400
+
+        return _record_management_redirect()
+
+    @app.post("/tasks/<task_id>/delete")
+    def delete_task_record(task_id: str):
+        try:
+            task_service.hide_task(
+                task_id
+            )
+        except KeyError as exc:
+            return str(exc), 404
+
+        return _record_management_redirect()
+
+
+    @app.get("/api/tasks/<task_id>/map-data")
+    def task_map_data(task_id: str):
+        task = task_service.get_task(
+            task_id
+        )
+
+        if task is None:
+            return jsonify(
+                {
+                    "error": "analysis record not found",
+                }
+            ), 404
+
+        rows = (
+            statistics_service
+            .task_firms_observations(
+                task_id
+            )
+        )
+
+        dates = sorted(
+            {
+                str(row.get("acquired_date"))
+                for row in rows
+                if row.get("acquired_date")
+            }
+        )
+
+        regions = sorted(
+            {
+                str(row.get("region_name"))
+                for row in rows
+                if row.get("region_name")
+            }
+        )
+
+        date_index = {
+            value: index
+            for index, value in enumerate(
+                dates
+            )
+        }
+
+        region_index = {
+            value: index
+            for index, value in enumerate(
+                regions
+            )
+        }
+
+        frp_values = sorted(
+            float(row["frp"])
+            for row in rows
+            if row.get("frp") is not None
+        )
+
+        frp_p90 = None
+
+        if frp_values:
+            percentile_index = min(
+                len(frp_values) - 1,
+                int(
+                    len(frp_values)
+                    * 0.90
+                ),
+            )
+            frp_p90 = round(
+                frp_values[
+                    percentile_index
+                ],
+                3,
+            )
+
+        points = []
+
+        for row in rows:
+            acquired_date = str(
+                row.get(
+                    "acquired_date"
+                )
+                or ""
+            )
+
+            region_name = str(
+                row.get(
+                    "region_name"
+                )
+                or ""
+            )
+
+            frp = row.get("frp")
+
+            points.append(
+                [
+                    round(
+                        float(
+                            row["longitude"]
+                        ),
+                        5,
+                    ),
+                    round(
+                        float(
+                            row["latitude"]
+                        ),
+                        5,
+                    ),
+                    date_index.get(
+                        acquired_date,
+                        -1,
+                    ),
+                    region_index.get(
+                        region_name,
+                        -1,
+                    ),
+                    (
+                        round(
+                            float(frp),
+                            2,
+                        )
+                        if frp is not None
+                        else None
+                    ),
+                ]
+            )
+
+        return jsonify(
+            {
+                "dates": dates,
+                "regions": regions,
+                "points": points,
+                "frp_p90": frp_p90,
+                "point_count": len(points),
+            }
+        )
 
     @app.get("/tasks")
     def tasks():
@@ -986,73 +1174,10 @@ def create_app(
     @app.post(
         "/tasks/<task_id>/process/mcd64"
     )
-    def process_task_mcd64(
-        task_id: str,
-    ):
-        task = (
-            task_service
-            .get_task(task_id)
-        )
-
-        if task is None:
-            return (
-                "分析任务不存在。",
-                404,
-            )
-
-        qa_policy = (
-            request.form
-            .get(
-                "qa_policy",
-                "standard",
-            )
-            .strip()
-        )
-
-        if qa_policy not in {
-            "standard",
-            "strict",
-        }:
-            return render_task_detail(
-                task_id,
-                page_error=(
-                    "MCD64A1 处理失败："
-                    "QA 策略无效。"
-                ),
-                http_status=400,
-            )
-
-        try:
-            (
-                mcd64_processing_service
-                .process_task(
-                    task_id,
-                    qa_policy=qa_policy,
-                )
-            )
-
-        except (
-            ValueError,
-            KeyError,
-            FileNotFoundError,
-            RuntimeError,
-            OSError,
-        ) as exc:
-            return render_task_detail(
-                task_id,
-                page_error=(
-                    "MCD64A1 处理失败："
-                    + str(exc)
-                ),
-                http_status=400,
-            )
-
-        return redirect(
-            url_for(
-                "task_detail",
-                task_id=task_id,
-            )
-        )
+    def process_task_mcd64(task_id: str):
+        # FIRMS-only V1: MCD64A1 is intentionally not exposed as a web feature.
+        # Legacy storage/service code may remain for backward compatibility.
+        return ("", 404)
 
     # =====================================================
     # 原有统计查询 API

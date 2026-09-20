@@ -46,7 +46,7 @@ def test_home_is_upload_first_and_does_not_require_manual_dates(tmp_path):
     page = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert "上传遥感数据并开始分析" in page
+    assert "上传 FIRMS 数据并开始分析" in page
     assert "开始日期" not in page
     assert "地图点位" not in page
     assert "分析记录" in page

@@ -386,3 +386,60 @@ class StatisticsService:
             )
 
         return [series[key] for key in sorted(series)]
+
+    def task_firms_observations(
+        self,
+        task_id: str,
+    ) -> list[dict[str, Any]]:
+        # Return the canonical FIRMS observations that actually participate
+        # in this task. New membership and historical provenance are both
+        # supported, and UNION keeps one canonical observation per task.
+        with self.database.connect() as conn:
+            rows = conn.execute(
+                """
+                WITH task_observations AS (
+                    SELECT membership.observation_id
+                    FROM active_fire_run_membership AS membership
+                    JOIN import_runs AS run
+                        ON run.id = membership.run_id
+                    WHERE run.task_id = ?
+                      AND run.data_kind = 'active_fire_observations'
+                      AND run.status = 'completed'
+
+                    UNION
+
+                    SELECT source.observation_id
+                    FROM active_fire_observation_sources AS source
+                    JOIN import_runs AS run
+                        ON run.id = source.import_run_id
+                    WHERE run.task_id = ?
+                      AND run.data_kind = 'active_fire_observations'
+                      AND run.status = 'completed'
+                )
+                SELECT
+                    observation.id,
+                    observation.acquired_date,
+                    observation.acquired_time,
+                    observation.latitude,
+                    observation.longitude,
+                    observation.region_name,
+                    observation.confidence,
+                    observation.frp,
+                    observation.instrument,
+                    observation.satellite
+                FROM task_observations AS task_observation
+                JOIN active_fire_observations AS observation
+                    ON observation.id = task_observation.observation_id
+                ORDER BY
+                    observation.acquired_date,
+                    observation.acquired_time,
+                    observation.id
+                """,
+                (task_id, task_id),
+            ).fetchall()
+
+        return [
+            dict(row)
+            for row in rows
+        ]
+

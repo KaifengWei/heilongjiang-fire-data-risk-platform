@@ -275,7 +275,7 @@ def _prepare_task(
     )
 
 
-def test_web_can_execute_standard_mcd64_processing(
+def test_web_no_longer_exposes_standard_mcd64_processing(
     tmp_path,
 ):
     app = _create_app(
@@ -301,73 +301,16 @@ def test_web_can_execute_standard_mcd64_processing(
                 "standard"
             )
         },
-        follow_redirects=True,
+        follow_redirects=False,
     )
 
     assert (
         response.status_code
-        == 200
-    )
-
-    assert (
-        "MCD64A1 处理记录"
-        in response.get_data(
-            as_text=True
-        )
-    )
-
-    database = app.extensions[
-        "fire_database"
-    ]
-
-    with database.connect() as conn:
-        pixel_count = (
-            conn.execute(
-                """
-                SELECT COUNT(*)
-                FROM burned_pixels
-                """
-            ).fetchone()[0]
-        )
-
-    assert pixel_count == 3
-
-    runs = (
-        database.list_import_runs(
-            task_id=task_id,
-            data_kind=(
-                "burned_pixels_tif"
-            ),
-        )
-    )
-
-    assert len(runs) == 1
-
-    report = runs[0][
-        "metadata"
-    ]
-
-    assert (
-        report["qa_policy"]
-        == "standard"
-    )
-
-    assert (
-        report[
-            "run_burned_pixel_count"
-        ]
-        == 3
-    )
-
-    assert (
-        report[
-            "run_burned_area_km2"
-        ]
-        > 0
+        == 404
     )
 
 
-def test_web_passes_strict_qa_policy(
+def test_web_rejects_legacy_mcd64_strict_policy_route(
     tmp_path,
 ):
     app = _create_app(
@@ -398,42 +341,12 @@ def test_web_passes_strict_qa_policy(
 
     assert (
         response.status_code
-        == 302
-    )
-
-    database = app.extensions[
-        "fire_database"
-    ]
-
-    runs = (
-        database.list_import_runs(
-            task_id=task_id,
-            data_kind=(
-                "burned_pixels_tif"
-            ),
-        )
-    )
-
-    assert len(runs) == 1
-
-    report = runs[0][
-        "metadata"
-    ]
-
-    assert (
-        report["qa_policy"]
-        == "strict"
-    )
-
-    assert (
-        report[
-            "run_burned_pixel_count"
-        ]
-        == 2
+        == 404
     )
 
 
-def test_web_does_not_process_mcd64_without_regions(
+
+def test_web_rejects_legacy_mcd64_route_without_regions(
     tmp_path,
 ):
     app = _create_app(
@@ -457,35 +370,11 @@ def test_web_does_not_process_mcd64_without_regions(
                 "standard"
             )
         },
-        follow_redirects=True,
+        follow_redirects=False,
     )
 
     assert (
         response.status_code
-        == 400
+        == 404
     )
 
-    text = response.get_data(
-        as_text=True
-    )
-
-    assert (
-        "尚未导入行政区边界"
-        in text
-    )
-
-    database = app.extensions[
-        "fire_database"
-    ]
-
-    with database.connect() as conn:
-        pixel_count = (
-            conn.execute(
-                """
-                SELECT COUNT(*)
-                FROM burned_pixels
-                """
-            ).fetchone()[0]
-        )
-
-    assert pixel_count == 0

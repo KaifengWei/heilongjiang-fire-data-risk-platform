@@ -1,0 +1,42 @@
+<div class="record-manage-modal" id="recordManageModal" hidden aria-hidden="true">
+  <div class="record-manage-backdrop" data-record-modal-close></div>
+
+  <section class="record-manage-dialog" role="dialog" aria-modal="true">
+    <button class="record-manage-close" type="button" data-record-modal-close aria-label="关闭">×</button>
+
+    <div data-record-mode="rename">
+      <span class="app-eyebrow">RENAME</span>
+      <h2>重命名分析记录</h2>
+      <p>只修改记录名称，不影响分析数据。</p>
+
+      <form id="recordRenameForm" method="post">
+        <input type="hidden" name="return_to" id="recordRenameReturnTo" value="tasks">
+        <label class="record-name-field">
+          <span>记录名称</span>
+          <input id="recordRenameInput" name="name" type="text" maxlength="120" required>
+        </label>
+        <div class="record-modal-actions">
+          <button class="app-button app-button-ghost" type="button" data-record-modal-close>取消</button>
+          <button class="app-button app-button-primary" type="submit">保存名称</button>
+        </div>
+      </form>
+    </div>
+
+    <div data-record-mode="delete" hidden>
+      <span class="app-eyebrow">DELETE RECORD</span>
+      <h2>删除分析记录</h2>
+      <p id="recordDeleteName" class="record-delete-name"></p>
+      <div class="record-retention-note">
+        删除后，这条分析记录会从首页和“分析记录”中移除；已经存入本地数据库的 NASA FIRMS 主动火点观测不会删除，后续仍可用于重复数据识别和数据复用。
+      </div>
+
+      <form id="recordDeleteForm" method="post">
+        <input type="hidden" name="return_to" id="recordDeleteReturnTo" value="tasks">
+        <div class="record-modal-actions">
+          <button class="app-button app-button-ghost" type="button" data-record-modal-close>取消</button>
+          <button class="app-button record-danger-button" type="submit">删除记录</button>
+        </div>
+      </form>
+    </div>
+  </section>
+</div>

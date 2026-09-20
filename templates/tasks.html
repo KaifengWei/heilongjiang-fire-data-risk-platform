@@ -7,55 +7,106 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='product.css') }}">
 </head>
+
 <body class="app-body">
-<span class="sr-only">创建分析任务</span>
 <div class="app-shell">
   <aside class="app-sidebar">
-    <a class="app-brand" href="{{ url_for('index') }}"><span class="app-brand-mark">F</span><span class="app-brand-copy"><strong>黑龙江省火点数据</strong><small>检测与风险评估平台</small></span></a>
+    <a class="app-brand" href="{{ url_for('index') }}">
+      <span class="app-brand-mark">F</span>
+      <span class="app-brand-copy"><strong>黑龙江省火点数据</strong><small>检测与风险评估平台</small></span>
+    </a>
     <nav class="app-side-nav">
       <a href="{{ url_for('index') }}"><span class="nav-icon">⌂</span><span>首页</span></a>
       <a href="{{ url_for('index') }}#upload"><span class="nav-icon">＋</span><span>开始分析</span></a>
       <a class="active" href="{{ url_for('tasks') }}"><span class="nav-icon">▤</span><span>分析记录</span></a>
-      <button type="button" data-open-help><span class="nav-icon">?</span><span>使用帮助</span></button>
+      <button type="button" data-open-help><span class="nav-icon">?</span><span>数据教程</span></button>
     </nav>
-    <div class="app-side-spacer"></div><div class="app-side-footer"><span>本地桌面分析</span><b>V1.0</b></div>
+    <div class="app-side-spacer"></div>
+    <div class="app-side-footer"><span>本地桌面分析</span><b>V1.0</b></div>
   </aside>
 
   <div class="app-workspace">
     <header class="app-topbar">
-      <div><span class="app-eyebrow">ANALYSIS RECORDS</span><h1>分析记录</h1><p>按时间查看每一次上传、分析和结果。</p></div>
-      <div class="app-top-actions"><button class="app-button app-button-ghost" type="button" data-open-help>使用教程</button><a class="app-button app-button-primary" href="{{ url_for('index') }}#upload">＋ 新分析</a></div>
+      <div>
+        <span class="app-eyebrow">ANALYSIS RECORDS</span>
+        <h1>分析记录</h1>
+        <p>查看、重命名或移除已经完成的分析记录。</p>
+      </div>
+      <div class="app-top-actions">
+        <a class="app-button app-button-primary" href="{{ url_for('index') }}#upload">＋ 新分析</a>
+      </div>
     </header>
 
     <main class="app-main">
-      {% if page_error %}<div class="app-alert error"><strong>操作失败</strong><span>{{ page_error }}</span></div>{% endif %}
+      {% if page_error %}
+      <div class="app-alert error"><strong>操作失败</strong><span>{{ page_error }}</span></div>
+      {% endif %}
 
       {% if records %}
       <section class="record-table-card reveal-item">
-        <div class="record-table-head"><span>共 {{ records|length }} 条记录</span><small>最近的分析显示在最上方</small></div>
+        <div class="record-table-head">
+          <span>共 {{ records|length }} 条记录</span>
+          <small>最近完成的分析显示在最上方</small>
+        </div>
+
         <div class="record-list">
           {% for record in records %}
-          <article class="record-row">
+          <article class="record-row record-row-managed">
             <div class="record-index"><span>{{ '%02d'|format(loop.index) }}</span></div>
+
             <div class="record-title">
-              <div><span class="data-pill">{{ record.data_type }}</span><span class="status-pill status-{{ record.status }}">{{ record.status_label }}</span></div>
+              <div>
+                <span class="data-pill">FIRMS 主动火点</span>
+                <span class="status-pill status-{{ record.status }}">{{ record.status_label }}</span>
+              </div>
               <h2>{{ record.name }}</h2>
               <p>{{ record.period }} · {{ record.input_file_count }} 个输入文件</p>
             </div>
-            <div class="record-stats"><div><span>有效火点</span><strong>{{ '{:,}'.format(record.active_fire_count) }}</strong></div><div><span>涉及区域</span><strong>{{ record.affected_regions }}</strong></div><div><span>主要区域</span><strong>{{ record.main_region }}</strong></div></div>
-            <div class="record-time"><span>分析时间</span><strong>{{ (record.created_at or '')[:16]|replace('T', ' ') }}</strong></div>
-            <div class="record-actions"><a class="app-button app-button-primary small" href="{{ url_for('task_detail', task_id=record.task_id) }}">查看结果</a>{% if record.processing_complete %}<a class="app-button app-button-ghost small" href="{{ url_for('export_task_csv', task_id=record.task_id) }}">导出 CSV</a>{% endif %}</div>
+
+            <div class="record-stats">
+              <div><span>有效火点</span><strong>{{ '{:,}'.format(record.active_fire_count) }}</strong></div>
+              <div><span>涉及区域</span><strong>{{ record.affected_regions }}</strong></div>
+              <div><span>主要区域</span><strong>{{ record.main_region }}</strong></div>
+            </div>
+
+            <div class="record-time">
+              <span>分析时间</span>
+              <strong>{{ (record.created_at or '')[:16]|replace('T', ' ') }}</strong>
+            </div>
+
+            <div class="record-actions record-actions-managed">
+              <a class="app-button app-button-primary small" href="{{ url_for('task_detail', task_id=record.task_id) }}">查看结果</a>
+              <button
+                type="button"
+                class="record-text-action"
+                data-record-rename
+                data-task-id="{{ record.task_id }}"
+                data-task-name="{{ record.name }}"
+              >重命名</button>
+              <button
+                type="button"
+                class="record-text-action danger"
+                data-record-delete
+                data-task-id="{{ record.task_id }}"
+                data-task-name="{{ record.name }}"
+              >删除</button>
+            </div>
           </article>
           {% endfor %}
         </div>
       </section>
       {% else %}
-      <div class="empty-card"><span>◎</span><strong>暂无分析记录</strong><p>点击右上角“新分析”上传数据即可开始。</p></div>
+      <div class="empty-card">
+        <span>◎</span>
+        <strong>暂无分析记录</strong>
+        <p>点击右上角“新分析”上传 FIRMS CSV 即可开始。</p>
+      </div>
       {% endif %}
     </main>
   </div>
 </div>
 
+{% include '_record_manage_modal.html' %}
 {% include '_help_modal.html' %}
 <script src="{{ url_for('static', filename='product.js') }}"></script>
 </body>

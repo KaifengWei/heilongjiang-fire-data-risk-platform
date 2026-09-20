@@ -93,20 +93,68 @@ class TaskService:
             parameters=parameters,
         )
 
+    @staticmethod
+    def _is_hidden(task: dict | None) -> bool:
+        return bool(
+            task
+            and (task.get("parameters") or {}).get("record_hidden")
+        )
+
     def get_task(
         self,
         task_id: str,
     ) -> dict | None:
-        return self.database.get_analysis_task(
+        task = self.database.get_analysis_task(
             task_id
         )
+        if self._is_hidden(task):
+            return None
+        return task
 
     def list_tasks(
         self,
         limit: int = 100,
     ) -> list[dict]:
-        return self.database.list_analysis_tasks(
-            limit
+        rows = self.database.list_analysis_tasks(
+            max(limit * 3, limit)
+        )
+        visible = [
+            task
+            for task in rows
+            if not self._is_hidden(task)
+        ]
+        return visible[:limit]
+
+    def rename_task(
+        self,
+        task_id: str,
+        name: str,
+    ) -> None:
+        if self.get_task(task_id) is None:
+            raise KeyError(f"分析任务不存在：{task_id}")
+        self.database.rename_analysis_task(
+            task_id,
+            name,
+        )
+
+    def hide_task(
+        self,
+        task_id: str,
+    ) -> None:
+        task = self.database.get_analysis_task(
+            task_id
+        )
+        if task is None:
+            raise KeyError(f"分析任务不存在：{task_id}")
+
+        parameters = dict(
+            task.get("parameters")
+            or {}
+        )
+        parameters["record_hidden"] = True
+        self.database.update_analysis_task_parameters(
+            task_id,
+            parameters,
         )
 
     def mark_running(

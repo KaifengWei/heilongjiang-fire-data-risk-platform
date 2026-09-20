@@ -153,7 +153,8 @@ def test_web_can_execute_firms_processing(
         as_text=True
     )
 
-    assert "FIRMS 处理记录" in page
+    assert "火点空间分布" in page
+    assert "热辐射强度" in page
 
     database = app.extensions[
         "fire_database"

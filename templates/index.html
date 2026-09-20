@@ -19,7 +19,7 @@
       <a class="active" href="{{ url_for('index') }}"><span class="nav-icon">⌂</span><span>首页</span></a>
       <a href="#upload"><span class="nav-icon">＋</span><span>开始分析</span></a>
       <a href="{{ url_for('tasks') }}"><span class="nav-icon">▤</span><span>分析记录</span></a>
-      <button type="button" data-open-help><span class="nav-icon">?</span><span>使用帮助</span></button>
+      <button type="button" data-open-help><span class="nav-icon">?</span><span>数据教程</span></button>
     </nav>
 
     <div class="app-side-spacer"></div>
@@ -31,10 +31,10 @@
       <div>
         <span class="app-eyebrow">HOME</span>
         <h1>首页</h1>
-        <p>上传一份数据，软件自动识别并生成本次分析结果。</p>
+        <p>上传 NASA FIRMS CSV，软件自动完成识别、筛选、分析和记录。</p>
       </div>
       <div class="app-top-actions">
-        <button class="app-button app-button-ghost" type="button" data-open-help>使用教程</button>
+        <button class="app-button app-button-ghost" type="button" data-open-help>数据下载教程</button>
         <a class="app-button app-button-primary" href="#upload">开始分析</a>
       </div>
     </header>
@@ -48,16 +48,16 @@
 
       <section id="upload" class="start-card reveal-item">
         <div class="start-card-copy">
-          <span class="app-chip">一次上传 · 自动分析</span>
-          <h2>选择数据文件，后续步骤由软件自动完成</h2>
-          <p>软件会自动识别数据类型与时间范围，完成输入校验、黑龙江行政区空间分析和重复数据检查。</p>
+          <span class="app-chip">FIRMS CSV · 一键分析</span>
+          <h2>上传 FIRMS 数据并开始分析</h2>
+          <p>不需要手工选择数据类型、日期或行政区。软件会从 CSV 自动识别时间范围，完成质量筛选、黑龙江行政区落区、重复数据检查并生成独立分析记录。</p>
 
           <div class="start-flow">
-            <div><b>01</b><span><strong>选择文件</strong><small>CSV / GeoTIFF</small></span></div>
+            <div><b>01</b><span><strong>选择 CSV</strong><small>NASA FIRMS</small></span></div>
             <i>→</i>
-            <div><b>02</b><span><strong>自动识别</strong><small>类型 / 日期 / 重复</small></span></div>
+            <div><b>02</b><span><strong>自动分析</strong><small>识别 / 筛选 / 去重</small></span></div>
             <i>→</i>
-            <div><b>03</b><span><strong>查看结果</strong><small>空间 / 时间 / 区域</small></span></div>
+            <div><b>03</b><span><strong>查看结果</strong><small>区域 / 时间 / 关注</small></span></div>
           </div>
         </div>
 
@@ -65,29 +65,28 @@
           <div class="upload-panel-head"><div><span>上传数据</span><strong>开始一次新的分析</strong></div><span class="upload-status-dot"></span></div>
 
           <label class="upload-dropzone" id="uploadDropzone" for="analysisFiles">
-            <input id="analysisFiles" name="files" type="file" multiple accept=".csv,.tif,.tiff" required>
+            <input id="analysisFiles" name="files" type="file" multiple accept=".csv,text/csv" required>
             <span class="upload-icon">＋</span>
-            <strong>点击选择文件，或拖到这里</strong>
-            <small id="selectedFileText">支持 FIRMS CSV 与 MCD64A1 GeoTIFF</small>
+            <strong>点击选择 FIRMS CSV，或拖到这里</strong>
+            <small id="selectedFileText">只需选择 NASA FIRMS 下载并解压后的 CSV</small>
           </label>
 
-          <div class="upload-format-row">
-            <span><b>FIRMS</b> CSV</span>
-            <span><b>MCD64A1</b> BurnDate + QA GeoTIFF</span>
+          <div class="upload-format-row firms-only-format">
+            <span><b>支持</b> NASA FIRMS CSV</span>
+            <button type="button" data-open-help>不知道怎么下载？查看图文教程</button>
           </div>
 
           <button id="analyzeButton" class="app-button app-button-primary upload-submit" type="submit">开始自动分析</button>
 
           <div id="analysisProgress" class="analysis-progress" hidden>
-            <div><span></span></div>
-            <p>正在读取文件并生成本次分析，请保持窗口开启…</p>
+            <div><span></span></div><p>正在读取并分析本次 FIRMS 数据，请保持窗口开启…</p>
           </div>
         </form>
       </section>
 
       <section class="app-section reveal-item">
         <div class="section-heading">
-          <div><span class="app-eyebrow">RECENT ANALYSIS</span><h2>最近分析</h2><p>按每次上传单独保存，继续上一次工作也从这里进入。</p></div>
+          <div><span class="app-eyebrow">RECENT ANALYSIS</span><h2>最近分析</h2><p>每次上传形成一条独立记录，可以随时继续查看。</p></div>
           <a class="section-link" href="{{ url_for('tasks') }}">查看全部记录 <span>→</span></a>
         </div>
 
@@ -96,7 +95,7 @@
           {% for record in records[:6] %}
           <article class="analysis-card">
             <div class="analysis-card-head">
-              <span class="data-pill">{{ record.data_type }}</span>
+              <span class="data-pill">FIRMS 主动火点</span>
               <span class="status-pill status-{{ record.status }}">{{ record.status_label }}</span>
             </div>
             <h3>{{ record.name }}</h3>
@@ -114,25 +113,24 @@
 
             <div class="analysis-card-footer">
               <span>{{ (record.created_at or '')[:16]|replace('T', ' ') }}</span>
-              <a href="{{ url_for('task_detail', task_id=record.task_id) }}">查看结果 <b>→</b></a>
+              <div class="recent-record-actions">
+                <button type="button" data-record-rename data-task-id="{{ record.task_id }}" data-task-name="{{ record.name }}">重命名</button>
+                <button type="button" class="danger" data-record-delete data-task-id="{{ record.task_id }}" data-task-name="{{ record.name }}">删除</button>
+                <a href="{{ url_for('task_detail', task_id=record.task_id) }}">查看结果 <b>→</b></a>
+              </div>
             </div>
           </article>
           {% endfor %}
         </div>
         {% else %}
-        <div class="empty-card"><span>◎</span><strong>还没有分析记录</strong><p>从上方上传第一份数据，结果会自动保存在这里。</p></div>
+        <div class="empty-card"><span>◎</span><strong>还没有分析记录</strong><p>从上方上传第一份 FIRMS CSV，结果会自动保存在这里。</p></div>
         {% endif %}
-      </section>
-
-      <section class="quick-guide-grid reveal-item">
-        <article><span class="quick-icon">⌁</span><div><strong>自动识别</strong><p>从文件内容和产品标识读取数据类型与时间范围。</p></div></article>
-        <article><span class="quick-icon">◫</span><div><strong>独立记录</strong><p>每次上传形成自己的结果，历史重合数据可复用但不重复保存。</p></div></article>
-        <article><span class="quick-icon">↗</span><div><strong>结果导出</strong><p>从具体分析记录进入结果页，再导出该次分析的数据。</p></div></article>
       </section>
     </main>
   </div>
 </div>
 
+{% include '_record_manage_modal.html' %}
 {% include '_help_modal.html' %}
 <script src="{{ url_for('static', filename='product.js') }}"></script>
 </body>
