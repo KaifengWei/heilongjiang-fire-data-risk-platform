@@ -46,6 +46,18 @@ from fire_monitor.services.firms_intelligence_service import (
 from fire_monitor.services.historical_baseline_service import (
     HistoricalFirmsBaselineService,
 )
+from fire_monitor.services.land_cover_context_service import (
+    LandCoverContextService,
+)
+from fire_monitor.services.county_context_service import (
+    CountyContextService,
+)
+from fire_monitor.services.gfs_weather_context_service import (
+    GfsWeatherContextService,
+)
+from fire_monitor.services.historical_weather_context_service import (
+    HistoricalWeatherContextService,
+)
 from fire_monitor.services.risk_assessment_service import (
     RiskAssessmentService,
 )
@@ -99,6 +111,8 @@ def create_app(
     testing: bool = False,
     uploads_root: str | Path | None = None,
     historical_baseline_path: str | Path | None = None,
+    land_cover_path: str | Path | None = None,
+    county_boundary_path: str | Path | None = None,
 ) -> Flask:
     """创建 Flask 应用。"""
 
@@ -217,6 +231,56 @@ def create_app(
         )
     )
 
+    land_cover_raster_path = (
+        Path(land_cover_path)
+        if land_cover_path is not None
+        else (
+            settings.project_dir
+            / "data"
+            / "context"
+            / "mcd12q1_2024_lc_type1.tif"
+        )
+    )
+
+    land_cover_context_service = (
+        LandCoverContextService(
+            land_cover_raster_path
+        )
+    )
+
+    county_geojson_path = (
+        Path(county_boundary_path)
+        if county_boundary_path is not None
+        else (
+            settings.project_dir
+            / "data"
+            / "regions"
+            / "heilongjiang_county.geojson"
+        )
+    )
+
+    county_context_service = (
+        CountyContextService(
+            county_geojson_path
+        )
+    )
+
+    weather_context_service = (
+        GfsWeatherContextService(
+            settings.runtime_dir
+            / "weather"
+            / "gfs"
+        )
+    )
+
+    historical_weather_context_service = (
+        HistoricalWeatherContextService(
+            settings.runtime_dir
+            / "weather"
+            / "power"
+        )
+    )
+
     risk_assessment_service = (
         RiskAssessmentService(
             database,
@@ -282,6 +346,22 @@ def create_app(
         "historical_baseline_service"
     ] = historical_baseline_service
 
+    app.extensions[
+        "land_cover_context_service"
+    ] = land_cover_context_service
+
+    app.extensions[
+        "county_context_service"
+    ] = county_context_service
+
+    app.extensions[
+        "weather_context_service"
+    ] = weather_context_service
+
+
+    app.extensions[
+        "historical_weather_context_service"
+    ] = historical_weather_context_service
     app.extensions[
         "risk_assessment_service"
     ] = risk_assessment_service
@@ -620,6 +700,25 @@ def create_app(
             )
         )
 
+        land_cover_context = (
+            land_cover_context_service
+            .analyze(
+                task_firms_observations
+            )
+        )
+
+        priority_land_cover = (
+            land_cover_context_service
+            .build_priority_guidance(
+                land_cover_context,
+                (
+                    historical_baseline.get("priority_regions", [])
+                    if historical_baseline
+                    else []
+                ),
+            )
+        )
+
         return (
             render_template(
                 "task_detail.html",
@@ -667,6 +766,12 @@ def create_app(
                 ),
                 historical_baseline=(
                     historical_baseline
+                ),
+                land_cover_context=(
+                    land_cover_context
+                ),
+                priority_land_cover=(
+                    priority_land_cover
                 ),
                 region_feature_collection=(
                     region_feature_collection
@@ -827,6 +932,40 @@ def create_app(
             )
         }
 
+        county_by_observation_id = {}
+
+        if county_context_service.available:
+            for row in rows:
+                try:
+                    county_name = (
+                        county_context_service
+                        .locate_county(
+                            float(row["longitude"]),
+                            float(row["latitude"]),
+                        )
+                    )
+                except (TypeError, ValueError):
+                    county_name = None
+
+                county_by_observation_id[
+                    int(row["id"])
+                ] = county_name
+
+        county_names = sorted(
+            {
+                name
+                for name in county_by_observation_id.values()
+                if name
+            }
+        )
+
+        county_index = {
+            value: index
+            for index, value in enumerate(
+                county_names
+            )
+        }
+
         frp_values = sorted(
             float(row["frp"])
             for row in rows
@@ -899,6 +1038,12 @@ def create_app(
                         if frp is not None
                         else None
                     ),
+                    county_index.get(
+                        county_by_observation_id.get(
+                            int(row["id"])
+                        ),
+                        -1,
+                    ),
                 ]
             )
 
@@ -906,10 +1051,80 @@ def create_app(
             {
                 "dates": dates,
                 "regions": regions,
+                "counties": county_names,
+                "county_available": county_context_service.available,
                 "points": points,
                 "frp_p90": frp_p90,
                 "point_count": len(points),
             }
+        )
+
+    @app.get("/api/tasks/<task_id>/weather-context")
+    def task_weather_context(task_id: str):
+        task = task_service.get_task(task_id)
+
+        if task is None:
+            return jsonify(
+                {
+                    "available": False,
+                    "reason": "task_not_found",
+                }
+            ), 404
+
+        rows = (
+            statistics_service
+            .task_firms_observations(task_id)
+        )
+
+        result = (
+            weather_context_service
+            .analyze(
+                task=task,
+                rows=rows,
+                county_context_service=(
+                    county_context_service
+                ),
+            )
+        )
+
+        if (
+            not result.get("available")
+            and result.get("reason") == "historical_task"
+        ):
+            result = (
+                historical_weather_context_service
+                .analyze(
+                    task_id=task_id,
+                    task=task,
+                    rows=rows,
+                    county_context_service=(
+                        county_context_service
+                    ),
+                )
+            )
+
+        return jsonify(result)
+
+    @app.get("/api/regions/counties")
+    def county_region_data():
+        city_name = (
+            request.args.get("city", "")
+            .strip()
+        )
+
+        if not city_name:
+            return jsonify(
+                {
+                    "type": "FeatureCollection",
+                    "features": [],
+                }
+            )
+
+        return jsonify(
+            county_context_service
+            .feature_collection_for_city(
+                city_name
+            )
         )
 
     @app.get("/tasks")

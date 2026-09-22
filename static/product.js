@@ -438,6 +438,12 @@
     }
 
     function activeBounds() {
+      if (window.__countyDrilldownFeature) {
+        return featureBounds(
+          window.__countyDrilldownFeature
+        ) || provinceBounds;
+      }
+
       if (selectedRegion) {
         return featureBounds(featureByName.get(selectedRegion))
           || provinceBounds;
@@ -449,6 +455,7 @@
     let points = [];
     let allDates = [];
     let regionNames = [];
+    let countyNames = [];
     let selectedDate = null;
     let selectedRegion = '';
     let focusPoint = null;
@@ -460,6 +467,10 @@
       return points.filter(point => {
         if (selectedDate !== null && point[2] !== selectedDate) return false;
         if (selectedRegion && regionNames[point[3]] !== selectedRegion) return false;
+        if (
+          window.__countyDrilldownSelected
+          && countyNames[point[5]] !== window.__countyDrilldownSelected
+        ) return false;
         return true;
       });
     }
@@ -470,6 +481,16 @@
         : (allDates[selectedDate] || null);
 
       return persistentCells.filter(cell => {
+        if (
+          window.__countyContains
+          && !window.__countyContains(
+            cell.center_longitude,
+            cell.center_latitude
+          )
+        ) {
+          return false;
+        }
+
         if (
           selectedRegion
           && cell.region_name
@@ -519,6 +540,13 @@
 
     function selectRegion(region) {
       selectedRegion = region || '';
+
+      window.dispatchEvent(
+        new CustomEvent(
+          'city-region-change',
+          { detail: { region: selectedRegion } }
+        )
+      );
 
   
     $$('[data-map-theme]').forEach(button => {
@@ -732,7 +760,7 @@
         });
 
         ctx.restore();
-      } else {
+      } else if (!window.__countyDrilldownActiveCity) {
         ctx.save();
         ctx.font = '600 12px Microsoft YaHei, sans-serif';
         ctx.textAlign = 'center';
@@ -860,7 +888,7 @@
             const value = point[4];
             return value !== null && Number.isFinite(value) && value >= frpP90;
           }).length;
-          displayLabel = '高 FRP 火点';
+          displayLabel = '热强度较高火点';
         }
 
         if (layerPersistent?.checked) {
@@ -914,6 +942,7 @@
       points = Array.isArray(payload.points) ? payload.points : [];
       allDates = Array.isArray(payload.dates) ? payload.dates : [];
       regionNames = Array.isArray(payload.regions) ? payload.regions : [];
+      countyNames = Array.isArray(payload.counties) ? payload.counties : [];
       frpP90 = Number.isFinite(Number(payload.frp_p90))
         ? Number(payload.frp_p90)
         : null;
@@ -1082,6 +1111,21 @@
 
       redrawMap();
     });
+
+    window.addEventListener(
+      'county-drilldown-change',
+      () => {
+        canvas.classList.add('map-transitioning');
+
+        setTimeout(() => {
+          redrawMap();
+
+          requestAnimationFrame(() => {
+            canvas.classList.remove('map-transitioning');
+          });
+        }, 90);
+      }
+    );
 
     let resizeTimer = null;
 

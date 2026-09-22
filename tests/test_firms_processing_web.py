@@ -355,3 +355,29 @@ def test_web_does_not_process_firms_without_regions(
         ).fetchone()[0]
 
     assert count == 0
+
+def test_task_template_does_not_iterate_dict_items_method():
+    """Jinja dot lookup resolves dict.items to the builtin method."""
+    from pathlib import Path
+
+    task_template = (
+        Path(__file__).resolve().parents[1]
+        / "templates"
+        / "task_detail.html"
+    ).read_text(encoding="utf-8")
+
+    assert "priority_land_cover.items" not in task_template
+    assert 'priority_land_cover["items"]' in task_template
+
+def test_task_detail_loads_county_drilldown_script():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    template = (
+        root
+        / "templates"
+        / "task_detail.html"
+    ).read_text(encoding="utf-8")
+
+    assert "county_drilldown.js" in template
+    assert "热强度较高" in template

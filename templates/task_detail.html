@@ -246,7 +246,7 @@
               </label>
               <label>
                 <input id="layerHighFrp" type="radio" name="mapTheme" value="frp">
-                <span>高 FRP</span>
+                <span>热强度较高</span>
               </label>
               <label>
                 <input id="layerPersistent" type="radio" name="mapTheme" value="persistent">
@@ -263,7 +263,7 @@
             <div class="map-live-legend">
               <span><i class="legend-dot fire"></i>火点</span>
               <span><i class="legend-dot persistent"></i>持续区域</span>
-              <span><i class="legend-dot high-frp"></i>高 FRP</span>
+              <span><i class="legend-dot high-frp"></i>热强度较高</span>
             </div>
 
             <div class="map-focus-badge" id="mapFocusBadge" hidden>
@@ -357,6 +357,27 @@
               当前暂无历史同期参照，建议重点查看火点集中区域、明显增多日期和跨日重复活跃位置。
             {% endif %}
           </p>
+          {% if land_cover_context and land_cover_context.available %}
+          <div class="action-land-context">
+            <div class="land-context-map">
+              <img src="{{ url_for('static', filename='context/mcd12q1_2024_landcover.png') }}" alt="黑龙江省2024年土地覆盖背景图">
+              <span class="land-context-map-caption">黑龙江土地覆盖背景</span>
+            </div>
+            <div class="land-context-copy">
+              <span>地表背景</span>
+              <strong>{{ land_cover_context.visual_title }}</strong>
+              <p>{{ land_cover_context.guidance }}</p>
+              <div class="land-context-legend" aria-label="土地覆盖图例">
+                <span class="agriculture"><i></i>农田</span>
+                <span class="forest"><i></i>林地</span>
+                <span class="grass"><i></i>草地/灌丛</span>
+                <span class="water"><i></i>湿地/水体</span>
+                <span class="other"><i></i>其他</span>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
         </div>
 
         <div class="action-guidance-steps">
@@ -366,21 +387,37 @@
               <h3>重点关注区域</h3>
 
               {% if historical_baseline and historical_baseline.available and historical_baseline.priority_regions %}
-              <p>
-                {% for row in historical_baseline.priority_regions %}
-                  <b>{{ row.region_name }}</b>{% if not loop.last %}、{% endif %}
-                {% endfor %}
-                的火点活动相对自身往年同期更突出，建议重点核查这些区域的实际情况。
-              </p>
-              <div class="action-chip-row">
-                {% for row in historical_baseline.priority_regions %}
-                <button
-                  type="button"
-                  class="action-chip"
-                  data-history-region="{{ row.region_name }}"
-                >查看 {{ row.region_name }}</button>
-                {% endfor %}
-              </div>
+                {% if priority_land_cover %}
+                <p>{{ priority_land_cover.message }}</p>
+                <div class="priority-context-list">
+                  {% for item in priority_land_cover["items"] %}
+                  <button
+                    type="button"
+                    class="priority-context-item"
+                    data-history-region="{{ item.region_name }}"
+                  >
+                    {{ item.region_name }}
+                    <small>{{ item.dominant_label }}</small>
+                  </button>
+                  {% endfor %}
+                </div>
+                {% else %}
+                <p>
+                  {% for row in historical_baseline.priority_regions %}
+                    <b>{{ row.region_name }}</b>{% if not loop.last %}、{% endif %}
+                  {% endfor %}
+                  的火点活动相对自身往年同期更突出，建议重点核查这些区域的实际情况。
+                </p>
+                <div class="action-chip-row">
+                  {% for row in historical_baseline.priority_regions %}
+                  <button
+                    type="button"
+                    class="action-chip"
+                    data-history-region="{{ row.region_name }}"
+                  >查看 {{ row.region_name }}</button>
+                  {% endfor %}
+                </div>
+                {% endif %}
               {% else %}
               <p>当前没有特别突出的重点地区，可从全省火点集中区域开始查看。</p>
               <button type="button" class="action-link" data-map-reset>查看全省分布 →</button>
@@ -438,6 +475,17 @@
         </div>
       </section>
 
+      <section id="weatherContextPanel" class="weather-context-panel reveal-item" hidden>
+        <div class="weather-context-head">
+          <div>
+            <span>SHORT-RANGE WEATHER</span>
+            <strong id="weatherContextTitle">未来天气条件</strong>
+          </div>
+          <small id="weatherContextSource"></small>
+        </div>
+        <div id="weatherHorizonCards" class="weather-horizon-cards"></div>
+      </section>
+
 <details class="method-details reveal-item">
         <summary>
           <span>数据与方法说明</span>
@@ -450,6 +498,9 @@
             <p><b>持续活跃区域</b>：用于提示约 5 km 范围内跨多个日期重复出现火点的位置。</p>
             {% if historical_baseline and historical_baseline.available %}
             <p><b>历史对比</b>：使用早于本次任务年份的同期历史数据，判断当前活动是否偏离往年常见水平。</p>
+            {% endif %}
+            {% if land_cover_context and land_cover_context.available %}
+            <p><b>地表背景</b>：使用 MCD12Q1 2024 年土地覆盖，识别火点所在的农田、林地等环境背景。</p>
             {% endif %}
           </div>
 
@@ -481,5 +532,7 @@
 {% include '_record_manage_modal.html' %}
 {% include '_help_modal.html' %}
 <script src="{{ url_for('static', filename='product.js') }}"></script>
+<script src="{{ url_for('static', filename='county_drilldown.js') }}"></script>
+<script src="{{ url_for('static', filename='weather_context.js') }}"></script>
 </body>
 </html>

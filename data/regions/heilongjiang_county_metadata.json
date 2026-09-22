@@ -1,0 +1,13 @@
+{
+  "name": "黑龙江省县级行政区边界",
+  "level": "county",
+  "region_count": 128,
+  "source_dataset": "1:100万公众版基础地理信息数据（2021）",
+  "source_provider": "全国地理信息资源目录服务系统",
+  "source_layer": "BOUA",
+  "source_actuality": "2019",
+  "geometry_crs": "EPSG:4326",
+  "source_feature_count": 174,
+  "simplify_tolerance_degrees": 0.0015,
+  "output_file": "heilongjiang_county.geojson"
+}
