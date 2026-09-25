@@ -30,3 +30,6 @@ data/raw_regions/official_1m/*.zip
 build/
 dist/
 *.spec
+
+# Keep the release build configuration
+!fire_monitor.spec

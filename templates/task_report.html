@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>{{ task.name }} - 分析报告</title>
+  <style>
+    body{margin:0;font-family:"Microsoft YaHei","Segoe UI",sans-serif;color:#18252c;background:#f4f7f8;line-height:1.7}
+    .report{width:min(1100px,calc(100% - 48px));margin:32px auto;background:#fff;padding:52px 58px 64px;box-sizing:border-box;box-shadow:0 12px 40px rgba(18,43,54,.08)}
+    .eyebrow{font-size:12px;letter-spacing:.18em;color:#56727d;font-weight:700}h1{font-size:30px;margin:8px 0 6px}h2{margin:38px 0 14px;padding-bottom:8px;border-bottom:1px solid #dfe8eb;font-size:20px}.meta{color:#637780;font-size:14px}
+    .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:28px}.summary div{padding:18px;border:1px solid #dfe8eb;border-radius:10px;background:#f9fbfc}.summary span{display:block;font-size:12px;color:#71858d}.summary strong{display:block;margin-top:3px;font-size:22px}
+    .statement{padding:18px 20px;background:#f2f7f8;border-left:4px solid #426f7c;margin:14px 0}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;border-bottom:1px solid #e4ebed;padding:10px 8px;vertical-align:top}th{color:#526a74;background:#f7fafb}.note{margin-top:42px;color:#6d7d84;font-size:12px;border-top:1px solid #e2e9eb;padding-top:14px}@media print{body{background:#fff}.report{width:100%;margin:0;box-shadow:none}}
+  </style>
+</head>
+<body>
+<article class="report">
+  <div class="eyebrow">HEILONGJIANG ACTIVE FIRE ANALYSIS REPORT</div>
+  <h1>黑龙江省火点数据检测与风险评估平台</h1>
+  <div class="meta">{{ task.name }} · {{ analysis_summary.period }} · FIRMS 主动火点</div>
+  <div class="summary">
+    <div><span>有效火点观测</span><strong>{{ '{:,}'.format(analysis_summary.active_fire_count) }}</strong></div>
+    <div><span>涉及市（地）</span><strong>{{ analysis_summary.affected_regions }}</strong></div>
+    <div><span>火点最集中区域</span><strong>{{ analysis_summary.main_region }}</strong></div>
+  </div>
+  <h2>1. 分析摘要</h2>
+  <div class="statement">本次分析覆盖 {{ analysis_summary.period }}。共识别 {{ '{:,}'.format(analysis_summary.active_fire_count) }} 条有效主动火点观测，涉及 {{ analysis_summary.affected_regions }} 个市（地）。本报告用于遥感数据分析与核查辅助，不代表官方火灾概率或灾害风险预报。</div>
+  {% if historical_baseline and historical_baseline.available %}
+  <h2>2. 历史同期对比</h2>
+  <p>当前全省判断：<strong>{{ historical_baseline.province_status }}</strong>。参照年份数量：{{ historical_baseline.reference_year_count }}。</p>
+  {% if historical_baseline.priority_regions %}<p>优先查看地区：{% for row in historical_baseline.priority_regions %}<strong>{{ row.region_name }}</strong>{% if not loop.last %}、{% endif %}{% endfor %}。</p>{% endif %}
+  {% endif %}
+  {% if land_cover_context and land_cover_context.available %}
+  <h2>3. 地表背景</h2><p>{{ land_cover_context.visual_title }}；可匹配 {{ land_cover_context.matched_observations }} / {{ land_cover_context.total_observations }} 条观测。</p><p>{{ land_cover_context.guidance }}</p>
+  {% endif %}
+  <h2>4. 行政区统计</h2>
+  <table><thead><tr><th>行政区</th><th>主动火点观测</th><th>烧毁像元面积 km²</th></tr></thead><tbody>{% for row in region_statistics %}<tr><td>{{ row.region_name }}</td><td>{{ row.active_fire_count }}</td><td>{{ row.burned_area_km2 }}</td></tr>{% endfor %}</tbody></table>
+  <h2>5. 每日变化</h2>
+  <table><thead><tr><th>日期</th><th>主动火点观测</th><th>烧毁像元</th><th>烧毁面积 km²</th></tr></thead><tbody>{% for row in daily_series %}<tr><td>{{ row.date }}</td><td>{{ row.active_fire_observation_count }}</td><td>{{ row.burned_pixel_count }}</td><td>{{ row.burned_area_km2 }}</td></tr>{% endfor %}</tbody></table>
+  <div class="note">数据基础：NASA FIRMS 主动火点数据及软件已配置的行政区、历史同期、MCD12Q1 地表背景和天气上下文。卫星主动火点/热异常不等同于地面实际火灾，应结合位置、时间、地表类型和现场信息进行核查。</div>
+</article>
+</body>
+</html>

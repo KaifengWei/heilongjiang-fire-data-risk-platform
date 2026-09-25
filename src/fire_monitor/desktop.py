@@ -314,6 +314,9 @@ def run_desktop() -> None:
 
         import webview
 
+        # Flask attachment exports need downloads enabled in pywebview.
+        webview.settings["ALLOW_DOWNLOADS"] = True
+
     except ImportError as exc:
 
         raise RuntimeError(

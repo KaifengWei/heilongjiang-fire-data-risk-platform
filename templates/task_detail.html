@@ -10,25 +10,7 @@
 
 <body class="app-body">
 <div class="app-shell">
-  <aside class="app-sidebar">
-    <a class="app-brand" href="{{ url_for('index') }}">
-      <span class="app-brand-mark">F</span>
-      <span class="app-brand-copy">
-        <strong>黑龙江省火点数据</strong>
-        <small>检测与风险评估平台</small>
-      </span>
-    </a>
-
-    <nav class="app-side-nav">
-      <a href="{{ url_for('index') }}"><span class="nav-icon">⌂</span><span>首页</span></a>
-      <a href="{{ url_for('index') }}#upload"><span class="nav-icon">＋</span><span>开始分析</span></a>
-      <a class="active" href="{{ url_for('tasks') }}"><span class="nav-icon">▤</span><span>分析记录</span></a>
-      <button type="button" data-open-help><span class="nav-icon">?</span><span>数据教程</span></button>
-    </nav>
-
-    <div class="app-side-spacer"></div>
-    <div class="app-side-footer"><span>本地桌面分析</span><b>V1.0</b></div>
-  </aside>
+  {% include '_sidebar.html' %}
 
   <div class="app-workspace">
     <header class="app-topbar result-topbar compact-result-topbar">
@@ -49,7 +31,7 @@
         >重命名</button>
 
         {% if analysis_summary.processing_complete %}
-        <a class="app-button app-button-primary" href="{{ url_for('export_task_csv', task_id=task_id) }}">导出结果</a>
+        <a class="app-button app-button-primary" href="{{ url_for('export_task_report', task_id=task_id) }}" data-export-report download>导出分析报告</a>
         {% endif %}
       </div>
     </header>

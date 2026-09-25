@@ -106,6 +106,10 @@ def _as_optional_date(
         ) from exc
 
 
+from fire_monitor.services.report_docx_service import (
+    build_analysis_report_docx,
+)
+
 def create_app(
     database_path: str | Path | None = None,
     testing: bool = False,
@@ -539,7 +543,24 @@ def create_app(
         return (
             render_template(
                 "index.html",
-                records=build_analysis_records(),
+                active_section="home",
+                home_region_feature_collection=(
+                    database.region_feature_collection()
+                ),
+                page_error=page_error,
+            ),
+            http_status,
+        )
+
+    def render_analyze(
+        *,
+        page_error: str | None = None,
+        http_status: int = 200,
+    ):
+        return (
+            render_template(
+                "analyze.html",
+                active_section="analyze",
                 page_error=page_error,
             ),
             http_status,
@@ -722,6 +743,7 @@ def create_app(
         return (
             render_template(
                 "task_detail.html",
+                active_section="result",
                 task=task,
                 task_id=task_id,
                 files=files,
@@ -784,6 +806,10 @@ def create_app(
     def index():
         return render_home()
 
+    @app.get("/analyze")
+    def analyze_page():
+        return render_analyze()
+
     @app.post("/analyze")
     def analyze_uploads():
         uploaded_files = [
@@ -793,7 +819,7 @@ def create_app(
         ]
 
         if not uploaded_files:
-            return render_home(
+            return render_analyze(
                 page_error="请选择需要分析的数据文件。",
                 http_status=400,
             )
@@ -835,7 +861,7 @@ def create_app(
                 http_status=400,
             )
         except (ValueError, KeyError, FileNotFoundError, OSError) as exc:
-            return render_home(
+            return render_analyze(
                 page_error=str(exc),
                 http_status=400,
             )
@@ -1135,6 +1161,7 @@ def create_app(
 
         return render_template(
             "tasks.html",
+            active_section="records",
             tasks=task_rows,
             records=build_analysis_records(task_rows),
             scope_labels=SCOPE_LABELS,
@@ -1608,6 +1635,173 @@ def create_app(
         payload["limit"] = limit
 
         return jsonify(payload)
+
+    @app.get(
+        "/tasks/<task_id>/report.docx"
+    )
+    def export_task_report(
+        task_id: str,
+    ):
+        task = (
+            task_service
+            .get_task(task_id)
+        )
+
+        if task is None:
+            return (
+                "分析任务不存在。",
+                404,
+            )
+
+        analysis_summary = (
+            build_analysis_summary(
+                task
+            )
+        )
+
+        if not analysis_summary.get(
+            "processing_complete"
+        ):
+            raise ValueError(
+                "当前任务尚未完成正式分析，"
+                "暂不能导出分析报告。"
+            )
+
+        observations = (
+            statistics_service
+            .task_firms_observations(
+                task_id
+            )
+        )
+
+        firms_intelligence = (
+            FirmsIntelligenceService()
+            .analyze(
+                observations
+            )
+            .as_dict()
+        )
+
+        historical_baseline = (
+            historical_baseline_service
+            .compare(
+                observations,
+                analysis_start=task.get(
+                    "analysis_start"
+                ),
+                analysis_end=task.get(
+                    "analysis_end"
+                ),
+            )
+        )
+
+        land_cover_context = (
+            land_cover_context_service
+            .analyze(
+                observations
+            )
+        )
+
+        priority_land_cover = (
+            land_cover_context_service
+            .build_priority_guidance(
+                land_cover_context,
+                (
+                    historical_baseline.get(
+                        "priority_regions",
+                        [],
+                    )
+                    if historical_baseline
+                    else []
+                ),
+            )
+        )
+
+        weather_context = (
+            weather_context_service
+            .analyze(
+                task=task,
+                rows=observations,
+                county_context_service=(
+                    county_context_service
+                ),
+            )
+        )
+
+        if (
+            not weather_context.get(
+                "available"
+            )
+            and weather_context.get(
+                "reason"
+            ) == "historical_task"
+        ):
+            weather_context = (
+                historical_weather_context_service
+                .analyze(
+                    task_id=task_id,
+                    task=task,
+                    rows=observations,
+                    county_context_service=(
+                        county_context_service
+                    ),
+                )
+            )
+
+        report_bytes = (
+            build_analysis_report_docx(
+                task=task,
+                analysis_summary=(
+                    analysis_summary
+                ),
+                firms_intelligence=(
+                    firms_intelligence
+                ),
+                historical_baseline=(
+                    historical_baseline
+                ),
+                land_cover_context=(
+                    land_cover_context
+                ),
+                priority_land_cover=(
+                    priority_land_cover
+                ),
+                weather_context=(
+                    weather_context
+                ),
+                daily_series=(
+                    statistics_service
+                    .task_daily_series(
+                        task_id
+                    )
+                ),
+            )
+        )
+
+        filename = (
+            "heilongjiang_fire_analysis_"
+            + task_id
+            + ".docx"
+        )
+
+        return Response(
+            report_bytes,
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "wordprocessingml.document"
+            ),
+            headers={
+                "Content-Disposition": (
+                    'attachment; filename="'
+                    + filename
+                    + '"'
+                ),
+                "Content-Length": str(
+                    len(report_bytes)
+                ),
+            },
+        )
+
 
     @app.get(
         "/tasks/<task_id>/export.csv"

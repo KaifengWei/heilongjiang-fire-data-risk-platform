@@ -7,8 +7,30 @@
   // disable the tutorial/help experience.
   // ---------------------------------------------------------
   const modal = $('#guideModal');
+  const AUTO_GUIDE_SESSION_KEY = 'fireMonitorGuideAutoShownV1';
   const dontShow = $('#guideDontShow');
   const DISMISS_KEY = 'fireMonitorGuideDismissedV1';
+  const SESSION_SHOWN_KEY = 'fireMonitorGuideShownThisSessionV1';
+
+  let guideShownThisPage = false;
+
+  function guideShownThisSession() {
+    if (guideShownThisPage) return true;
+
+    try {
+      return sessionStorage.getItem(SESSION_SHOWN_KEY) === '1';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function markGuideShownThisSession() {
+    guideShownThisPage = true;
+
+    try {
+      sessionStorage.setItem(SESSION_SHOWN_KEY, '1');
+    } catch (_) {}
+  }
 
   const slides = $$('[data-guide-slide]');
   const jumps = $$('[data-guide-jump]');
@@ -70,6 +92,10 @@
   function openHelp(index = 0) {
     if (!modal) return;
 
+    // Opening the guide manually or automatically counts as the
+    // single tutorial display for this desktop-app session.
+    markGuideShownThisSession();
+
     renderGuideStep(index, 1, false);
     modal.classList.remove('closing');
     modal.hidden = false;
@@ -82,10 +108,12 @@
     document.body.classList.add('modal-open');
   }
 
-  function closeHelp({ remember = false } = {}) {
+  function closeHelp() {
     if (!modal) return;
 
-    if (remember && dontShow?.checked) {
+    // If the user selected “下次启动不再自动弹出”, respect it no
+    // matter whether the guide is closed by 完成, ×, or Escape.
+    if (dontShow?.checked) {
       try {
         localStorage.setItem(DISMISS_KEY, '1');
       } catch (_) {}
@@ -123,7 +151,7 @@
 
   nextButton?.addEventListener('click', () => {
     if (slideIndex >= slides.length - 1) {
-      closeHelp({ remember: true });
+      closeHelp();
       return;
     }
     renderGuideStep(slideIndex + 1, 1, true);
@@ -143,17 +171,33 @@
   });
 
   function maybeOpenDesktopGuide() {
-    let dismissed = false;
-
-    try {
-      dismissed = localStorage.getItem(DISMISS_KEY) === '1';
-    } catch (_) {}
-
-    if (!dismissed && window.pywebview) {
+      if (!window.pywebview) return;
+  
+      let alreadyShown = false;
+  
+      try {
+        alreadyShown = sessionStorage.getItem(AUTO_GUIDE_SESSION_KEY) === '1';
+      } catch (_) {
+        alreadyShown = Boolean(window.__fireMonitorGuideAutoShownV1);
+      }
+  
+      if (alreadyShown) return;
+  
+      // 先记录“本次会话已自动展示”，再真正打开。
+      // 即使 window/document 的 pywebviewready 与 900ms fallback 连续触发，
+      // 也只有第一次调用能够通过。
+      try {
+        sessionStorage.setItem(AUTO_GUIDE_SESSION_KEY, '1');
+      } catch (_) {
+        window.__fireMonitorGuideAutoShownV1 = true;
+      }
+  
       openHelp(0);
     }
-  }
 
+  // pywebviewready can be observed through more than one event path,
+  // and the timeout is retained as a startup fallback. sessionStorage
+  // makes all of them idempotent for the lifetime of this app window.
   window.addEventListener?.('pywebviewready', maybeOpenDesktopGuide);
   document.addEventListener?.('pywebviewready', maybeOpenDesktopGuide);
   setTimeout(maybeOpenDesktopGuide, 900);
@@ -1144,4 +1188,19 @@
       loadingChip.classList.add('error');
     }
   });
+})();
+
+// Result navigation — selected result exists only for the current webview session.
+(() => {
+  const RESULT_KEY='fireMonitorSelectedResultV1';
+  const nav=document.querySelector('[data-result-nav]');
+  if(!nav)return;
+  function readState(){try{return JSON.parse(sessionStorage.getItem(RESULT_KEY)||'null');}catch(_){return null;}}
+  function sync(){const state=readState();if(state?.href){nav.setAttribute('href',state.href);nav.classList.remove('is-disabled');nav.setAttribute('aria-disabled','false');nav.removeAttribute('tabindex');}else{nav.removeAttribute('href');nav.classList.add('is-disabled');nav.setAttribute('aria-disabled','true');nav.setAttribute('tabindex','-1');}}
+  function selectResult(href,label=''){if(!href)return;try{sessionStorage.setItem(RESULT_KEY,JSON.stringify({href,label}));}catch(_){}sync();}
+  document.querySelectorAll('[data-view-result]').forEach(link=>{link.addEventListener('click',()=>selectResult(link.getAttribute('href')||'',link.getAttribute('data-result-name')||''));});
+  const workspace=document.querySelector('#taskWorkspace[data-task-id]');
+  if(workspace){selectResult(window.location.pathname,document.querySelector('.result-topbar h1')?.textContent?.trim()||'');}
+  nav.addEventListener('click',event=>{if(nav.classList.contains('is-disabled'))event.preventDefault();});
+  sync();
 })();
