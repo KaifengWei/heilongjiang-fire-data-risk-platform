@@ -4095,3 +4095,180 @@ button, input { font: inherit; }
 .analyze-page-main{max-width:1420px;width:100%;box-sizing:border-box}.analyze-start-card{min-height:480px}.analyze-note-grid{margin-top:22px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.analyze-note-grid article{padding:18px 20px;border:1px solid rgba(80,116,130,.13);border-radius:10px;background:#fff}.analyze-note-grid strong{display:block;color:#264c59;margin-bottom:5px;font-size:13px}.analyze-note-grid span{color:#71828a;font-size:12px;line-height:1.65}
 @media(max-width:1180px){.home-hero{grid-template-columns:1fr;padding-top:48px}.home-hero-visual{min-height:430px}#homeMapCanvas{height:340px}.home-capabilities{grid-template-columns:1fr}.home-capabilities article{border-right:0;border-bottom:1px solid rgba(141,202,215,.08)}}
 
+
+
+/* =========================================================
+   HOME BLUE WHITE FINAL V1
+   ========================================================= */
+
+.home-body {
+  background: #f6fbfd !important;
+}
+
+.home-workspace {
+  background: linear-gradient(180deg, #f8fcfe 0%, #eef7fb 100%) !important;
+}
+
+.home-landing {
+  color: #173a49 !important;
+  background:
+    radial-gradient(circle at 78% 18%, rgba(83, 176, 210, .16), transparent 31%),
+    radial-gradient(circle at 24% 78%, rgba(113, 174, 198, .09), transparent 29%),
+    linear-gradient(145deg, #fbfdfe 0%, #eef8fb 55%, #f8fcfd 100%) !important;
+}
+
+.home-hero-grid {
+  opacity: .55 !important;
+  background-image:
+    linear-gradient(rgba(58, 126, 151, .05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(58, 126, 151, .05) 1px, transparent 1px) !important;
+  background-size: 56px 56px !important;
+}
+
+.home-product-kicker {
+  color: #4e8092 !important;
+}
+
+.home-signal-dot {
+  background: #2a9dbc !important;
+  box-shadow:
+    0 0 0 4px rgba(42, 157, 188, .08),
+    0 0 14px rgba(42, 157, 188, .28) !important;
+}
+
+.home-hero-copy h1 {
+  color: #103847 !important;
+  text-shadow: none !important;
+}
+
+.home-hero-lead {
+  color: #4f6e79 !important;
+}
+
+.home-primary-action {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #2c91b3, #247f9f) !important;
+  border: 1px solid #247f9f !important;
+  box-shadow: 0 12px 28px rgba(36, 127, 159, .16) !important;
+}
+
+.home-primary-action:hover {
+  background: linear-gradient(135deg, #2787a7, #1f7391) !important;
+}
+
+.home-secondary-action {
+  color: #24586b !important;
+  background: rgba(255, 255, 255, .9) !important;
+  border: 1px solid rgba(61, 120, 143, .22) !important;
+}
+
+.home-secondary-action:hover {
+  background: #ffffff !important;
+  border-color: rgba(61, 120, 143, .34) !important;
+}
+
+.home-source-strip {
+  color: #6b8994 !important;
+}
+
+.home-source-strip i {
+  background: #8badb9 !important;
+}
+
+.home-hero-visual {
+  border: 1px solid rgba(70, 143, 170, .18) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .97), rgba(239, 248, 251, .97)) !important;
+  box-shadow:
+    0 20px 56px rgba(46, 94, 112, .10),
+    inset 0 1px rgba(255, 255, 255, .94) !important;
+}
+
+.home-visual-topline {
+  color: #658490 !important;
+  border-bottom: 1px solid rgba(70, 143, 170, .12) !important;
+  background: rgba(246, 251, 253, .76) !important;
+}
+
+.home-visual-topline b {
+  color: #2a819f !important;
+}
+
+.home-visual-caption {
+  color: #587884 !important;
+  border-top: 1px solid rgba(70, 143, 170, .12) !important;
+  background: rgba(246, 251, 253, .76) !important;
+}
+
+.home-visual-caption small {
+  color: #8198a1 !important;
+}
+
+.home-capabilities {
+  border-top: 1px solid rgba(69, 139, 164, .13) !important;
+  background: rgba(255, 255, 255, .82) !important;
+}
+
+.home-capabilities article {
+  border-right: 1px solid rgba(69, 139, 164, .10) !important;
+}
+
+.home-capability-index {
+  color: #78a2b2 !important;
+}
+
+.home-capabilities h2 {
+  color: #245568 !important;
+}
+
+.home-capabilities p {
+  color: #68848f !important;
+}
+
+.app-sidebar {
+  background: #ffffff !important;
+  border-right: 1px solid #e3edf1 !important;
+}
+
+.app-brand-copy strong {
+  color: #163b4b !important;
+}
+
+.app-brand-copy small,
+.app-side-footer {
+  color: #728a94 !important;
+}
+
+.app-brand-mark {
+  background: linear-gradient(145deg, #2995a9, #238697) !important;
+  box-shadow: 0 8px 20px rgba(35, 134, 151, .16) !important;
+}
+
+
+/* =========================================================
+   HOME FOOTER TEXT FINAL V1
+   Final typography adjustment for homepage capability cards.
+   ========================================================= */
+
+.home-capability-index {
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  letter-spacing: .12em !important;
+}
+
+.home-capabilities h2 {
+  font-size: 17px !important;
+  line-height: 1.45 !important;
+  font-weight: 700 !important;
+  margin-bottom: 10px !important;
+}
+
+.home-capabilities p {
+  font-size: 14px !important;
+  line-height: 1.8 !important;
+}
+
+.home-capabilities article {
+  padding-top: 32px !important;
+  padding-bottom: 32px !important;
+}
