@@ -16,21 +16,43 @@
       <section class="home-hero">
         <div class="home-hero-grid"></div>
 
-        <div class="home-hero-copy">
-          <div class="home-product-kicker">
+        <div class="home-hero-heading">
+<div class="home-product-kicker">
             <span class="home-signal-dot"></span>
             REMOTE SENSING · ACTIVE FIRE ANALYSIS
           </div>
+<h1>黑龙江省火点数据检测与风险评估平台</h1>
+</div>
 
-          <h1>黑龙江省火点数据<br>检测与风险评估平台</h1>
-
-          <p class="home-hero-lead">
-            面向 NASA FIRMS 主动火点数据的本地化检测、空间分析与核查辅助平台。
-            从数据上传到行政区落区、历史同期对比、地表背景与天气上下文，
-            将遥感指标转化为可以直接查看和核查的分析结论。
-          </p>
-
-          <div class="home-hero-actions">
+<div class="home-hero-copy">
+<div class="home-intro-panel">
+  <p class="home-intro-statement">让主动火点数据，成为清晰、可核查的分析结果。</p>
+  <p class="home-hero-lead">围绕 <strong>NASA FIRMS</strong> 数据，整合区域分布、历史同期、地表背景与天气信息，让用户快速找到需要关注的地区和日期。</p>
+  <div class="home-intro-steps" aria-label="平台分析流程">
+    <article class="home-intro-step">
+      <span class="home-intro-step-number" aria-hidden="true">01</span>
+      <div class="home-intro-step-content">
+        <h3>数据整理</h3>
+        <p>导入 FIRMS CSV，完成质量筛选与行政区落区。</p>
+      </div>
+    </article>
+    <article class="home-intro-step">
+      <span class="home-intro-step-number" aria-hidden="true">02</span>
+      <div class="home-intro-step-content">
+        <h3>变化识别</h3>
+        <p>比较历史同期，定位火点高值日期与持续活跃区域。</p>
+      </div>
+    </article>
+    <article class="home-intro-step">
+      <span class="home-intro-step-number" aria-hidden="true">03</span>
+      <div class="home-intro-step-content">
+        <h3>辅助核查</h3>
+        <p>结合地表背景与天气上下文，形成重点查看线索。</p>
+      </div>
+    </article>
+  </div>
+</div>
+<div class="home-hero-actions">
             <a class="home-primary-action" href="{{ url_for('analyze_page') }}">
               上传 FIRMS 数据并开始分析 <span>→</span>
             </a>
