@@ -38,7 +38,7 @@ def test_region_preview_web_returns_outline_for_map(tmp_path):
         "type": "Polygon", "coordinates": [[[110, 30], [111, 30], [111, 31], [110, 31], [110, 30]]]
     }}])
     response = app.test_client().post("/api/region-preview", data={
-        "files": (BytesIO(b"latitude,longitude\\n30.5,110.5\\n"), "firms.csv")
+        "files": (BytesIO(b"latitude,longitude\n30.5,110.5\n"), "firms.csv")
     }, content_type="multipart/form-data")
     assert response.status_code == 200
     payload = response.get_json()
