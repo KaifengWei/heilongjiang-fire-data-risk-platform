@@ -4508,3 +4508,9 @@ main.home-landing {
 .scoped-task-label { margin: 8px 10px; font-size: 12px; color: #3e6f82; line-height: 1.6; }
 .region-preview-warning { color: #416a79; }
 .region-preview-canvas { max-height: 220px; object-fit: contain; }
+
+/* Multi-area overview: area chips are map-view filters, never exclusions. */
+.region-preview-advanced { margin: 9px 0 12px; font-size: 12px; color: #537184; }
+.region-preview-advanced summary { cursor: pointer; color: #3f7287; }
+.region-preview-advanced p { margin: 7px 0; line-height: 1.65; color: #688494; }
+.region-preview-choices { max-height: 150px; }

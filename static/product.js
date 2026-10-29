@@ -233,7 +233,8 @@
 
   fileInput?.addEventListener('change', updateFileText);
 
-  // Region recognition is read-only until task-scoped boundaries are implemented.
+  // Region recognition is informative: every matched area enters one task.
+  // Clicking a region chip changes only the preview camera.
   const previewButton = $('#regionPreviewButton');
   const previewBoundary = $('#regionPreviewBoundary');
   const previewPanel = $('#regionPreviewPanel');
@@ -241,7 +242,6 @@
   const previewChoices = $('#regionPreviewChoices');
   const previewCanvas = $('#regionPreviewCanvas');
   const previewDetail = $('#regionPreviewDetail');
-  const selectedRegionInput = $('#selectedRegionId');
 
   function outlineRings(geometry) {
     if (!geometry) return [];
@@ -258,8 +258,10 @@
     ctx.fillStyle = '#eef7fa';
     ctx.fillRect(0, 0, width, height);
     const shapes = payload.preview_shapes?.features || [];
-    const shape = selected ? shapes.find(item => item.properties?.id === selected.id) : null;
-    const rings = outlineRings(shape?.geometry);
+    const visibleShapes = selected
+      ? shapes.filter(item => item.properties?.id === selected.id)
+      : shapes;
+    const rings = visibleShapes.flatMap(item => outlineRings(item.geometry));
     const points = Array.isArray(payload.sampled_points) ? payload.sampled_points : [];
     const outline = rings.flat().filter(point => Number.isFinite(point?.[0]) && Number.isFinite(point?.[1]));
     const extent = outline.length ? outline : points;
@@ -319,7 +321,6 @@
     if (previewBoundary?.files?.length) {
       formData.append('boundary_file', previewBoundary.files[0]);
     }
-    if (selectedRegionInput) selectedRegionInput.value = '';
     previewButton.disabled = true;
     previewButton.textContent = '识别中…';
     previewMessage.textContent = '正在检查有效坐标与区域边界…';
@@ -336,7 +337,23 @@
         ' 条；无效坐标 ' + payload.invalid_coordinate_rows + ' 条。';
       const candidates = payload.candidates || [];
       const buttons = [];
-      candidates.slice(0, 12).forEach((candidate, index) => {
+      if (candidates.length) {
+        const allButton = document.createElement('button');
+        allButton.type = 'button';
+        allButton.className = 'region-preview-choice active';
+        allButton.textContent = '全部匹配地区 · ' + candidates.length + ' 个';
+        allButton.addEventListener('click', () => {
+          buttons.forEach(item => item.classList.remove('active'));
+          allButton.classList.add('active');
+          drawOutlinePreview(payload, null);
+          previewDetail.textContent = '当前预览：全部已匹配区域。正式分析将包含全部 ' +
+            candidates.length + ' 个地区，不需要逐一选择。';
+        });
+        previewChoices?.appendChild(allButton);
+        buttons.push(allButton);
+        allButton.click();
+      }
+      candidates.slice(0, 12).forEach((candidate) => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'region-preview-choice';
@@ -344,14 +361,12 @@
         button.addEventListener('click', () => {
           buttons.forEach(item => item.classList.remove('active'));
           button.classList.add('active');
-          if (selectedRegionInput) selectedRegionInput.value = String(candidate.id);
           drawOutlinePreview(payload, candidate);
-          previewDetail.textContent = '当前预览：' + candidate.name +
-            '。轮廓已简化；点位最多显示前 500 条有效坐标。';
+          previewDetail.textContent = '仅查看 ' + candidate.name +
+            ' 的轮廓；开始分析时仍包含全部已匹配地区，且可在结果页随时切换。';
         });
         buttons.push(button);
         previewChoices?.appendChild(button);
-        if (index === 0) button.click();
       });
       if (!candidates.length) {
         drawOutlinePreview(payload, null);
@@ -375,7 +390,6 @@
   // File changes invalidate previous preview so a new upload cannot display stale results.
   const resetRegionPreview = () => {
     if (previewPanel) previewPanel.hidden = true;
-    if (selectedRegionInput) selectedRegionInput.value = '';
   };
   fileInput?.addEventListener('change', resetRegionPreview);
   previewBoundary?.addEventListener('change', resetRegionPreview);
@@ -415,13 +429,7 @@
     } catch (_) {}
   });
 
-  form?.addEventListener('submit', event => {
-    if (selectedRegionInput && !selectedRegionInput.value) {
-      event.preventDefault();
-      if (previewPanel) previewPanel.hidden = false;
-      if (previewMessage) previewMessage.textContent = '请先点击“识别并预览地区”，选择要分析的区域。';
-      return;
-    }
+  form?.addEventListener('submit', () => {
     if (submit) {
       submit.disabled = true;
       submit.textContent = '正在分析…';

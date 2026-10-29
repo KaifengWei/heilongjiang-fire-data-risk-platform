@@ -55,7 +55,7 @@ def _task_id(response):
     return response.headers["Location"].rstrip("/").split("/")[-1]
 
 
-def test_builtin_region_selection_filters_other_regions_and_map(tmp_path):
+def test_one_upload_analyzes_all_matched_regions_and_map(tmp_path):
     app = create_app(database_path=tmp_path / "db.sqlite", uploads_root=tmp_path / "uploads", testing=True)
     db = app.extensions["fire_database"]
     db.upsert_regions([
@@ -64,20 +64,23 @@ def test_builtin_region_selection_filters_other_regions_and_map(tmp_path):
     ])
 
     client = app.test_client()
-    selected_id = next(i for i, region in enumerate(db.list_regions()) if region["name"] == "甲市")
-    task_id = _task_id(_post_scoped(client, [(30.5, 110.5), (32.5, 112.5)], selected_id))
+    # A legacy single-area selection field must no longer discard other areas.
+    task_id = _task_id(_post_scoped(client, [(30.5, 110.5), (32.5, 112.5)], 0))
 
     task = db.get_analysis_task(task_id)
-    assert task["parameters"]["selected_region"]["name"] == "甲市"
-    assert [row["name"] for row in db.list_task_regions(task_id)] == ["甲市"]
+    assert {item["name"] for item in task["parameters"]["selected_regions"]} == {"甲市", "乙市"}
+    assert {row["name"] for row in db.list_task_regions(task_id)} == {"甲市", "乙市"}
     stats = app.extensions["statistics_service"].task_region_statistics(task_id)
-    assert [(row["region_name"], row["active_fire_count"]) for row in stats] == [("甲市", 1)]
-
+    assert {(row["region_name"], row["active_fire_count"]) for row in stats} == {
+        ("甲市", 1), ("乙市", 1)
+    }
     api = client.get(f"/api/tasks/{task_id}/map-data")
     assert api.status_code == 200
-    assert api.get_json()["point_count"] == 1
+    assert api.get_json()["point_count"] == 2
     boundary = db.task_region_feature_collection(task_id)
-    assert [row["properties"]["name"] for row in boundary["features"]] == ["甲市"]
+    assert {row["properties"]["name"] for row in boundary["features"]} == {"甲市", "乙市"}
+    result_page = client.get(f"/tasks/{task_id}").get_data(as_text=True)
+    assert "全部地区" in result_page and "甲市" in result_page and "乙市" in result_page
 
 
 def test_custom_geojson_scope_does_not_modify_builtin_regions(tmp_path):
@@ -116,5 +119,21 @@ def test_unmatched_candidate_cannot_start_task(tmp_path):
     app.extensions["fire_database"].upsert_regions([_polygon("甲市", 110, 30, 111, 31)])
     response = _post_scoped(app.test_client(), [(40.0, 120.0)], 0)
     assert response.status_code == 400
-    assert "没有有效匹配" in response.get_data(as_text=True)
+    assert "未匹配到已配置的区域边界" in response.get_data(as_text=True)
     assert app.extensions["fire_database"].list_analysis_tasks() == []
+
+
+def test_custom_geojson_supplements_installed_regions_in_same_task(tmp_path):
+    app = create_app(database_path=tmp_path / "db.sqlite", uploads_root=tmp_path / "uploads", testing=True)
+    db = app.extensions["fire_database"]
+    db.upsert_regions([_polygon("甲市", 110, 30, 111, 31)])
+    response = _post_scoped(
+        app.test_client(), [(30.5, 110.5), (32.5, 112.5)], 0,
+        _polygon("补充区", 112, 32, 113, 33),
+    )
+    task_id = _task_id(response)
+    task = db.get_analysis_task(task_id)
+    assert {row["name"] for row in db.list_task_regions(task_id)} == {"甲市", "补充区"}
+    assert {item["source"] for item in task["parameters"]["selected_regions"]} == {"builtin", "uploaded"}
+    assert {row["region_name"] for row in app.extensions["statistics_service"].task_region_statistics(task_id)} == {"甲市", "补充区"}
+    assert [row["name"] for row in db.list_regions()] == ["甲市"]
