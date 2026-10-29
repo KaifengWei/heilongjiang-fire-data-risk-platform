@@ -26,5 +26,11 @@ jobs:
       - name: Install test dependencies
         run: conda run -n fire-monitor python -m pip install -r requirements-dev.txt
 
+      - name: Check JavaScript syntax
+        run: |
+          node --check static/product.js
+          node --check static/county_drilldown.js
+          node --check static/home.js
+
       - name: Run unit tests
         run: conda run -n fire-monitor python -m pytest -q
