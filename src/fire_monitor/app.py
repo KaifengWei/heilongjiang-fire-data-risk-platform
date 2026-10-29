@@ -113,6 +113,7 @@ from fire_monitor.services.report_docx_service import (
 from fire_monitor.services.region_preview_service import (
     RegionPreviewService,
     load_geojson_boundaries,
+    validate_nonoverlapping_regions,
 )
 
 def create_app(
@@ -829,7 +830,7 @@ def create_app(
         regions = [
             {**item, "source": "builtin"}
             for item in database.list_regions()
-        ]
+        ] + database.list_user_catalog_regions()
         if boundary_upload is not None and boundary_upload.filename:
             filename = Path(boundary_upload.filename.replace("\\", "/")).name
             if Path(filename).suffix.lower() not in {".geojson", ".json"}:
@@ -837,14 +838,69 @@ def create_app(
             additional = load_geojson_boundaries(
                 boundary_upload.stream.read(16 * 1024 * 1024 + 1)
             )
-            existing = {str(item["name"]) for item in regions}
-            if any(str(item["name"]) in existing for item in additional):
-                raise ValueError("补充边界中存在与已配置区域重名的地区，请先调整区域名称。")
+            validate_nonoverlapping_regions(additional, regions)
             regions.extend(additional)
         # An empty boundary catalog is valid for the read-only preview:
         # it reports zero matches and explains that a boundary is needed.
         # Formal analysis separately rejects tasks with zero matched areas.
         return regions
+
+    @app.get("/api/region-catalog")
+    def region_catalog_status():
+        builtins = database.list_regions()
+        installed = database.list_user_catalog_regions()
+        return jsonify({
+            "builtin_count": len(builtins),
+            "installed_count": len(installed),
+            "total_count": len(builtins) + len(installed),
+            "installed": [
+                {"name": item["name"], "level": item["level"],
+                 "data_source": item["data_source"]}
+                for item in installed
+            ],
+            "scope_note": (
+                "当前仅能自动识别已配置边界覆盖的地区，"
+                "并不代表中国境内所有行政区已全部安装。"
+            ),
+        })
+
+    @app.post("/api/region-catalog/import")
+    def install_user_region_catalog():
+        """Explicit, attributable boundary import; no existing rows replaced."""
+        upload = request.files.get("boundary_file")
+        if upload is None or not upload.filename:
+            return jsonify({"error": "请选择 GeoJSON 边界文件。"}), 400
+        source_label = str(request.form.get("data_source") or "").strip()
+        authorization = str(request.form.get("authorized") or "")
+        if len(source_label) < 3 or len(source_label) > 250:
+            return jsonify({"error": "请填写具体的数据来源（3至250字）。"}), 400
+        if authorization != "yes":
+            return jsonify({"error": "请确认已获得该边界数据的使用授权。"}), 400
+        try:
+            filename = Path(upload.filename.replace("\\", "/")).name
+            if Path(filename).suffix.lower() not in {".geojson", ".json"}:
+                raise ValueError("边界文件需为 GeoJSON 格式。")
+            raw = upload.stream.read(16 * 1024 * 1024 + 1)
+            regions = load_geojson_boundaries(raw)
+            known = [
+                {**item, "source": "builtin"}
+                for item in database.list_regions()
+            ] + database.list_user_catalog_regions()
+            validate_nonoverlapping_regions(regions, known)
+            from hashlib import sha256
+            installed = database.install_user_catalog_regions(
+                regions,
+                data_source=source_label,
+                source_sha256=sha256(raw).hexdigest(),
+            )
+        except (ValueError, KeyError, TypeError, OSError) as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify({
+            "installed_count": installed,
+            "total_count": len(database.list_regions()) +
+                len(database.list_user_catalog_regions()),
+            "message": "边界已保存到本地，后续上传 FIRMS CSV 时将自动参与地区识别。",
+        })
 
     @app.post("/api/region-preview")
     def preview_analysis_region():

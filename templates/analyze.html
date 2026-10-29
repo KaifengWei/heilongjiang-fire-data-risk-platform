@@ -57,9 +57,15 @@
             <div class="region-preview-header"><strong>分析区域预览</strong><small>经纬度识别 · 地区轮廓</small></div>
             <details class="region-preview-advanced">
               <summary>高级设置：补充未内置地区的边界（一般无需操作）</summary>
-              <p>GeoJSON 是带地理坐标的区域轮廓文件；只有系统缺少对应地区边界时才需要。上传后与已配置区域共同参与匹配。</p>
+              <p>GeoJSON 是带地理坐标的区域轮廓文件。已有地区无需补充；只有边界缺失且有来源明确的文件时使用。</p>
+              <p>建议先保存到本地边界库，之后就不必每次重复上传。补充边界必须与已配置地区不重叠，暂不支持跨行政层级混合安装。</p>
+              <label class="region-preview-label" for="regionCatalogSource">数据来源（保存时必填）</label>
+              <input id="regionCatalogSource" type="text" placeholder="例如：机构名称、数据版本和许可说明" maxlength="250" autocomplete="off">
+              <label class="region-preview-authorization"><input id="regionCatalogAuthorized" type="checkbox">我已确认该边界文件允许在本软件中使用</label>
               <label class="region-preview-label" for="regionPreviewBoundary">补充 GeoJSON 区域边界（WGS84）</label>
               <input id="regionPreviewBoundary" name="boundary_file" type="file" accept=".geojson,.json">
+              <button id="regionCatalogSaveButton" type="button" class="app-button app-button-ghost">将边界保存到本地库</button>
+              <p id="regionCatalogFeedback" class="region-preview-detail" aria-live="polite"></p>
             </details>
             <button id="regionPreviewButton" type="button" class="app-button app-button-ghost">识别并预览地区</button>
             <div id="regionPreviewPanel" class="region-preview-panel" hidden aria-live="polite">

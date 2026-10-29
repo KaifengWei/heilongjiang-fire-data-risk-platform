@@ -423,6 +423,8 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
             "TEXT",
         )
 
+    # v6 only adds the user_region_catalog table from BASE_SCHEMA.
+    # No existing records are overwritten or relabeled.
     conn.execute(
         f"PRAGMA user_version = {CURRENT_SCHEMA_VERSION}"
     )

@@ -4514,3 +4514,9 @@ main.home-landing {
 .region-preview-advanced summary { cursor: pointer; color: #3f7287; }
 .region-preview-advanced p { margin: 7px 0; line-height: 1.65; color: #688494; }
 .region-preview-choices { max-height: 150px; }
+
+/* Optional one-time boundary catalog installation. */
+#regionCatalogSaveButton { margin-top: 9px; width: 100%; }
+#regionCatalogSource { width: 100%; border: 1px solid #c9dde6; background: white; border-radius: 7px; padding: 9px 10px; font-size: 12px; }
+.region-preview-authorization { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0; font-size: 12px; color: #55727f; line-height: 1.5; }
+.region-preview-authorization input { margin-top: 3px; }

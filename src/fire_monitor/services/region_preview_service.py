@@ -70,6 +70,36 @@ def load_geojson_boundaries(data: bytes) -> list[dict[str, Any]]:
     return result
 
 
+def validate_nonoverlapping_regions(
+    regions: Iterable[dict[str, Any]],
+    existing: Iterable[dict[str, Any]],
+) -> None:
+    """Prevent a polygon from being counted twice by independent area rows.
+
+    Province/city nested hierarchies require a separate hierarchy-aware
+    matching model; this catalog only accepts disjoint peer areas.
+    """
+    combined = list(existing) + list(regions)
+    names = [str(region["name"]).strip() for region in combined]
+    if len(set(names)) != len(names):
+        raise ValueError("分析区域名称重复，请调整边界名称。")
+    polygons = [shape(item["geometry"]) for item in combined]
+    tree = STRtree(polygons)
+    for i, polygon in enumerate(polygons):
+        for other_index in tree.query(polygon, predicate="intersects"):
+            j = int(other_index)
+            if i >= j:
+                continue
+            # Neighboring districts may share a boundary line. Only
+            # nonzero-area overlap would double-count observations.
+            intersection = polygon.intersection(polygons[j])
+            if intersection.area > 1e-10:
+                raise ValueError(
+                    f"“{names[i]}”与“{names[j]}”的边界存在面积重叠；"
+                    "请先使用同一行政层级、不重叠的区域文件。"
+                )
+
+
 class RegionPreviewService:
     def __init__(self, regions: Iterable[dict[str, Any]]):
         self.regions = []

@@ -495,6 +495,61 @@ class Database:
             for row in rows
         ]
 
+    def list_user_catalog_regions(self) -> list[dict[str, Any]]:
+        """User-installed boundaries; kept separate from legacy region rows."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                """SELECT name, level, geometry_json, data_source, source_sha256
+                FROM user_region_catalog ORDER BY name"""
+            ).fetchall()
+        return [
+            {
+                "name": row["name"], "level": row["level"],
+                "geometry": json.loads(row["geometry_json"]),
+                "source": "user_catalog",
+                "data_source": row["data_source"],
+                "source_sha256": row["source_sha256"],
+            }
+            for row in rows
+        ]
+
+    def install_user_catalog_regions(
+        self,
+        regions: Iterable[dict[str, Any]],
+        *,
+        data_source: str,
+        source_sha256: str,
+    ) -> int:
+        """Install verified non-overlapping polygons without changing old tasks."""
+        records = list(regions)
+        if not records:
+            raise ValueError("边界文件中没有可保存的区域。")
+        names = [str(r["name"]) for r in records]
+        if len(set(names)) != len(names):
+            raise ValueError("边界文件中有重复地区名称。")
+        with self.connect() as conn:
+            existing = {
+                r["name"] for r in conn.execute("SELECT name FROM regions")
+            } | {
+                r["name"] for r in conn.execute("SELECT name FROM user_region_catalog")
+            }
+            if existing.intersection(names):
+                raise ValueError("地区名称已存在；为保护已有分析和边界，不允许覆盖或重名。")
+            conn.executemany(
+                """INSERT INTO user_region_catalog(
+                    name, level, geometry_json, data_source, source_sha256, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)""",
+                [
+                    (
+                        item["name"], item.get("level") or "custom",
+                        json.dumps(item["geometry"], ensure_ascii=False),
+                        data_source, source_sha256, utc_now(),
+                    )
+                    for item in records
+                ],
+            )
+        return len(records)
+
     def save_task_regions(
         self,
         task_id: str,

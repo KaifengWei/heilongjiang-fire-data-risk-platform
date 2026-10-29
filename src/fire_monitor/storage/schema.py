@@ -217,6 +217,17 @@ ON input_files(task_id);
 CREATE INDEX IF NOT EXISTS idx_input_files_sha256
 ON input_files(sha256);
 
+-- Persistent, user-supplied polygon catalog. It does not overwrite legacy
+-- regions or any task boundary snapshot.
+CREATE TABLE IF NOT EXISTS user_region_catalog (
+    name TEXT PRIMARY KEY,
+    level TEXT NOT NULL,
+    geometry_json TEXT NOT NULL,
+    data_source TEXT NOT NULL,
+    source_sha256 TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS task_region_boundaries (
     task_id TEXT NOT NULL,
     name TEXT NOT NULL,
@@ -229,4 +240,4 @@ CREATE TABLE IF NOT EXISTS task_region_boundaries (
 """
 
 
-CURRENT_SCHEMA_VERSION = 5
+CURRENT_SCHEMA_VERSION = 6

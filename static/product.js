@@ -237,6 +237,10 @@
   // Clicking a region chip changes only the preview camera.
   const previewButton = $('#regionPreviewButton');
   const previewBoundary = $('#regionPreviewBoundary');
+  const catalogSaveButton = $('#regionCatalogSaveButton');
+  const catalogSourceInput = $('#regionCatalogSource');
+  const catalogAuthorized = $('#regionCatalogAuthorized');
+  const catalogFeedback = $('#regionCatalogFeedback');
   const previewPanel = $('#regionPreviewPanel');
   const previewMessage = $('#regionPreviewMessage');
   const previewChoices = $('#regionPreviewChoices');
@@ -394,6 +398,36 @@
   fileInput?.addEventListener('change', resetRegionPreview);
   previewBoundary?.addEventListener('change', resetRegionPreview);
   previewButton?.addEventListener('click', loadRegionPreview);
+
+  catalogSaveButton?.addEventListener('click', async () => {
+    const boundary = previewBoundary?.files?.[0];
+    if (!boundary) {
+      if (catalogFeedback) catalogFeedback.textContent = '请先选择要保存的 GeoJSON 边界文件。';
+      return;
+    }
+    const payload = new FormData();
+    payload.append('boundary_file', boundary);
+    payload.append('data_source', catalogSourceInput?.value?.trim() || '');
+    payload.append('authorized', catalogAuthorized?.checked ? 'yes' : 'no');
+    catalogSaveButton.disabled = true;
+    if (catalogFeedback) catalogFeedback.textContent = '正在校验并保存边界…';
+    try {
+      const response = await fetch('/api/region-catalog/import', {
+        method: 'POST',
+        body: payload
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || '边界保存失败。');
+      if (catalogFeedback) catalogFeedback.textContent =
+        result.message + ' 已保存 ' + result.installed_count + ' 个区域。';
+      if (previewBoundary) previewBoundary.value = '';
+      if (previewPanel) previewPanel.hidden = true;
+    } catch (err) {
+      if (catalogFeedback) catalogFeedback.textContent = err.message || '保存失败。';
+    } finally {
+      catalogSaveButton.disabled = false;
+    }
+  });
 
 
   ['dragenter', 'dragover'].forEach(type => {
