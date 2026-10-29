@@ -715,15 +715,21 @@ def create_app(
         # The existing historical baseline was built for the original fixed
         # regional dataset. It must not be used as a comparison for a new
         # task-scoped polygon until an equivalent scoped baseline is installed.
-        historical_baseline = (
-            {"available": False, "reason": "task_region_baseline_unavailable"}
-            if task_boundaries
-            else historical_baseline_service.compare(
+        if task_boundaries and any(item.get("source") != "builtin" for item in task_boundaries):
+            historical_baseline = {
+                "available": False,
+                "reason": "custom_region_baseline_not_installed",
+            }
+        else:
+            historical_baseline = historical_baseline_service.compare(
                 task_firms_observations,
                 analysis_start=task.get("analysis_start"),
                 analysis_end=task.get("analysis_end"),
+                selected_regions=(
+                    [item["name"] for item in task_boundaries]
+                    if task_boundaries else None
+                ),
             )
-        )
 
         land_cover_context = (
             land_cover_context_service

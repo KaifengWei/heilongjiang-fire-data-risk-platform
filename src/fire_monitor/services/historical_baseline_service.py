@@ -354,6 +354,7 @@ class HistoricalFirmsBaselineService:
         *,
         analysis_start: str | None = None,
         analysis_end: str | None = None,
+        selected_regions: list[str] | None = None,
     ) -> dict[str, Any]:
         payload = self._load()
 
@@ -364,6 +365,9 @@ class HistoricalFirmsBaselineService:
             }
 
         current = self._current_frame(rows)
+        region_filter = set(selected_regions) if selected_regions else None
+        if region_filter is not None:
+            current = current[current["region"].isin(region_filter)].copy()
 
         if current.empty:
             return {
@@ -429,16 +433,31 @@ class HistoricalFirmsBaselineService:
 
             for mapped in mapped_dates:
                 item = daily.get(mapped.isoformat()) or {}
-                total += int(item.get("total", 0) or 0)
+                if region_filter is None:
+                    total += int(item.get("total", 0) or 0)
 
                 for region_name, count in (
                     item.get("regions") or {}
                 ).items():
-                    region_counts[str(region_name)] += int(count or 0)
+                    if region_filter is None or str(region_name) in region_filter:
+                        region_counts[str(region_name)] += int(count or 0)
+
+            if region_filter is not None:
+                total = sum(region_counts.values())
 
             comparison_years.append(reference_year)
             province_history.append(int(total))
             region_history_by_year.append(region_counts)
+
+        if region_filter is not None and not any(
+            any(count > 0 for count in values.values())
+            for values in region_history_by_year
+        ):
+            return {
+                "available": False,
+                "reason": "scoped_region_without_historical_reference",
+                "reference_years": comparison_years,
+            }
 
         if len(comparison_years) < self.min_reference_years:
             return {
@@ -459,11 +478,11 @@ class HistoricalFirmsBaselineService:
             if value
         )
 
-        all_regions = sorted(
-            set(current_region_counts).union(
-                *(
-                    set(counter)
-                    for counter in region_history_by_year
+        all_regions = (
+            sorted(region_filter)
+            if region_filter is not None else sorted(
+                set(current_region_counts).union(
+                    *(set(counter) for counter in region_history_by_year)
                 )
             )
         )
