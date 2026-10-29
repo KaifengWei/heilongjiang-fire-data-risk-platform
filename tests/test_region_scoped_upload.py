@@ -64,7 +64,8 @@ def test_builtin_region_selection_filters_other_regions_and_map(tmp_path):
     ])
 
     client = app.test_client()
-    task_id = _task_id(_post_scoped(client, [(30.5, 110.5), (32.5, 112.5)], 0))
+    selected_id = next(i for i, region in enumerate(db.list_regions()) if region["name"] == "甲市")
+    task_id = _task_id(_post_scoped(client, [(30.5, 110.5), (32.5, 112.5)], selected_id))
 
     task = db.get_analysis_task(task_id)
     assert task["parameters"]["selected_region"]["name"] == "甲市"

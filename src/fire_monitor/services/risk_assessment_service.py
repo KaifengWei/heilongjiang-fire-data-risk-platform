@@ -114,7 +114,8 @@ class RiskAssessmentService:
             for row in statistics
         }
 
-        task_regions = self.database.list_task_regions(task_id)
+        task_region_reader = getattr(self.database, "list_task_regions", None)
+        task_regions = task_region_reader(task_id) if callable(task_region_reader) else []
         available_regions = task_regions if task_regions else self.database.list_regions()
         region_names = sorted(
             {
@@ -180,7 +181,7 @@ class RiskAssessmentService:
         ]
 
         results: list[dict[str, Any]] = []
-        has_region_comparison = len(region_names) >= 2
+        has_region_comparison = not task_regions or len(region_names) >= 2
 
         for row in rows:
             active_position = (
