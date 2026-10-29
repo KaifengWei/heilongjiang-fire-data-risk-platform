@@ -346,7 +346,7 @@
           </p>
           {% if land_cover_context and land_cover_context.available %}
           <div class="action-land-context">
-            {% if not task.parameters.selected_region %}
+            {% if not task.parameters.selected_region and not task.parameters.selected_regions %}
             <div class="land-context-map">
               <img src="{{ url_for('static', filename='context/mcd12q1_2024_landcover.png') }}" alt="2024年土地覆盖背景图">
               <span class="land-context-map-caption">土地覆盖背景</span>
