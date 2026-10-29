@@ -270,7 +270,7 @@
             </div>
             <div class="map-context-stat">
               <span>当前范围</span>
-              <strong id="mapRegionLabel">黑龙江省</strong>
+              <strong id="mapRegionLabel">当前分析区域</strong>
             </div>
             <div class="map-anomaly-jumps">
               <span>快速查看</span>
@@ -344,10 +344,12 @@
           </p>
           {% if land_cover_context and land_cover_context.available %}
           <div class="action-land-context">
+            {% if not task.parameters.selected_region %}
             <div class="land-context-map">
               <img src="{{ url_for('static', filename='context/mcd12q1_2024_landcover.png') }}" alt="2024年土地覆盖背景图">
               <span class="land-context-map-caption">土地覆盖背景</span>
             </div>
+            {% endif %}
             <div class="land-context-copy">
               <span>地表背景</span>
               <strong>{{ land_cover_context.visual_title }}</strong>

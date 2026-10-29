@@ -25,7 +25,7 @@ from fire_monitor.app import (
 
 
 APP_TITLE = (
-    "黑龙江省火点数据检测与风险评估平台"
+    "卫星火点检测与风险分析平台"
 )
 
 APP_DATA_FOLDER = (
