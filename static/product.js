@@ -795,7 +795,7 @@
       });
 
       if (mapRegionLabel) {
-        mapRegionLabel.textContent = selectedRegion || '黑龙江省';
+        mapRegionLabel.textContent = selectedRegion || '当前分析区域';
       }
 
       if (focusBadge && focusText) {

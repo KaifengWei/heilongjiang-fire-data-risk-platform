@@ -121,7 +121,7 @@
           <p class="history-decision-explain">
             {% if historical_baseline.priority_regions %}
               {% if historical_baseline.province_status == '接近历史同期' %}
-                全省总体没有明显偏离，但局部地区相对自身往年同期更活跃。
+                整体数据没有明显偏离，但局部地区相对自身往年同期更活跃。
               {% elif historical_baseline.province_status in ['高于历史同期', '明显高于历史同期'] %}
                 当前整体活动已经偏高，且部分地区相对自身往年同期更加突出。
               {% else %}
@@ -206,7 +206,7 @@
           {% else %}
           <div class="history-priority-empty">
             <strong>暂无需要提前查看的地区</strong>
-            <span>可继续查看全省火点空间分布和日期变化。</span>
+            <span>可继续查看当前分析范围的火点空间分布和日期变化。</span>
           </div>
           {% endif %}
         </aside>

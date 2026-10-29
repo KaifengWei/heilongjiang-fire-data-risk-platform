@@ -135,7 +135,7 @@ def create_app(
     database.initialize()
 
     # 正式运行时，如果当前数据库还没有行政区，
-    # 则从随软件发布的默认 GeoJSON 初始化黑龙江省地市边界。
+    # 则从随软件发布的默认 GeoJSON 初始化内置行政区边界。
     #
     # testing=True 时不自动导入，避免改变现有单元测试
     # 对“空数据库”的预期。
