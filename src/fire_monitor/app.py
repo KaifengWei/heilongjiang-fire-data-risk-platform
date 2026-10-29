@@ -820,6 +820,31 @@ def create_app(
     def analyze_page():
         return render_analyze()
 
+    def available_analysis_boundaries(boundary_upload=None):
+        """Built-in boundaries plus optional explicitly supplied additions.
+
+        Custom boundaries supplement the installed coverage. Duplicate names
+        are rejected instead of silently replacing the original geometry.
+        """
+        regions = [
+            {**item, "source": "builtin"}
+            for item in database.list_regions()
+        ]
+        if boundary_upload is not None and boundary_upload.filename:
+            filename = Path(boundary_upload.filename.replace("\\", "/")).name
+            if Path(filename).suffix.lower() not in {".geojson", ".json"}:
+                raise ValueError("补充区域文件必须为 GeoJSON。")
+            additional = load_geojson_boundaries(
+                boundary_upload.stream.read(16 * 1024 * 1024 + 1)
+            )
+            existing = {str(item["name"]) for item in regions}
+            if any(str(item["name"]) in existing for item in additional):
+                raise ValueError("补充边界中存在与已配置区域重名的地区，请先调整区域名称。")
+            regions.extend(additional)
+        if not regions:
+            raise ValueError("尚无可用的行政区边界，请先配置分析区域边界。")
+        return regions
+
     @app.post("/api/region-preview")
     def preview_analysis_region():
         """只预览可用行政区覆盖，不修改正式分析区域。"""
@@ -830,12 +855,7 @@ def create_app(
         if not uploads:
             return jsonify({"error": "请选择 FIRMS CSV。"}), 400
         try:
-            boundary = request.files.get("boundary_file")
-            if boundary is not None and boundary.filename:
-                raw = boundary.read(16 * 1024 * 1024 + 1)
-                regions = load_geojson_boundaries(raw)
-            else:
-                regions = database.list_regions()
+            regions = available_analysis_boundaries(request.files.get("boundary_file"))
             preview = RegionPreviewService(regions).preview(
                 [(Path(item.filename).name, item.stream) for item in uploads]
             )
@@ -882,52 +902,34 @@ def create_app(
                         )
                     )
 
-                selected_region = None
-                raw_selected_id = request.form.get("selected_region_id", "").strip()
-                if raw_selected_id:
-                    try:
-                        selected_id = int(raw_selected_id)
-                    except ValueError as exc:
-                        raise ValueError("请选择有效的候选区域。") from exc
-
-                    boundary_upload = request.files.get("boundary_file")
-                    if boundary_upload is not None and boundary_upload.filename:
-                        boundary_filename = Path(boundary_upload.filename.replace("\\", "/")).name
-                        if Path(boundary_filename).suffix.lower() not in {".geojson", ".json"}:
-                            raise ValueError("自定义边界文件需为 GeoJSON。")
-                        region_definitions = load_geojson_boundaries(
-                            boundary_upload.stream.read(16 * 1024 * 1024 + 1)
+                # A CSV is ONE analysis task. Automatically include EVERY
+                # matched region in that task; area tabs only filter the map.
+                region_definitions = available_analysis_boundaries(
+                    request.files.get("boundary_file")
+                )
+                from contextlib import ExitStack
+                with ExitStack() as stack:
+                    preview = RegionPreviewService(region_definitions).preview([
+                        (
+                            item.original_filename,
+                            stack.enter_context(item.path.open("rb")),
                         )
-                        boundary_source = "uploaded"
-                    else:
-                        region_definitions = database.list_regions()
-                        boundary_source = "builtin"
-
-                    # A supplied id is not trusted. Re-run the preview on
-                    # exactly the uploaded CSV and chosen boundary source.
-                    from contextlib import ExitStack
-                    with ExitStack() as stack:
-                        preview_files = [
-                            (
-                                item.original_filename,
-                                stack.enter_context(item.path.open("rb")),
-                            )
-                            for item in staged_uploads
-                        ]
-                        preview = RegionPreviewService(region_definitions).preview(preview_files)
-
-                    candidates = {
-                        int(item["id"]): item
-                        for item in preview["candidates"]
-                    }
-                    if selected_id not in candidates:
-                        raise ValueError("所选区域与上传的数据没有有效匹配，请重新预览。")
-                    selected_region = dict(region_definitions[selected_id])
-                    selected_region["source"] = boundary_source
-
+                        for item in staged_uploads
+                    ])
+                if not preview["candidates"]:
+                    raise ValueError(
+                        "上传记录未匹配到已配置的区域边界，无法生成可靠的区域分析。"
+                        "请检查坐标或通过高级设置补充对应 GeoJSON。"
+                    )
+                candidate_ids = {int(item["id"]) for item in preview["candidates"]}
+                selected_regions = [
+                    region
+                    for idx, region in enumerate(region_definitions)
+                    if idx in candidate_ids
+                ]
                 result = auto_analysis_service.create_and_process(
                     staged_uploads,
-                    selected_region=selected_region,
+                    selected_regions=selected_regions,
                 )
 
         except AutoAnalysisProcessingError as exc:
@@ -1039,7 +1041,7 @@ def create_app(
 
         task_boundaries = database.list_task_regions(task_id)
         uses_custom_boundary = bool(
-            task_boundaries and task_boundaries[0].get("source") == "uploaded"
+            any(item.get("source") == "uploaded" for item in task_boundaries)
         )
         county_by_observation_id = {}
 

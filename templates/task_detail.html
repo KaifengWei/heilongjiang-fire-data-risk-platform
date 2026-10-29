@@ -288,11 +288,13 @@
             <h3>区域火点统计</h3>
           </div>
 
-          {% if task.parameters.selected_region %}
+          {% if task.parameters.selected_regions %}
+          <p class="scoped-task-label">本次已识别 {{ task.parameters.selected_regions|length }} 个地区，点击下方名称切换查看。所有地区已在同一任务中完成分析。</p>
+          {% elif task.parameters.selected_region %}
           <p class="scoped-task-label">本次分析区域：{{ task.parameters.selected_region.name }}</p>
           {% endif %}
           <button class="region-filter-row active" type="button" data-region-filter="">
-            <span>全部区域</span>
+            <span>全部地区 · 综合总览</span>
             <b>{{ '{:,}'.format(analysis_summary.active_fire_count) }}</b>
           </button>
 
@@ -519,7 +521,7 @@
 {% include '_record_manage_modal.html' %}
 {% include '_help_modal.html' %}
 <script src="{{ url_for('static', filename='product.js') }}"></script>
-{% if not task.parameters.selected_region or task.parameters.selected_region.source == 'builtin' %}
+{% if not task.parameters.selected_regions or not (task.parameters.selected_regions|selectattr('source','equalto','uploaded')|list) %}
 <script src="{{ url_for('static', filename='county_drilldown.js') }}"></script>
 {% endif %}
 <script src="{{ url_for('static', filename='weather_context.js') }}"></script>

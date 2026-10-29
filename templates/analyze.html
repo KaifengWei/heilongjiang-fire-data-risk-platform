@@ -32,11 +32,11 @@
         <div class="start-card-copy">
           <span class="app-chip">FIRMS CSV · 一键分析</span>
           <h2>上传 FIRMS 数据并开始分析</h2>
-          <p>不需要手工选择数据类型、日期或行政区。软件会识别 CSV 日期和观测位置，并可预览与已配置行政区的匹配情况。正式分析仍按当前系统已配置的边界进行。</p>
+          <p>不需要手工选择数据类型、日期或行政区。软件自动识别 CSV 中涉及的地区，一次分析所有已匹配区域。结果页可随时切换各地区或查看全部，不必重复上传。</p>
           <div class="start-flow">
             <div><b>01</b><span><strong>选择 CSV</strong><small>NASA FIRMS</small></span></div><i>→</i>
-            <div><b>02</b><span><strong>区域确认</strong><small>定位 / 轮廓 / 范围</small></span></div><i>→</i>
-            <div><b>03</b><span><strong>分析结果</strong><small>统计 / 风险 / 天气</small></span></div>
+            <div><b>02</b><span><strong>自动识别</strong><small>全部匹配地区</small></span></div><i>→</i>
+            <div><b>03</b><span><strong>综合分析</strong><small>总览 / 分区查看</small></span></div>
           </div>
         </div>
 
@@ -55,9 +55,12 @@
           </div>
           <section class="region-preview-upload">
             <div class="region-preview-header"><strong>分析区域预览</strong><small>经纬度识别 · 地区轮廓</small></div>
-            <label class="region-preview-label" for="regionPreviewBoundary">可选：上传 GeoJSON 核对其他地区边界（WGS84）</label>
-            <input id="regionPreviewBoundary" name="boundary_file" type="file" accept=".geojson,.json">
-            <input id="selectedRegionId" name="selected_region_id" type="hidden" value="">
+            <details class="region-preview-advanced">
+              <summary>高级设置：补充未内置地区的边界（一般无需操作）</summary>
+              <p>GeoJSON 是带地理坐标的区域轮廓文件；只有系统缺少对应地区边界时才需要。上传后与已配置区域共同参与匹配。</p>
+              <label class="region-preview-label" for="regionPreviewBoundary">补充 GeoJSON 区域边界（WGS84）</label>
+              <input id="regionPreviewBoundary" name="boundary_file" type="file" accept=".geojson,.json">
+            </details>
             <button id="regionPreviewButton" type="button" class="app-button app-button-ghost">识别并预览地区</button>
             <div id="regionPreviewPanel" class="region-preview-panel" hidden aria-live="polite">
               <p id="regionPreviewMessage" class="region-preview-message"></p>
@@ -65,9 +68,9 @@
               <canvas id="regionPreviewCanvas" class="region-preview-canvas" width="560" height="260" aria-label="区域轮廓与抽样观测点预览"></canvas>
               <p id="regionPreviewDetail" class="region-preview-detail"></p>
             </div>
-            <p class="region-preview-warning">请先识别并选择要分析的区域。确认后，正式统计、地图和报告均按该区域边界开展；未选区域的观测不参与本次统计。</p>
+            <p class="region-preview-warning">自动分析将包含 CSV 中所有已匹配地区；点击下方地区标签仅用于预览轮廓，不会排除其他地区。未匹配记录会提示，但不纳入区域统计。</p>
           </section>
-          <button id="analyzeButton" class="app-button app-button-primary upload-submit" type="submit">开始自动分析</button>
+          <button id="analyzeButton" class="app-button app-button-primary upload-submit" type="submit">分析全部匹配地区</button>
           <div id="analysisProgress" class="analysis-progress" hidden><div><span></span></div><p>正在读取并分析本次 FIRMS 数据，请保持窗口开启…</p></div>
         </form>
       </section>

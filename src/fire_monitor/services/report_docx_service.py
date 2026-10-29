@@ -376,8 +376,15 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
     r = p.add_run(f"{task.get('name') or '分析任务'}    {analysis_summary.get('period') or ''}")
     _set_run_font(r, size=10.5)
 
-    selected = (task.get("parameters") or {}).get("selected_region") or {}
-    if selected:
+    task_parameters = task.get("parameters") or {}
+    selected_list = task_parameters.get("selected_regions") or []
+    if selected_list:
+        _paragraph(doc, [
+            ("本次分析范围：", True),
+            ("、".join(str(item["name"]) for item in selected_list), False),
+        ])
+    elif task_parameters.get("selected_region"):
+        selected = task_parameters["selected_region"]
         _paragraph(doc, [("本次分析区域：", True), (str(selected.get("name") or "—"), False)])
 
     _summary_table(doc, analysis_summary, historical_baseline, firms_intelligence)

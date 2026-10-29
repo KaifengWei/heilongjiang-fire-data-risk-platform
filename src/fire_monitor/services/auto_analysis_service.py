@@ -144,7 +144,7 @@ class AutoAnalysisService:
         self,
         uploads: list[StagedUpload],
         *,
-        selected_region: dict[str, Any] | None = None,
+        selected_regions: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         inspection = self.inspect(uploads)
 
@@ -158,19 +158,22 @@ class AutoAnalysisService:
                 "auto_analysis": True,
                 "detected_roles": ["firms_csv"],
                 **(
-                    {"selected_region": {
-                        "name": selected_region["name"],
-                        "source": selected_region.get("source", "uploaded"),
-                    }}
-                    if selected_region is not None else {}
+                    {"selected_regions": [
+                        {
+                            "name": region["name"],
+                            "source": region.get("source", "builtin"),
+                        }
+                        for region in selected_regions
+                    ]}
+                    if selected_regions is not None else {}
                 ),
             },
         )
         task_id = task["task_id"]
 
         try:
-            if selected_region is not None:
-                self.task_service.database.save_task_regions(task_id, [selected_region])
+            if selected_regions is not None:
+                self.task_service.database.save_task_regions(task_id, selected_regions)
             for item in inspection.files:
                 self.validation_service.receive_local_file(
                     task_id=task_id,
