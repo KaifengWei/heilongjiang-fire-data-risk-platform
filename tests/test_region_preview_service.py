@@ -49,7 +49,7 @@ def test_invalid_csv_missing_coordinates():
 
 def test_preview_includes_simplified_region_outline():
     service = RegionPreviewService([_region("示例市", 110, 30, 111, 31)])
-    data = service.preview([("firms.csv", BytesIO(b"latitude,longitude\\n30.5,110.5\\n"))])
+    data = service.preview([("firms.csv", BytesIO(b"latitude,longitude\n30.5,110.5\n"))])
     assert data["candidates"][0]["id"] == 0
     assert data["sampled_points"] == [[110.5, 30.5]]
     assert data["preview_shapes"]["features"][0]["geometry"]["type"] == "Polygon"
