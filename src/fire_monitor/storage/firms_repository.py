@@ -242,16 +242,20 @@ class FirmsRepository:
                 if import_run_id is not None:
                     conn.execute(
                         """
-                        INSERT OR IGNORE INTO active_fire_run_membership(
+                        INSERT INTO active_fire_run_membership(
                             run_id,
                             observation_id,
+                            region_name,
                             created_at
                         )
-                        VALUES (?, ?, ?)
+                        VALUES (?, ?, ?, ?)
+                        ON CONFLICT(run_id, observation_id)
+                        DO UPDATE SET region_name = excluded.region_name
                         """,
                         (
                             int(import_run_id),
                             observation_id,
+                            row.get("region_name"),
                             utc_now(),
                         ),
                     )

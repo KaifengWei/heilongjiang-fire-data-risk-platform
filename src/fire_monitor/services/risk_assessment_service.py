@@ -114,11 +114,13 @@ class RiskAssessmentService:
             for row in statistics
         }
 
+        task_regions = self.database.list_task_regions(task_id)
+        available_regions = task_regions if task_regions else self.database.list_regions()
         region_names = sorted(
             {
                 row["name"]
                 for row
-                in self.database.list_regions()
+                in available_regions
                 if row["name"]
             }
             | set(

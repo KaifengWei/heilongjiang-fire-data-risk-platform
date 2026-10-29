@@ -89,6 +89,7 @@ ON active_fire_observation_sources(observation_id);
 CREATE TABLE IF NOT EXISTS active_fire_run_membership (
     run_id INTEGER NOT NULL,
     observation_id INTEGER NOT NULL,
+    region_name TEXT,
     created_at TEXT NOT NULL,
 
     PRIMARY KEY(
@@ -215,7 +216,17 @@ ON input_files(task_id);
 
 CREATE INDEX IF NOT EXISTS idx_input_files_sha256
 ON input_files(sha256);
+
+CREATE TABLE IF NOT EXISTS task_region_boundaries (
+    task_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    level TEXT NOT NULL,
+    geometry_json TEXT NOT NULL,
+    source TEXT,
+    PRIMARY KEY (task_id, name),
+    FOREIGN KEY (task_id) REFERENCES analysis_tasks(task_id) ON DELETE CASCADE
+);
 """
 
 
-CURRENT_SCHEMA_VERSION = 4
+CURRENT_SCHEMA_VERSION = 5
