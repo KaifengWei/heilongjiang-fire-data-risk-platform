@@ -330,7 +330,7 @@ def test_migration_3_merges_legacy_duplicate_pixels(
             """
         ).fetchall()
 
-    assert version == 4
+    assert version == 6
 
     # 同一规范烧毁像元只保留一次。
     assert len(rows) == 1

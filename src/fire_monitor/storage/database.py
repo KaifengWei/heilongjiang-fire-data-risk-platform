@@ -495,6 +495,126 @@ class Database:
             for row in rows
         ]
 
+    def list_user_catalog_regions(self) -> list[dict[str, Any]]:
+        """User-installed boundaries; kept separate from legacy region rows."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                """SELECT name, level, geometry_json, data_source, source_sha256
+                FROM user_region_catalog ORDER BY name"""
+            ).fetchall()
+        return [
+            {
+                "name": row["name"], "level": row["level"],
+                "geometry": json.loads(row["geometry_json"]),
+                "source": "user_catalog",
+                "data_source": row["data_source"],
+                "source_sha256": row["source_sha256"],
+            }
+            for row in rows
+        ]
+
+    def install_user_catalog_regions(
+        self,
+        regions: Iterable[dict[str, Any]],
+        *,
+        data_source: str,
+        source_sha256: str,
+    ) -> int:
+        """Install verified non-overlapping polygons without changing old tasks."""
+        records = list(regions)
+        if not records:
+            raise ValueError("边界文件中没有可保存的区域。")
+        names = [str(r["name"]) for r in records]
+        if len(set(names)) != len(names):
+            raise ValueError("边界文件中有重复地区名称。")
+        with self.connect() as conn:
+            existing = {
+                r["name"] for r in conn.execute("SELECT name FROM regions")
+            } | {
+                r["name"] for r in conn.execute("SELECT name FROM user_region_catalog")
+            }
+            if existing.intersection(names):
+                raise ValueError("地区名称已存在；为保护已有分析和边界，不允许覆盖或重名。")
+            conn.executemany(
+                """INSERT INTO user_region_catalog(
+                    name, level, geometry_json, data_source, source_sha256, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)""",
+                [
+                    (
+                        item["name"], item.get("level") or "custom",
+                        json.dumps(item["geometry"], ensure_ascii=False),
+                        data_source, source_sha256, utc_now(),
+                    )
+                    for item in records
+                ],
+            )
+        return len(records)
+
+    def save_task_regions(
+        self,
+        task_id: str,
+        regions: Iterable[dict[str, Any]],
+    ) -> None:
+        """Keep the exact selected polygon snapshot with each analysis task."""
+        records = list(regions)
+        if not records:
+            raise ValueError("分析范围不能为空。")
+        names = [str(item["name"]) for item in records]
+        if len(names) != len(set(names)):
+            raise ValueError("分析范围的区域名称不能重复。")
+        with self.connect() as conn:
+            found = conn.execute(
+                "SELECT 1 FROM analysis_tasks WHERE task_id = ?", (task_id,)
+            ).fetchone()
+            if not found:
+                raise KeyError(f"分析任务不存在：{task_id}")
+            conn.execute("DELETE FROM task_region_boundaries WHERE task_id = ?", (task_id,))
+            conn.executemany(
+                """INSERT INTO task_region_boundaries(task_id, name, level, geometry_json, source)
+                VALUES (?, ?, ?, ?, ?)""",
+                [
+                    (
+                        task_id, str(item["name"]), str(item.get("level") or "custom"),
+                        json.dumps(item["geometry"], ensure_ascii=False),
+                        item.get("source"),
+                    )
+                    for item in records
+                ],
+            )
+
+    def list_task_regions(self, task_id: str) -> list[dict[str, Any]]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                """SELECT name, level, geometry_json, source
+                FROM task_region_boundaries WHERE task_id = ? ORDER BY name""",
+                (task_id,),
+            ).fetchall()
+        return [
+            {
+                "name": item["name"],
+                "level": item["level"],
+                "geometry": json.loads(item["geometry_json"]),
+                "source": item["source"],
+            }
+            for item in rows
+        ]
+
+    def task_region_feature_collection(self, task_id: str) -> dict[str, Any]:
+        regions = self.list_task_regions(task_id)
+        if not regions:
+            return self.region_feature_collection()
+        return {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"name": item["name"], "level": item["level"], "source": item["source"]},
+                    "geometry": item["geometry"],
+                }
+                for item in regions
+            ],
+        }
+
     def start_import(
         self,
         data_kind: str,

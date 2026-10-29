@@ -140,7 +140,12 @@ class AutoAnalysisService:
             task_name=self._task_name(analysis_start, analysis_end),
         )
 
-    def create_and_process(self, uploads: list[StagedUpload]) -> dict[str, Any]:
+    def create_and_process(
+        self,
+        uploads: list[StagedUpload],
+        *,
+        selected_regions: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         inspection = self.inspect(uploads)
 
         task = self.task_service.create_task(
@@ -152,11 +157,23 @@ class AutoAnalysisService:
                 "analysis_scope": "firms_only",
                 "auto_analysis": True,
                 "detected_roles": ["firms_csv"],
+                **(
+                    {"selected_regions": [
+                        {
+                            "name": region["name"],
+                            "source": region.get("source", "builtin"),
+                        }
+                        for region in selected_regions
+                    ]}
+                    if selected_regions is not None else {}
+                ),
             },
         )
         task_id = task["task_id"]
 
         try:
+            if selected_regions is not None:
+                self.task_service.database.save_task_regions(task_id, selected_regions)
             for item in inspection.files:
                 self.validation_service.receive_local_file(
                     task_id=task_id,

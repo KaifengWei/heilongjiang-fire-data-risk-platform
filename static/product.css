@@ -4487,3 +4487,36 @@ main.home-landing {
   .home-hero-actions { gap: 10px; }
   .home-visual-caption small { font-size: 9px; }
 }
+
+/* Read-only FIRMS location preview: preserves existing upload layout. */
+.region-preview-upload { margin: 14px 0; padding: 13px; border: 1px solid #dbe8ee; border-radius: 12px; background: #f6fafc; }
+.region-preview-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; color: #27516a; font-size: 13px; }
+.region-preview-header small { color: #6b828f; font-size: 11px; }
+.region-preview-label { display: block; margin: 12px 0 6px; font-size: 12px; color: #577282; }
+#regionPreviewBoundary { display: block; margin: 0 0 11px; font-size: 12px; max-width: 100%; }
+#regionPreviewButton { width: 100%; min-height: 38px; }
+.region-preview-panel { margin-top: 12px; }
+.region-preview-panel[hidden] { display: none; }
+.region-preview-message { font-size: 12px; line-height: 1.6; color: #325f72; }
+.region-preview-choices { display: flex; flex-wrap: wrap; max-height: 105px; overflow-y: auto; gap: 6px; margin: 9px 0; }
+.region-preview-choice { border: 1px solid #cadfe8; background: #fff; border-radius: 7px; padding: 6px 8px; color: #496b7b; font-size: 12px; cursor: pointer; }
+.region-preview-choice.active { background: #e0f2f4; border-color: #7aafc1; color: #13586d; }
+.region-preview-canvas { width: 100%; height: auto; display: block; border: 1px solid #d5e4ea; border-radius: 8px; }
+.region-preview-detail,.region-preview-warning { color: #71828c; font-size: 11px; line-height: 1.6; margin: 8px 0 0; }
+.region-preview-warning { color: #806b55; }
+
+.scoped-task-label { margin: 8px 10px; font-size: 12px; color: #3e6f82; line-height: 1.6; }
+.region-preview-warning { color: #416a79; }
+.region-preview-canvas { max-height: 220px; object-fit: contain; }
+
+/* Multi-area overview: area chips are map-view filters, never exclusions. */
+.region-preview-advanced { margin: 9px 0 12px; font-size: 12px; color: #537184; }
+.region-preview-advanced summary { cursor: pointer; color: #3f7287; }
+.region-preview-advanced p { margin: 7px 0; line-height: 1.65; color: #688494; }
+.region-preview-choices { max-height: 150px; }
+
+/* Optional one-time boundary catalog installation. */
+#regionCatalogSaveButton { margin-top: 9px; width: 100%; }
+#regionCatalogSource { width: 100%; border: 1px solid #c9dde6; background: white; border-radius: 7px; padding: 9px 10px; font-size: 12px; }
+.region-preview-authorization { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0; font-size: 12px; color: #55727f; line-height: 1.5; }
+.region-preview-authorization input { margin-top: 3px; }

@@ -190,15 +190,22 @@ class StatisticsService:
                       AND run.data_kind = 'active_fire_observations'
                       AND run.status = 'completed'
                 )
-                SELECT observation.region_name,
+                SELECT COALESCE(scoped.region_name, observation.region_name) AS region_name,
                        COUNT(*) AS active_fire_count
                 FROM task_observations AS task_observation
                 JOIN active_fire_observations AS observation
                     ON observation.id = task_observation.observation_id
-                WHERE observation.region_name IS NOT NULL
-                GROUP BY observation.region_name
+                LEFT JOIN (
+                    SELECT membership.observation_id, MAX(membership.region_name) AS region_name
+                    FROM active_fire_run_membership AS membership
+                    JOIN import_runs AS run ON run.id = membership.run_id
+                    WHERE run.task_id = ?
+                    GROUP BY membership.observation_id
+                ) AS scoped ON scoped.observation_id = observation.id
+                WHERE COALESCE(scoped.region_name, observation.region_name) IS NOT NULL
+                GROUP BY COALESCE(scoped.region_name, observation.region_name)
                 """,
-                (task_id, task_id),
+                (task_id, task_id, task_id),
             ).fetchall()
 
             burned_rows = conn.execute(
@@ -422,7 +429,7 @@ class StatisticsService:
                     observation.acquired_time,
                     observation.latitude,
                     observation.longitude,
-                    observation.region_name,
+                    COALESCE(scoped.region_name, observation.region_name) AS region_name,
                     observation.confidence,
                     observation.frp,
                     observation.instrument,
@@ -430,12 +437,19 @@ class StatisticsService:
                 FROM task_observations AS task_observation
                 JOIN active_fire_observations AS observation
                     ON observation.id = task_observation.observation_id
+                LEFT JOIN (
+                    SELECT membership.observation_id, MAX(membership.region_name) AS region_name
+                    FROM active_fire_run_membership AS membership
+                    JOIN import_runs AS run ON run.id = membership.run_id
+                    WHERE run.task_id = ?
+                    GROUP BY membership.observation_id
+                ) AS scoped ON scoped.observation_id = observation.id
                 ORDER BY
                     observation.acquired_date,
                     observation.acquired_time,
                     observation.id
                 """,
-                (task_id, task_id),
+                (task_id, task_id, task_id),
             ).fetchall()
 
         return [

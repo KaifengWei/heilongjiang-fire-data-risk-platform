@@ -415,6 +415,16 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
             """
         )
 
+    if current_version < 5:
+        _add_column_if_missing(
+            conn,
+            "active_fire_run_membership",
+            "region_name",
+            "TEXT",
+        )
+
+    # v6 only adds the user_region_catalog table from BASE_SCHEMA.
+    # No existing records are overwritten or relabeled.
     conn.execute(
         f"PRAGMA user_version = {CURRENT_SCHEMA_VERSION}"
     )

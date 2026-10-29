@@ -148,3 +148,36 @@ def test_historical_baseline_rejects_mixed_product_comparison(tmp_path):
 
     assert result["available"] is False
     assert result["reason"] == "current_product_not_noaa20"
+
+
+
+def test_historical_comparison_respects_selected_region(tmp_path):
+    path = tmp_path / "baseline.json"
+    _write_baseline(path)
+
+    result = HistoricalFirmsBaselineService(path).compare(
+        _rows(60, "哈尔滨市"),
+        analysis_start="2025-04-01",
+        analysis_end="2025-04-01",
+        selected_regions=["哈尔滨市"],
+    )
+
+    assert result["available"] is True
+    assert result["current_count"] == 60
+    assert result["province_status"] == "明显高于历史同期"
+    assert [row["region_name"] for row in result["regions"]] == ["哈尔滨市"]
+
+
+def test_unrelated_region_has_no_synthetic_historical_comparison(tmp_path):
+    path = tmp_path / "baseline.json"
+    _write_baseline(path)
+
+    result = HistoricalFirmsBaselineService(path).compare(
+        _rows(5, "示例区"),
+        analysis_start="2025-04-01",
+        analysis_end="2025-04-01",
+        selected_regions=["示例区"],
+    )
+
+    assert result["available"] is False
+    assert result["reason"] == "scoped_region_without_historical_reference"

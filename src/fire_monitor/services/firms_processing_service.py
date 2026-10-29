@@ -192,10 +192,12 @@ class FirmsProcessingService:
                 f"{source_path}"
             )
 
-        regions = (
-            self.database
-            .list_regions()
-        )
+        # Task boundaries override the legacy global region configuration.
+        # Each run records its own observation-region association, avoiding
+        # cross-task contamination when the same FIRMS record is reused.
+        regions = self.database.list_task_regions(task_id)
+        if not regions:
+            regions = self.database.list_regions()
 
         if not regions:
             raise RuntimeError(

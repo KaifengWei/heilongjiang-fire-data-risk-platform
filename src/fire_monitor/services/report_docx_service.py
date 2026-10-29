@@ -199,7 +199,7 @@ def _overall_paragraph(analysis_summary: dict[str, Any], firms_intelligence: dic
             parts.append((str(row.get("region_name") or "—"), count, share))
         pieces += [
             ("从空间分布看，", False), (parts[0][0], True), (" 最为集中，共 ", False), (_fmt_int(parts[0][1]), True),
-            (" 条，约占全省 ", False), (f"{parts[0][2]:.1f}%", True), ("。", False),
+            (" 条，约占本次统计总量 ", False), (f"{parts[0][2]:.1f}%", True), ("。", False),
         ]
         if len(parts) > 1:
             pieces += [("其次为 ", False), (parts[1][0], True), ("，共 ", False), (_fmt_int(parts[1][1]), True), (" 条。", False)]
@@ -228,7 +228,7 @@ def _assessment_paragraph(historical_baseline: dict[str, Any], firms_intelligenc
     pieces: list[tuple[str, bool]] = []
     if historical_baseline and historical_baseline.get("available"):
         status = str(historical_baseline.get("province_status") or "—")
-        pieces += [("历史同期对比显示，全省本次火点活动整体处于 ", False), (status, True), (" 水平。", False)]
+        pieces += [("历史同期对比显示，本次火点活动整体处于 ", False), (status, True), (" 水平。", False)]
         priority = historical_baseline.get("priority_regions") or []
         if priority:
             names = "、".join(str(row.get("region_name") or "—") for row in priority[:3])
@@ -367,7 +367,7 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_after = Pt(5)
-    r = p.add_run("黑龙江省火点数据检测与风险评估平台分析报告")
+    r = p.add_run("卫星火点检测与风险分析平台分析报告")
     _set_run_font(r, size=16, bold=True)
 
     p = doc.add_paragraph()
@@ -375,6 +375,17 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
     p.paragraph_format.space_after = Pt(12)
     r = p.add_run(f"{task.get('name') or '分析任务'}    {analysis_summary.get('period') or ''}")
     _set_run_font(r, size=10.5)
+
+    task_parameters = task.get("parameters") or {}
+    selected_list = task_parameters.get("selected_regions") or []
+    if selected_list:
+        _paragraph(doc, [
+            ("本次分析范围：", True),
+            ("、".join(str(item["name"]) for item in selected_list), False),
+        ])
+    elif task_parameters.get("selected_region"):
+        selected = task_parameters["selected_region"]
+        _paragraph(doc, [("本次分析区域：", True), (str(selected.get("name") or "—"), False)])
 
     _summary_table(doc, analysis_summary, historical_baseline, firms_intelligence)
 

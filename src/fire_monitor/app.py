@@ -110,6 +110,12 @@ from fire_monitor.services.report_docx_service import (
     build_analysis_report_docx,
 )
 
+from fire_monitor.services.region_preview_service import (
+    RegionPreviewService,
+    load_geojson_boundaries,
+    validate_nonoverlapping_regions,
+)
+
 def create_app(
     database_path: str | Path | None = None,
     testing: bool = False,
@@ -130,7 +136,7 @@ def create_app(
     database.initialize()
 
     # 正式运行时，如果当前数据库还没有行政区，
-    # 则从随软件发布的默认 GeoJSON 初始化黑龙江省地市边界。
+    # 则从随软件发布的默认 GeoJSON 初始化内置行政区边界。
     #
     # testing=True 时不自动导入，避免改变现有单元测试
     # 对“空数据库”的预期。
@@ -639,9 +645,8 @@ def create_app(
             )
         )
 
-        region_count = len(
-            database.list_regions()
-        )
+        task_boundaries = database.list_task_regions(task_id)
+        region_count = len(task_boundaries) if task_boundaries else len(database.list_regions())
 
         task_region_statistics = (
             statistics_service
@@ -660,7 +665,7 @@ def create_app(
         )
 
         region_feature_collection = (
-            database.region_feature_collection()
+            database.task_region_feature_collection(task_id)
         )
 
         task_region_ranking = sorted(
@@ -708,18 +713,24 @@ def create_app(
             .as_dict()
         )
 
-        historical_baseline = (
-            historical_baseline_service
-            .compare(
+        # The existing historical baseline was built for the original fixed
+        # regional dataset. It must not be used as a comparison for a new
+        # task-scoped polygon until an equivalent scoped baseline is installed.
+        if task_boundaries and any(item.get("source") != "builtin" for item in task_boundaries):
+            historical_baseline = {
+                "available": False,
+                "reason": "custom_region_baseline_not_installed",
+            }
+        else:
+            historical_baseline = historical_baseline_service.compare(
                 task_firms_observations,
-                analysis_start=task.get(
-                    "analysis_start"
-                ),
-                analysis_end=task.get(
-                    "analysis_end"
+                analysis_start=task.get("analysis_start"),
+                analysis_end=task.get("analysis_end"),
+                selected_regions=(
+                    [item["name"] for item in task_boundaries]
+                    if task_boundaries else None
                 ),
             )
-        )
 
         land_cover_context = (
             land_cover_context_service
@@ -810,6 +821,105 @@ def create_app(
     def analyze_page():
         return render_analyze()
 
+    def available_analysis_boundaries(boundary_upload=None):
+        """Built-in boundaries plus optional explicitly supplied additions.
+
+        Custom boundaries supplement the installed coverage. Duplicate names
+        are rejected instead of silently replacing the original geometry.
+        """
+        regions = [
+            {**item, "source": "builtin"}
+            for item in database.list_regions()
+        ] + database.list_user_catalog_regions()
+        if boundary_upload is not None and boundary_upload.filename:
+            filename = Path(boundary_upload.filename.replace("\\", "/")).name
+            if Path(filename).suffix.lower() not in {".geojson", ".json"}:
+                raise ValueError("补充区域文件必须为 GeoJSON。")
+            additional = load_geojson_boundaries(
+                boundary_upload.stream.read(16 * 1024 * 1024 + 1)
+            )
+            validate_nonoverlapping_regions(additional, regions)
+            regions.extend(additional)
+        # An empty boundary catalog is valid for the read-only preview:
+        # it reports zero matches and explains that a boundary is needed.
+        # Formal analysis separately rejects tasks with zero matched areas.
+        return regions
+
+    @app.get("/api/region-catalog")
+    def region_catalog_status():
+        builtins = database.list_regions()
+        installed = database.list_user_catalog_regions()
+        return jsonify({
+            "builtin_count": len(builtins),
+            "installed_count": len(installed),
+            "total_count": len(builtins) + len(installed),
+            "installed": [
+                {"name": item["name"], "level": item["level"],
+                 "data_source": item["data_source"]}
+                for item in installed
+            ],
+            "scope_note": (
+                "当前仅能自动识别已配置边界覆盖的地区，"
+                "并不代表中国境内所有行政区已全部安装。"
+            ),
+        })
+
+    @app.post("/api/region-catalog/import")
+    def install_user_region_catalog():
+        """Explicit, attributable boundary import; no existing rows replaced."""
+        upload = request.files.get("boundary_file")
+        if upload is None or not upload.filename:
+            return jsonify({"error": "请选择 GeoJSON 边界文件。"}), 400
+        source_label = str(request.form.get("data_source") or "").strip()
+        authorization = str(request.form.get("authorized") or "")
+        if len(source_label) < 3 or len(source_label) > 250:
+            return jsonify({"error": "请填写具体的数据来源（3至250字）。"}), 400
+        if authorization != "yes":
+            return jsonify({"error": "请确认已获得该边界数据的使用授权。"}), 400
+        try:
+            filename = Path(upload.filename.replace("\\", "/")).name
+            if Path(filename).suffix.lower() not in {".geojson", ".json"}:
+                raise ValueError("边界文件需为 GeoJSON 格式。")
+            raw = upload.stream.read(16 * 1024 * 1024 + 1)
+            regions = load_geojson_boundaries(raw)
+            known = [
+                {**item, "source": "builtin"}
+                for item in database.list_regions()
+            ] + database.list_user_catalog_regions()
+            validate_nonoverlapping_regions(regions, known)
+            from hashlib import sha256
+            installed = database.install_user_catalog_regions(
+                regions,
+                data_source=source_label,
+                source_sha256=sha256(raw).hexdigest(),
+            )
+        except (ValueError, KeyError, TypeError, OSError) as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify({
+            "installed_count": installed,
+            "total_count": len(database.list_regions()) +
+                len(database.list_user_catalog_regions()),
+            "message": "边界已保存到本地，后续上传 FIRMS CSV 时将自动参与地区识别。",
+        })
+
+    @app.post("/api/region-preview")
+    def preview_analysis_region():
+        """只预览可用行政区覆盖，不修改正式分析区域。"""
+        uploads = [
+            item for item in request.files.getlist("files")
+            if item is not None and item.filename
+        ]
+        if not uploads:
+            return jsonify({"error": "请选择 FIRMS CSV。"}), 400
+        try:
+            regions = available_analysis_boundaries(request.files.get("boundary_file"))
+            preview = RegionPreviewService(regions).preview(
+                [(Path(item.filename).name, item.stream) for item in uploads]
+            )
+        except (ValueError, KeyError, TypeError, OSError) as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify(preview)
+
     @app.post("/analyze")
     def analyze_uploads():
         uploaded_files = [
@@ -849,7 +959,35 @@ def create_app(
                         )
                     )
 
-                result = auto_analysis_service.create_and_process(staged_uploads)
+                # A CSV is ONE analysis task. Automatically include EVERY
+                # matched region in that task; area tabs only filter the map.
+                region_definitions = available_analysis_boundaries(
+                    request.files.get("boundary_file")
+                )
+                from contextlib import ExitStack
+                with ExitStack() as stack:
+                    preview = RegionPreviewService(region_definitions).preview([
+                        (
+                            item.original_filename,
+                            stack.enter_context(item.path.open("rb")),
+                        )
+                        for item in staged_uploads
+                    ])
+                if not preview["candidates"]:
+                    raise ValueError(
+                        "上传记录未匹配到已配置的区域边界，无法生成可靠的区域分析。"
+                        "请检查坐标或通过高级设置补充对应 GeoJSON。"
+                    )
+                candidate_ids = {int(item["id"]) for item in preview["candidates"]}
+                selected_regions = [
+                    region
+                    for idx, region in enumerate(region_definitions)
+                    if idx in candidate_ids
+                ]
+                result = auto_analysis_service.create_and_process(
+                    staged_uploads,
+                    selected_regions=selected_regions,
+                )
 
         except AutoAnalysisProcessingError as exc:
             return render_task_detail(
@@ -958,9 +1096,13 @@ def create_app(
             )
         }
 
+        task_boundaries = database.list_task_regions(task_id)
+        uses_custom_boundary = bool(
+            any(item.get("source") != "builtin" for item in task_boundaries)
+        )
         county_by_observation_id = {}
 
-        if county_context_service.available:
+        if county_context_service.available and not uses_custom_boundary:
             for row in rows:
                 try:
                     county_name = (
@@ -1078,7 +1220,7 @@ def create_app(
                 "dates": dates,
                 "regions": regions,
                 "counties": county_names,
-                "county_available": county_context_service.available,
+                "county_available": county_context_service.available and not uses_custom_boundary,
                 "points": points,
                 "frp_p90": frp_p90,
                 "point_count": len(points),

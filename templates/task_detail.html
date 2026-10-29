@@ -121,7 +121,7 @@
           <p class="history-decision-explain">
             {% if historical_baseline.priority_regions %}
               {% if historical_baseline.province_status == '接近历史同期' %}
-                全省总体没有明显偏离，但局部地区相对自身往年同期更活跃。
+                整体数据没有明显偏离，但局部地区相对自身往年同期更活跃。
               {% elif historical_baseline.province_status in ['高于历史同期', '明显高于历史同期'] %}
                 当前整体活动已经偏高，且部分地区相对自身往年同期更加突出。
               {% else %}
@@ -206,7 +206,7 @@
           {% else %}
           <div class="history-priority-empty">
             <strong>暂无需要提前查看的地区</strong>
-            <span>可继续查看全省火点空间分布和日期变化。</span>
+            <span>可继续查看当前分析范围的火点空间分布和日期变化。</span>
           </div>
           {% endif %}
         </aside>
@@ -270,7 +270,7 @@
             </div>
             <div class="map-context-stat">
               <span>当前范围</span>
-              <strong id="mapRegionLabel">黑龙江省</strong>
+              <strong id="mapRegionLabel">当前分析区域</strong>
             </div>
             <div class="map-anomaly-jumps">
               <span>快速查看</span>
@@ -288,8 +288,13 @@
             <h3>区域火点统计</h3>
           </div>
 
+          {% if task.parameters.selected_regions %}
+          <p class="scoped-task-label">本次已识别 {{ task.parameters.selected_regions|length }} 个地区，点击下方名称切换查看。所有地区已在同一任务中完成分析。</p>
+          {% elif task.parameters.selected_region %}
+          <p class="scoped-task-label">本次分析区域：{{ task.parameters.selected_region.name }}</p>
+          {% endif %}
           <button class="region-filter-row active" type="button" data-region-filter="">
-            <span>全部区域</span>
+            <span>全部地区 · 综合总览</span>
             <b>{{ '{:,}'.format(analysis_summary.active_fire_count) }}</b>
           </button>
 
@@ -323,7 +328,7 @@
           <p class="action-guidance-lead">
             {% if historical_baseline and historical_baseline.available and historical_baseline.priority_regions %}
               {% if historical_baseline.province_status == '接近历史同期' %}
-                全省火点活动整体与往年同期接近，但
+                本次区域火点活动整体与往年同期接近，但
               {% elif historical_baseline.province_status in ['高于历史同期', '明显高于历史同期'] %}
                 本次火点活动整体高于往年同期，其中
               {% else %}
@@ -334,17 +339,19 @@
               {% endfor %}
               相对自身往年同期更活跃，建议重点核查这些区域的火点分布和持续情况。
             {% elif historical_baseline and historical_baseline.available %}
-              当前没有发现明显偏离历史同期的重点地区，建议按常规方式查看全省火点分布和日期变化。
+              当前没有发现明显偏离历史同期的重点地区，建议按常规方式查看本次分析区域的火点分布和日期变化。
             {% else %}
               当前暂无历史同期参照，建议重点查看火点集中区域、明显增多日期和跨日重复活跃位置。
             {% endif %}
           </p>
           {% if land_cover_context and land_cover_context.available %}
           <div class="action-land-context">
+            {% if not task.parameters.selected_region and not task.parameters.selected_regions %}
             <div class="land-context-map">
-              <img src="{{ url_for('static', filename='context/mcd12q1_2024_landcover.png') }}" alt="黑龙江省2024年土地覆盖背景图">
-              <span class="land-context-map-caption">黑龙江土地覆盖背景</span>
+              <img src="{{ url_for('static', filename='context/mcd12q1_2024_landcover.png') }}" alt="2024年土地覆盖背景图">
+              <span class="land-context-map-caption">土地覆盖背景</span>
             </div>
+            {% endif %}
             <div class="land-context-copy">
               <span>地表背景</span>
               <strong>{{ land_cover_context.visual_title }}</strong>
@@ -401,8 +408,8 @@
                 </div>
                 {% endif %}
               {% else %}
-              <p>当前没有特别突出的重点地区，可从全省火点集中区域开始查看。</p>
-              <button type="button" class="action-link" data-map-reset>查看全省分布 →</button>
+              <p>当前没有特别突出的重点地区，可从本次分析区域的火点集中位置开始查看。</p>
+              <button type="button" class="action-link" data-map-reset>查看当前分析区域 →</button>
               {% endif %}
             </div>
           </article>
@@ -514,7 +521,9 @@
 {% include '_record_manage_modal.html' %}
 {% include '_help_modal.html' %}
 <script src="{{ url_for('static', filename='product.js') }}"></script>
+{% if not task.parameters.selected_regions or not (task.parameters.selected_regions|rejectattr('source','equalto','builtin')|list) %}
 <script src="{{ url_for('static', filename='county_drilldown.js') }}"></script>
+{% endif %}
 <script src="{{ url_for('static', filename='weather_context.js') }}"></script>
 </body>
 </html>

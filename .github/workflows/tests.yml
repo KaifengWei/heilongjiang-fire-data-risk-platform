@@ -12,16 +12,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v7
+      - name: Prepare geospatial Python environment
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          python-version: "3.11"
-          cache: pip
+          miniforge-version: latest
+          use-mamba: true
+          environment-file: environment.yml
+          activate-environment: fire-monitor
+          auto-activate-base: false
 
       - name: Install test dependencies
-        run: python -m pip install -r requirements-dev.txt
+        run: conda run -n fire-monitor python -m pip install -r requirements-dev.txt
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check static/product.js
+          node --check static/county_drilldown.js
+          node --check static/home.js
 
       - name: Run unit tests
-        run: python -m pytest -q
+        run: conda run -n fire-monitor python -m pytest -q
