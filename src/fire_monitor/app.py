@@ -110,6 +110,11 @@ from fire_monitor.services.report_docx_service import (
     build_analysis_report_docx,
 )
 
+from fire_monitor.services.region_preview_service import (
+    RegionPreviewService,
+    load_geojson_boundaries,
+)
+
 def create_app(
     database_path: str | Path | None = None,
     testing: bool = False,
@@ -809,6 +814,29 @@ def create_app(
     @app.get("/analyze")
     def analyze_page():
         return render_analyze()
+
+    @app.post("/api/region-preview")
+    def preview_analysis_region():
+        """只预览可用行政区覆盖，不修改正式分析区域。"""
+        uploads = [
+            item for item in request.files.getlist("files")
+            if item is not None and item.filename
+        ]
+        if not uploads:
+            return jsonify({"error": "请选择 FIRMS CSV。"}), 400
+        try:
+            boundary = request.files.get("boundary_file")
+            if boundary is not None and boundary.filename:
+                raw = boundary.read(16 * 1024 * 1024 + 1)
+                regions = load_geojson_boundaries(raw)
+            else:
+                regions = database.list_regions()
+            preview = RegionPreviewService(regions).preview(
+                [(Path(item.filename).name, item.stream) for item in uploads]
+            )
+        except (ValueError, KeyError, TypeError, OSError) as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify(preview)
 
     @app.post("/analyze")
     def analyze_uploads():
