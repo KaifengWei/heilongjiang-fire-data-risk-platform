@@ -841,8 +841,9 @@ def create_app(
             if any(str(item["name"]) in existing for item in additional):
                 raise ValueError("补充边界中存在与已配置区域重名的地区，请先调整区域名称。")
             regions.extend(additional)
-        if not regions:
-            raise ValueError("尚无可用的行政区边界，请先配置分析区域边界。")
+        # An empty boundary catalog is valid for the read-only preview:
+        # it reports zero matches and explains that a boundary is needed.
+        # Formal analysis separately rejects tasks with zero matched areas.
         return regions
 
     @app.post("/api/region-preview")
