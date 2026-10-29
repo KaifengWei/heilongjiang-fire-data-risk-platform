@@ -369,6 +369,12 @@
     }
   }
 
+  // File changes invalidate previous preview so a new upload cannot display stale results.
+  const resetRegionPreview = () => {
+    if (previewPanel) previewPanel.hidden = true;
+  };
+  fileInput?.addEventListener('change', resetRegionPreview);
+  previewBoundary?.addEventListener('change', resetRegionPreview);
   previewButton?.addEventListener('click', loadRegionPreview);
 
 
