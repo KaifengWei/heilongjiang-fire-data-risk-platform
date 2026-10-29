@@ -233,6 +233,145 @@
 
   fileInput?.addEventListener('change', updateFileText);
 
+  // Region recognition is read-only until task-scoped boundaries are implemented.
+  const previewButton = $('#regionPreviewButton');
+  const previewBoundary = $('#regionPreviewBoundary');
+  const previewPanel = $('#regionPreviewPanel');
+  const previewMessage = $('#regionPreviewMessage');
+  const previewChoices = $('#regionPreviewChoices');
+  const previewCanvas = $('#regionPreviewCanvas');
+  const previewDetail = $('#regionPreviewDetail');
+
+  function outlineRings(geometry) {
+    if (!geometry) return [];
+    if (geometry.type === 'Polygon') return geometry.coordinates || [];
+    if (geometry.type === 'MultiPolygon') return (geometry.coordinates || []).flat();
+    return [];
+  }
+
+  function drawOutlinePreview(payload, selected) {
+    if (!previewCanvas) return;
+    const ctx = previewCanvas.getContext('2d');
+    if (!ctx) return;
+    const { width, height } = previewCanvas;
+    ctx.fillStyle = '#eef7fa';
+    ctx.fillRect(0, 0, width, height);
+    const shapes = payload.preview_shapes?.features || [];
+    const shape = selected ? shapes.find(item => item.properties?.id === selected.id) : null;
+    const rings = outlineRings(shape?.geometry);
+    const points = Array.isArray(payload.sampled_points) ? payload.sampled_points : [];
+    const outline = rings.flat().filter(point => Number.isFinite(point?.[0]) && Number.isFinite(point?.[1]));
+    const extent = outline.length ? outline : points;
+    if (!extent.length) {
+      ctx.fillStyle = '#557585';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('无可绘制的区域轮廓', 22, height / 2);
+      return;
+    }
+    const minX = Math.min(...extent.map(p => p[0]));
+    const maxX = Math.max(...extent.map(p => p[0]));
+    const minY = Math.min(...extent.map(p => p[1]));
+    const maxY = Math.max(...extent.map(p => p[1]));
+    const dx = Math.max(maxX - minX, 0.02);
+    const dy = Math.max(maxY - minY, 0.02);
+    const scale = Math.min((width - 48) / dx, (height - 48) / dy);
+    const project = p => [
+      (width - dx * scale) / 2 + (p[0] - minX) * scale,
+      height - ((height - dy * scale) / 2 + (p[1] - minY) * scale)
+    ];
+    if (rings.length) {
+      ctx.beginPath();
+      rings.forEach(ring => {
+        ring.forEach((point, i) => {
+          const [x, y] = project(point);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.closePath();
+      });
+      ctx.fillStyle = '#dceff0';
+      ctx.fill('evenodd');
+      ctx.strokeStyle = '#237b97';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#d35c4d';
+    points.forEach(point => {
+      if (point[0] < minX || point[0] > maxX || point[1] < minY || point[1] > maxY) return;
+      const [x, y] = project(point);
+      ctx.beginPath();
+      ctx.arc(x, y, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  async function loadRegionPreview() {
+    if (!fileInput || !previewButton || !previewPanel) return;
+    const files = Array.from(fileInput.files || []);
+    previewPanel.hidden = false;
+    if (!files.length) {
+      previewMessage.textContent = '请先选择 FIRMS CSV 文件。';
+      return;
+    }
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+    if (previewBoundary?.files?.length) {
+      formData.append('boundary_file', previewBoundary.files[0]);
+    }
+    previewButton.disabled = true;
+    previewButton.textContent = '识别中…';
+    previewMessage.textContent = '正在检查有效坐标与区域边界…';
+    previewChoices?.replaceChildren();
+    if (previewDetail) previewDetail.textContent = '';
+    try {
+      const response = await fetch('/api/region-preview', { method: 'POST', body: formData });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || '区域识别失败。');
+      previewMessage.textContent =
+        '有效坐标 ' + payload.valid_coordinate_rows +
+        ' 条；已匹配 ' + payload.matched_rows +
+        ' 条；未匹配 ' + payload.unmatched_rows +
+        ' 条；无效坐标 ' + payload.invalid_coordinate_rows + ' 条。';
+      const candidates = payload.candidates || [];
+      const buttons = [];
+      candidates.slice(0, 12).forEach((candidate, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'region-preview-choice';
+        button.textContent = candidate.name + ' · ' + candidate.observations + ' 条（' + candidate.share_of_valid + '%）';
+        button.addEventListener('click', () => {
+          buttons.forEach(item => item.classList.remove('active'));
+          button.classList.add('active');
+          drawOutlinePreview(payload, candidate);
+          previewDetail.textContent = '当前预览：' + candidate.name +
+            '。轮廓已简化；点位最多显示前 500 条有效坐标。';
+        });
+        buttons.push(button);
+        previewChoices?.appendChild(button);
+        if (index === 0) button.click();
+      });
+      if (!candidates.length) {
+        drawOutlinePreview(payload, null);
+        previewDetail.textContent = payload.message || '当前边界无法覆盖这些观测记录。';
+      }
+      if (candidates.length > 12 && previewChoices) {
+        const more = document.createElement('span');
+        more.textContent = '还有 ' + (candidates.length - 12) + ' 个候选区域未在预览中展开。';
+        previewChoices.appendChild(more);
+      }
+    } catch (error) {
+      previewMessage.textContent = error.message || '预览失败。';
+      const ctx = previewCanvas?.getContext('2d');
+      if (ctx && previewCanvas) ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    } finally {
+      previewButton.disabled = false;
+      previewButton.textContent = '识别并预览地区';
+    }
+  }
+
+  previewButton?.addEventListener('click', loadRegionPreview);
+
+
   ['dragenter', 'dragover'].forEach(type => {
     dropzone?.addEventListener(type, event => {
       event.preventDefault();

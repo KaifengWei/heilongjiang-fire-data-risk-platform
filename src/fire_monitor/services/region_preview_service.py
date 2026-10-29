@@ -12,7 +12,7 @@ import math
 from collections import Counter
 from typing import Any, BinaryIO, Iterable
 
-from shapely.geometry import Point, shape
+from shapely.geometry import Point, mapping, shape
 from shapely.strtree import STRtree
 
 MAX_CSV_BYTES = 32 * 1024 * 1024
@@ -84,11 +84,13 @@ class RegionPreviewService:
             geometries.append(polygon)
             self.regions.append({"name": str(row["name"]), "level": str(row.get("level") or "custom")})
         self._tree = STRtree(geometries) if geometries else None
+        self._geometries = geometries
 
     def preview(self, uploads: Iterable[tuple[str, BinaryIO]]) -> dict[str, Any]:
         counts: Counter[int] = Counter()
         raw_rows = valid_rows = invalid_rows = matched_rows = 0
         filenames = []
+        sampled_points: list[list[float]] = []
         for filename, stream in uploads:
             if not filename.lower().endswith(".csv"):
                 raise ValueError("只接收 FIRMS CSV 数据文件。")
@@ -115,6 +117,8 @@ class RegionPreviewService:
                     invalid_rows += 1
                     continue
                 valid_rows += 1
+                if len(sampled_points) < 500:
+                    sampled_points.append([round(lon, 5), round(lat, 5)])
                 indexes = [] if self._tree is None else self._tree.query(
                     Point(lon, lat), predicate="intersects")
                 if len(indexes):
@@ -124,11 +128,23 @@ class RegionPreviewService:
         if not filenames:
             raise ValueError("请选择 FIRMS CSV 文件。")
         candidates = [
-            {"name": row["name"], "level": row["level"], "observations": counts[i],
+            {"id": i, "name": row["name"], "level": row["level"], "observations": counts[i],
              "share_of_valid": round(100 * counts[i] / valid_rows, 2) if valid_rows else 0.0}
             for i, row in enumerate(self.regions) if counts[i] > 0
         ]
         candidates.sort(key=lambda item: (-item["observations"], item["name"]))
+        outline_features = []
+        for candidate in candidates[:12]:
+            polygon = self._geometries[candidate["id"]]
+            compact = mapping(polygon.simplify(0.03, preserve_topology=True))
+            if len(json.dumps(compact)) > 100_000:
+                compact = mapping(polygon.simplify(0.15, preserve_topology=True))
+            if len(json.dumps(compact)) <= 100_000:
+                outline_features.append({
+                    "type": "Feature",
+                    "properties": {"id": candidate["id"], "name": candidate["name"]},
+                    "geometry": compact,
+                })
         return {
             "files": filenames,
             "input_rows": raw_rows,
@@ -137,6 +153,8 @@ class RegionPreviewService:
             "matched_rows": matched_rows,
             "unmatched_rows": valid_rows - matched_rows,
             "boundary_scope": "available_boundaries_only",
+            "sampled_points": sampled_points,
+            "preview_shapes": {"type": "FeatureCollection", "features": outline_features},
             "candidates": candidates,
             "message": (
                 "已根据当前可用的行政区边界识别候选区域，请核对后确定分析范围。"

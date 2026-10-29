@@ -46,3 +46,10 @@ def test_geojson_upload_rejects_invalid_shape_and_crs():
 def test_invalid_csv_missing_coordinates():
     with pytest.raises(ValueError, match="经纬度"):
         RegionPreviewService([]).preview([("s.csv", BytesIO(b"acq_date,frp\n2026-01-01,2\n"))])
+
+def test_preview_includes_simplified_region_outline():
+    service = RegionPreviewService([_region("示例市", 110, 30, 111, 31)])
+    data = service.preview([("firms.csv", BytesIO(b"latitude,longitude\\n30.5,110.5\\n"))])
+    assert data["candidates"][0]["id"] == 0
+    assert data["sampled_points"] == [[110.5, 30.5]]
+    assert data["preview_shapes"]["features"][0]["geometry"]["type"] == "Polygon"
