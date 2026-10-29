@@ -1098,7 +1098,7 @@ def create_app(
 
         task_boundaries = database.list_task_regions(task_id)
         uses_custom_boundary = bool(
-            any(item.get("source") == "uploaded" for item in task_boundaries)
+            any(item.get("source") != "builtin" for item in task_boundaries)
         )
         county_by_observation_id = {}
 

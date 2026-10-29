@@ -521,7 +521,7 @@
 {% include '_record_manage_modal.html' %}
 {% include '_help_modal.html' %}
 <script src="{{ url_for('static', filename='product.js') }}"></script>
-{% if not task.parameters.selected_regions or not (task.parameters.selected_regions|selectattr('source','equalto','uploaded')|list) %}
+{% if not task.parameters.selected_regions or not (task.parameters.selected_regions|rejectattr('source','equalto','builtin')|list) %}
 <script src="{{ url_for('static', filename='county_drilldown.js') }}"></script>
 {% endif %}
 <script src="{{ url_for('static', filename='weather_context.js') }}"></script>
