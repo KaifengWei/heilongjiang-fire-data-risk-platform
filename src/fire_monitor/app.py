@@ -644,9 +644,8 @@ def create_app(
             )
         )
 
-        region_count = len(
-            database.list_regions()
-        )
+        task_boundaries = database.list_task_regions(task_id)
+        region_count = len(task_boundaries) if task_boundaries else len(database.list_regions())
 
         task_region_statistics = (
             statistics_service
@@ -665,7 +664,7 @@ def create_app(
         )
 
         region_feature_collection = (
-            database.region_feature_collection()
+            database.task_region_feature_collection(task_id)
         )
 
         task_region_ranking = sorted(
@@ -713,16 +712,16 @@ def create_app(
             .as_dict()
         )
 
+        # The existing historical baseline was built for the original fixed
+        # regional dataset. It must not be used as a comparison for a new
+        # task-scoped polygon until an equivalent scoped baseline is installed.
         historical_baseline = (
-            historical_baseline_service
-            .compare(
+            {"available": False, "reason": "task_region_baseline_unavailable"}
+            if task_boundaries
+            else historical_baseline_service.compare(
                 task_firms_observations,
-                analysis_start=task.get(
-                    "analysis_start"
-                ),
-                analysis_end=task.get(
-                    "analysis_end"
-                ),
+                analysis_start=task.get("analysis_start"),
+                analysis_end=task.get("analysis_end"),
             )
         )
 
@@ -877,7 +876,53 @@ def create_app(
                         )
                     )
 
-                result = auto_analysis_service.create_and_process(staged_uploads)
+                selected_region = None
+                raw_selected_id = request.form.get("selected_region_id", "").strip()
+                if raw_selected_id:
+                    try:
+                        selected_id = int(raw_selected_id)
+                    except ValueError as exc:
+                        raise ValueError("请选择有效的候选区域。") from exc
+
+                    boundary_upload = request.files.get("boundary_file")
+                    if boundary_upload is not None and boundary_upload.filename:
+                        boundary_filename = Path(boundary_upload.filename.replace("\\", "/")).name
+                        if Path(boundary_filename).suffix.lower() not in {".geojson", ".json"}:
+                            raise ValueError("自定义边界文件需为 GeoJSON。")
+                        region_definitions = load_geojson_boundaries(
+                            boundary_upload.stream.read(16 * 1024 * 1024 + 1)
+                        )
+                        boundary_source = "uploaded"
+                    else:
+                        region_definitions = database.list_regions()
+                        boundary_source = "builtin"
+
+                    # A supplied id is not trusted. Re-run the preview on
+                    # exactly the uploaded CSV and chosen boundary source.
+                    from contextlib import ExitStack
+                    with ExitStack() as stack:
+                        preview_files = [
+                            (
+                                item.original_filename,
+                                stack.enter_context(item.path.open("rb")),
+                            )
+                            for item in staged_uploads
+                        ]
+                        preview = RegionPreviewService(region_definitions).preview(preview_files)
+
+                    candidates = {
+                        int(item["id"]): item
+                        for item in preview["candidates"]
+                    }
+                    if selected_id not in candidates:
+                        raise ValueError("所选区域与上传的数据没有有效匹配，请重新预览。")
+                    selected_region = dict(region_definitions[selected_id])
+                    selected_region["source"] = boundary_source
+
+                result = auto_analysis_service.create_and_process(
+                    staged_uploads,
+                    selected_region=selected_region,
+                )
 
         except AutoAnalysisProcessingError as exc:
             return render_task_detail(
@@ -986,9 +1031,13 @@ def create_app(
             )
         }
 
+        task_boundaries = database.list_task_regions(task_id)
+        uses_custom_boundary = bool(
+            task_boundaries and task_boundaries[0].get("source") == "uploaded"
+        )
         county_by_observation_id = {}
 
-        if county_context_service.available:
+        if county_context_service.available and not uses_custom_boundary:
             for row in rows:
                 try:
                     county_name = (
@@ -1106,7 +1155,7 @@ def create_app(
                 "dates": dates,
                 "regions": regions,
                 "counties": county_names,
-                "county_available": county_context_service.available,
+                "county_available": county_context_service.available and not uses_custom_boundary,
                 "points": points,
                 "frp_p90": frp_p90,
                 "point_count": len(points),

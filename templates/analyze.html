@@ -56,7 +56,8 @@
           <section class="region-preview-upload">
             <div class="region-preview-header"><strong>分析区域预览</strong><small>经纬度识别 · 地区轮廓</small></div>
             <label class="region-preview-label" for="regionPreviewBoundary">可选：上传 GeoJSON 核对其他地区边界（WGS84）</label>
-            <input id="regionPreviewBoundary" type="file" accept=".geojson,.json">
+            <input id="regionPreviewBoundary" name="boundary_file" type="file" accept=".geojson,.json">
+            <input id="selectedRegionId" name="selected_region_id" type="hidden" value="">
             <button id="regionPreviewButton" type="button" class="app-button app-button-ghost">识别并预览地区</button>
             <div id="regionPreviewPanel" class="region-preview-panel" hidden aria-live="polite">
               <p id="regionPreviewMessage" class="region-preview-message"></p>
@@ -64,7 +65,7 @@
               <canvas id="regionPreviewCanvas" class="region-preview-canvas" width="560" height="260" aria-label="区域轮廓与抽样观测点预览"></canvas>
               <p id="regionPreviewDetail" class="region-preview-detail"></p>
             </div>
-            <p class="region-preview-warning">当前是只读预览：自定义边界不会写入正式分析任务，暂不参与正式统计和报告。</p>
+            <p class="region-preview-warning">请先识别并选择要分析的区域。确认后，正式统计、地图和报告均按该区域边界开展；未选区域的观测不参与本次统计。</p>
           </section>
           <button id="analyzeButton" class="app-button app-button-primary upload-submit" type="submit">开始自动分析</button>
           <div id="analysisProgress" class="analysis-progress" hidden><div><span></span></div><p>正在读取并分析本次 FIRMS 数据，请保持窗口开启…</p></div>

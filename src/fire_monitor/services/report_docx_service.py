@@ -367,7 +367,7 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_after = Pt(5)
-    r = p.add_run("黑龙江省火点数据检测与风险评估平台分析报告")
+    r = p.add_run("卫星火点检测与风险分析平台分析报告")
     _set_run_font(r, size=16, bold=True)
 
     p = doc.add_paragraph()
@@ -375,6 +375,10 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
     p.paragraph_format.space_after = Pt(12)
     r = p.add_run(f"{task.get('name') or '分析任务'}    {analysis_summary.get('period') or ''}")
     _set_run_font(r, size=10.5)
+
+    selected = (task.get("parameters") or {}).get("selected_region") or {}
+    if selected:
+        _paragraph(doc, [("本次分析区域：", True), (str(selected.get("name") or "—"), False)])
 
     _summary_table(doc, analysis_summary, historical_baseline, firms_intelligence)
 

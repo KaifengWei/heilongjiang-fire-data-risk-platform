@@ -4504,3 +4504,7 @@ main.home-landing {
 .region-preview-canvas { width: 100%; height: auto; display: block; border: 1px solid #d5e4ea; border-radius: 8px; }
 .region-preview-detail,.region-preview-warning { color: #71828c; font-size: 11px; line-height: 1.6; margin: 8px 0 0; }
 .region-preview-warning { color: #806b55; }
+
+.scoped-task-label { margin: 8px 10px; font-size: 12px; color: #3e6f82; line-height: 1.6; }
+.region-preview-warning { color: #416a79; }
+.region-preview-canvas { max-height: 220px; object-fit: contain; }

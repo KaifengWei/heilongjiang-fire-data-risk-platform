@@ -241,6 +241,7 @@
   const previewChoices = $('#regionPreviewChoices');
   const previewCanvas = $('#regionPreviewCanvas');
   const previewDetail = $('#regionPreviewDetail');
+  const selectedRegionInput = $('#selectedRegionId');
 
   function outlineRings(geometry) {
     if (!geometry) return [];
@@ -318,6 +319,7 @@
     if (previewBoundary?.files?.length) {
       formData.append('boundary_file', previewBoundary.files[0]);
     }
+    if (selectedRegionInput) selectedRegionInput.value = '';
     previewButton.disabled = true;
     previewButton.textContent = '识别中…';
     previewMessage.textContent = '正在检查有效坐标与区域边界…';
@@ -342,6 +344,7 @@
         button.addEventListener('click', () => {
           buttons.forEach(item => item.classList.remove('active'));
           button.classList.add('active');
+          if (selectedRegionInput) selectedRegionInput.value = String(candidate.id);
           drawOutlinePreview(payload, candidate);
           previewDetail.textContent = '当前预览：' + candidate.name +
             '。轮廓已简化；点位最多显示前 500 条有效坐标。';
@@ -372,6 +375,7 @@
   // File changes invalidate previous preview so a new upload cannot display stale results.
   const resetRegionPreview = () => {
     if (previewPanel) previewPanel.hidden = true;
+    if (selectedRegionInput) selectedRegionInput.value = '';
   };
   fileInput?.addEventListener('change', resetRegionPreview);
   previewBoundary?.addEventListener('change', resetRegionPreview);
@@ -411,7 +415,13 @@
     } catch (_) {}
   });
 
-  form?.addEventListener('submit', () => {
+  form?.addEventListener('submit', event => {
+    if (selectedRegionInput && !selectedRegionInput.value) {
+      event.preventDefault();
+      if (previewPanel) previewPanel.hidden = false;
+      if (previewMessage) previewMessage.textContent = '请先点击“识别并预览地区”，选择要分析的区域。';
+      return;
+    }
     if (submit) {
       submit.disabled = true;
       submit.textContent = '正在分析…';

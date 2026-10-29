@@ -180,6 +180,7 @@ class RiskAssessmentService:
         ]
 
         results: list[dict[str, Any]] = []
+        has_region_comparison = len(region_names) >= 2
 
         for row in rows:
             active_position = (
@@ -204,6 +205,12 @@ class RiskAssessmentService:
                 )
             )
 
+            if not has_region_comparison:
+                # A single selected polygon cannot be assigned a relative
+                # rank against itself.
+                active_position = None
+                burned_position = None
+
             available_positions = [
                 value
                 for value in (
@@ -220,9 +227,9 @@ class RiskAssessmentService:
             )
 
             level = (
-                self._attention_level(
-                    score
-                )
+                self._attention_level(score)
+                if has_region_comparison
+                else "单区域无相对等级"
             )
 
             evidence: list[str] = []
@@ -249,8 +256,11 @@ class RiskAssessmentService:
             else:
                 explanation = (
                     "；".join(evidence)
-                    + "。最终等级取当前任务内"
-                    "可用遥感指标相对位置中的较高值。"
+                    + (
+                        "。最终等级取当前任务内可用遥感指标相对位置中的较高值。"
+                        if has_region_comparison
+                        else "。本次仅选一个分析区域，不进行区域间的相对等级排名。"
+                    )
                 )
 
             results.append(
