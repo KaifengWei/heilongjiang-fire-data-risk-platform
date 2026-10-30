@@ -33,6 +33,7 @@ def _post_scoped(client, coordinates, selected_id, polygon=None):
     data = {
         "files": (BytesIO(_csv(coordinates)), "firms.csv"),
         "selected_region_id": str(selected_id),
+        "use_boundary_scope": "yes",
     }
     if polygon is not None:
         feature_collection = {
@@ -119,7 +120,7 @@ def test_unmatched_candidate_cannot_start_task(tmp_path):
     app.extensions["fire_database"].upsert_regions([_polygon("甲市", 110, 30, 111, 31)])
     response = _post_scoped(app.test_client(), [(40.0, 120.0)], 0)
     assert response.status_code == 400
-    assert "未匹配到已配置的区域边界" in response.get_data(as_text=True)
+    assert "精确落区未匹配到已配置边界" in response.get_data(as_text=True)
     assert app.extensions["fire_database"].list_analysis_tasks() == []
 
 
