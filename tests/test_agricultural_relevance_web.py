@@ -63,7 +63,8 @@ def test_upload_frozen_calendar_used_in_html_and_word(tmp_path):
         b"39.5,111.5,2026-10-13,0320,N,VIIRS,n,2.0NRT,5.1\n"
     )
     response = client.post("/analyze", data={
-        "files": (BytesIO(csv_bytes), "firms.csv")
+        "files": (BytesIO(csv_bytes), "firms.csv"),
+        "area_label": "示例市",
     }, content_type="multipart/form-data", follow_redirects=False)
     assert response.status_code == 302, response.get_data(as_text=True)[:800]
     task_id = response.headers["Location"].rstrip("/").split("/")[-1]
@@ -81,7 +82,7 @@ def test_upload_frozen_calendar_used_in_html_and_word(tmp_path):
     assert report_response.status_code == 200
     doc = Document(BytesIO(report_response.data))
     doc_text = "\n".join(p.text for p in doc.paragraphs)
-    assert "农业秸秆焚烧火点遥感检测与风险分析平台" in doc_text
+    assert "农业秸秆焚烧区域火点检测与分析平台" in doc_text
     assert "农业秸秆焚烧相关性分析" in doc_text
 
     # New local calendar must not retroactively change this task's evidence.
