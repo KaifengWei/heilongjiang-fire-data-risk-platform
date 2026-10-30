@@ -68,21 +68,21 @@
           </div>
         </div>
 
-        <div class="home-hero-visual home-universal-visual" aria-label="通用农业区域概念示意">
+        <div class="home-hero-visual home-orbit-visual" aria-label="遥感地球视觉封面">
           <div class="home-visual-topline">
             <span>AGRICULTURAL AREA · CONTEXT VIEW</span>
             <b>DATA-DRIVEN ANALYSIS</b>
           </div>
-          <div class="home-field-art" aria-hidden="true">
-            <div class="home-field-block crop-a"></div>
-            <div class="home-field-block crop-b"></div>
-            <div class="home-field-block crop-c"></div>
-            <div class="home-field-block crop-d"></div>
-            <div class="home-field-line"></div>
+          <div class="home-orbit-image-frame">
+            <img class="home-orbit-image"
+                 src="{{ url_for('static', filename='images/home_earth_orbit.webp') }}"
+                 alt="从太空俯瞰地球的视觉封面"
+                 loading="eager"
+                 decoding="async">
           </div>
           <div class="home-visual-caption">
-            <span>农业区域概念示意</span>
-            <small>实际火点位置、数量及时间趋势均由上传 CSV 计算，不以本图表示真实地理位置。</small>
+            <span>地球遥感视觉封面</span>
+            <small>仅用于首页视觉展示，实际火点及分析结果均以用户上传的数据为准。</small>
           </div>
         </div>
       </section>

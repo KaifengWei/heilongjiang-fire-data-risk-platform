@@ -4563,12 +4563,58 @@ main.home-landing {
 .declared-area-illustration span { position: absolute; bottom: 0; left: 0; right: 0; padding: 9px; background: #f9fcf9ee; color: #537768; font-size: 11px; text-align: center; }
 @media(max-width:760px) { .declared-task-summary { grid-template-columns:1fr; } }
 
-/* Universal agrarian visual replaces the old fixed-region outline on home. */
-.home-universal-visual { display: flex; flex-direction: column; }
-.home-field-art { position: relative; min-height: 220px; flex: 1; overflow: hidden; background: linear-gradient(150deg,#eff8f3,#e2f0ed 75%,#edf4e4); border-radius: 16px; margin: 12px 0; }
-.home-field-block { position: absolute; border: 2px solid #93bca7; border-radius: 14px; transform: skewY(-15deg) rotate(-7deg); box-shadow: inset 0 0 0 9px rgba(255,255,255,.18); }
-.home-field-block.crop-a { width: 35%; height: 55%; background: #b5d7b3; top: -12%; left: 6%; }
-.home-field-block.crop-b { width: 37%; height: 60%; background: #d2dfb1; top: 8%; left: 54%; }
-.home-field-block.crop-c { width: 38%; height: 55%; background: #b8d7cb; top: 60%; left: 4%; }
-.home-field-block.crop-d { width: 35%; height: 52%; background: #dfe6b8; top: 71%; left: 55%; }
-.home-field-line { position: absolute; left: 46%; top: -10%; height: 125%; width: 6%; background: #fffef8; transform: rotate(19deg); opacity: .86; }
+/* Earth-orbit cover: only the existing homepage visual card is restyled.
+   Keep the light desktop layout, feature cards, links and analysis pages. */
+.home-orbit-visual {
+  background: #071d34;
+  border-color: rgba(52, 145, 196, .35);
+  box-shadow: 0 16px 38px rgba(13, 65, 106, .16);
+}
+.home-orbit-visual .home-visual-topline {
+  flex: 0 0 42px;
+  color: #bad7e8;
+  border-bottom-color: rgba(107, 196, 237, .17);
+  background: linear-gradient(100deg, #071d34, #123b5f);
+}
+.home-orbit-visual .home-visual-topline b {
+  color: #75d4fb;
+}
+.home-orbit-image-frame {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  background: #071d34;
+}
+.home-orbit-image-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 24px rgba(5, 24, 43, .24);
+}
+.home-orbit-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 51%;
+}
+.home-orbit-visual .home-visual-caption {
+  flex: 0 0 44px;
+  color: #d7eaf5;
+  background: #102d47;
+  border-top-color: rgba(107, 196, 237, .18);
+}
+.home-orbit-visual .home-visual-caption small {
+  color: #b6d1e0;
+}
+@media (max-width: 760px) {
+  .home-orbit-image { object-position: center 47%; }
+  .home-orbit-visual .home-visual-caption {
+    padding: 6px 12px;
+    min-height: 44px;
+    height: auto;
+    flex-basis: auto;
+  }
+}
