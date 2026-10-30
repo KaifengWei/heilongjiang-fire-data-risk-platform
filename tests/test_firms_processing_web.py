@@ -340,7 +340,7 @@ def test_web_does_not_process_firms_without_regions(
         as_text=True
     )
 
-    assert "尚未导入行政区边界" in page
+    assert "精确落区分析需要已配置的区域边界" in page
 
     database = app.extensions[
         "fire_database"
