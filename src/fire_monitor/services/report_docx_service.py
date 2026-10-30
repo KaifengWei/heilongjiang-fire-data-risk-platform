@@ -105,7 +105,7 @@ def _summary_table(doc: Document, analysis_summary: dict[str, Any], historical_b
     rows = [
         ("历史同期判断", history_status),
         ("有效火点观测", _fmt_int(analysis_summary.get("active_fire_count"))),
-        ("火点最集中区域", str(analysis_summary.get("main_region") or "—")),
+        ("用户声明区域" if analysis_summary.get("area_mode") == "coordinates_only" else "火点最集中区域", str(analysis_summary.get("main_region") or "—")),
         ("峰值日期", f"{summary.get('peak_date') or '—'}（{_fmt_int(summary.get('peak_count'))} 条）" if summary.get("peak_date") else "—"),
         ("活跃日期", f"{_fmt_int(summary.get('active_days'))} / {_fmt_int(summary.get('span_days'))}"),
         ("重点核查地区", priority_names),
@@ -188,7 +188,7 @@ def _overall_paragraph(analysis_summary: dict[str, Any], firms_intelligence: dic
         ("本次分析覆盖 ", False), (str(analysis_summary.get("period") or "—"), True),
         ("，共识别 ", False), (_fmt_int(total), True),
         (" 条有效主动火点观测，涉及 ", False), (_fmt_int(analysis_summary.get("affected_regions")), True),
-        (" 个市（地）。", False),
+        (" 个分析范围。" if analysis_summary.get("area_mode") == "coordinates_only" else " 个市（地）。", False),
     ]
     if top:
         top3_total = sum(int(row.get("observation_count") or 0) for row in top)

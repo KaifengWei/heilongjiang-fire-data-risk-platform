@@ -93,4 +93,4 @@ def test_index_page_loads_with_no_data(tmp_path):
     client = create_app(tmp_path / "empty.sqlite", testing=True).test_client()
     response = client.get("/")
     assert response.status_code == 200
-    assert "农业秸秆焚烧火点遥感检测与风险分析平台" in response.get_data(as_text=True)
+    assert "农业秸秆焚烧区域火点检测与分析平台" in response.get_data(as_text=True)

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>农业秸秆焚烧火点遥感检测与风险分析平台</title>
+  <title>农业秸秆焚烧区域火点检测与分析平台</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='product.css') }}">
 </head>
@@ -21,7 +21,7 @@
             <span class="home-signal-dot"></span>
             REMOTE SENSING · ACTIVE FIRE ANALYSIS
           </div>
-<h1>农业秸秆焚烧火点遥感检测与风险分析平台</h1>
+<h1>农业秸秆焚烧区域火点检测与分析平台</h1>
 </div>
 
 <div class="home-hero-copy">
@@ -33,21 +33,21 @@
       <span class="home-intro-step-number" aria-hidden="true">01</span>
       <div class="home-intro-step-content">
         <h3>数据整理</h3>
-        <p>导入 FIRMS CSV，完成质量筛选与行政区落区。</p>
+        <p>上传 FIRMS CSV，完成质量筛选并识别观测数据范围。</p>
       </div>
     </article>
     <article class="home-intro-step">
       <span class="home-intro-step-number" aria-hidden="true">02</span>
       <div class="home-intro-step-content">
         <h3>变化识别</h3>
-        <p>比较历史同期，定位火点高值日期与持续活跃区域。</p>
+        <p>分析火点数量、变化趋势及农业秸秆焚烧相关性线索。</p>
       </div>
     </article>
     <article class="home-intro-step">
       <span class="home-intro-step-number" aria-hidden="true">03</span>
       <div class="home-intro-step-content">
         <h3>辅助核查</h3>
-        <p>结合地表背景与天气上下文，形成重点查看线索。</p>
+        <p>结合任务实际可用的地表、历史和天气资料形成可解释的建议。</p>
       </div>
     </article>
   </div>
@@ -63,20 +63,26 @@
 
           <div class="home-source-strip">
             <span>NASA FIRMS</span><i></i>
-            <span>按已配置区域识别</span><i></i>
+            <span>用户自定区域</span><i></i>
             <span>历史同期 / 地表 / 天气上下文</span>
           </div>
         </div>
 
-        <div class="home-hero-visual" aria-label="区域火点分析视觉示意">
+        <div class="home-hero-visual home-universal-visual" aria-label="通用农业区域概念示意">
           <div class="home-visual-topline">
-            <span>CONFIGURED AREA · REMOTE SENSING VIEW</span>
-            <b>LOCAL ANALYSIS</b>
+            <span>AGRICULTURAL AREA · CONTEXT VIEW</span>
+            <b>DATA-DRIVEN ANALYSIS</b>
           </div>
-          <canvas id="homeMapCanvas"></canvas>
+          <div class="home-field-art" aria-hidden="true">
+            <div class="home-field-block crop-a"></div>
+            <div class="home-field-block crop-b"></div>
+            <div class="home-field-block crop-c"></div>
+            <div class="home-field-block crop-d"></div>
+            <div class="home-field-line"></div>
+          </div>
           <div class="home-visual-caption">
-            <span>已配置区域轮廓示意</span>
-            <small>动态图仅用于产品视觉展示，不代表实时火点。</small>
+            <span>农业区域概念示意</span>
+            <small>实际火点位置、数量及时间趋势均由上传 CSV 计算，不以本图表示真实地理位置。</small>
           </div>
         </div>
       </section>
@@ -100,10 +106,6 @@
 </div>
 
 {% include '_help_modal.html' %}
-<script id="homeRegionFeatures" type="application/json">
-{{ home_region_feature_collection|tojson }}
-</script>
 <script src="{{ url_for('static', filename='product.js') }}"></script>
-<script src="{{ url_for('static', filename='home.js') }}"></script>
 </body>
 </html>
