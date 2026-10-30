@@ -190,6 +190,9 @@ def _overall_paragraph(analysis_summary: dict[str, Any], firms_intelligence: dic
         (" 条有效主动火点观测，涉及 ", False), (_fmt_int(analysis_summary.get("affected_regions")), True),
         (" 个分析范围。" if analysis_summary.get("area_mode") == "coordinates_only" else " 个市（地）。", False),
     ]
+    if analysis_summary.get("area_mode") == "coordinates_only":
+        pieces.append(("本次仅按用户声明范围汇总，不进行市县级空间排名。", False))
+        return pieces
     if top:
         top3_total = sum(int(row.get("observation_count") or 0) for row in top)
         parts = []
@@ -335,6 +338,14 @@ def _weather_paragraphs(weather_context: dict[str, Any] | None) -> list[list[tup
 
 def _final_paragraph(analysis_summary: dict[str, Any], firms_intelligence: dict[str, Any], historical_baseline: dict[str, Any]) -> list[tuple[str, bool]]:
     summary = firms_intelligence.get("summary") or {}
+    if analysis_summary.get("area_mode") == "coordinates_only":
+        return [
+            ("本次分析以用户声明区域内的有效观测为依据。", False),
+            ("火点高值日期为 ", False),
+            (str(summary.get("peak_date") or "暂无"), True),
+            ("。可重点查看火点活动集中日期、重复活跃位置与耕地背景；"
+             "当前缺少可核验的区域边界、历史或天气数据时，不进行相应比较。", False),
+        ]
     priority = historical_baseline.get("priority_regions", []) if historical_baseline else []
     names = "、".join(str(row.get("region_name")) for row in priority[:3] if row.get("region_name"))
     pieces: list[tuple[str, bool]] = [
@@ -395,18 +406,29 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
                 (", ".join(str(v) for v in task_parameters["requested_bbox"]), False),
             ])
 
+    if task_parameters.get("area_mode") == "coordinates_only" and analysis_summary.get("observed_bbox"):
+        _paragraph(doc, [
+            ("CSV有效观测点经纬度范围：", True),
+            (", ".join(str(v) for v in analysis_summary["observed_bbox"]), False),
+        ])
+
     _summary_table(doc, analysis_summary, historical_baseline, firms_intelligence)
 
     _heading(doc, "总体情况")
     _paragraph(doc, _overall_paragraph(analysis_summary, firms_intelligence))
     top_region_rows = [(str(row.get("region_name") or "—"), int(row.get("observation_count") or 0)) for row in _top_regions(firms_intelligence.get("regions") or [], 5)]
-    _visual_bar_table(doc, top_region_rows, "图1 重点地区火点观测数量对比")
+    if analysis_summary.get("area_mode") != "coordinates_only":
+        _visual_bar_table(doc, top_region_rows, "图1 重点地区火点观测数量对比")
 
     _heading(doc, "时间变化")
     _paragraph(doc, _time_paragraph(firms_intelligence))
     top_dates = sorted(daily_series, key=lambda row: int(row.get("active_fire_observation_count") or 0), reverse=True)[:5]
     top_date_rows = [(str(row.get("date") or "—"), int(row.get("active_fire_observation_count") or 0)) for row in top_dates]
-    _visual_bar_table(doc, top_date_rows, "图2 火点高值日期对比")
+    _visual_bar_table(
+        doc, top_date_rows,
+        "图1 火点高值日期对比" if analysis_summary.get("area_mode") == "coordinates_only"
+        else "图2 火点高值日期对比",
+    )
 
     _heading(doc, "当前评估与重点核查")
     _paragraph(doc, _assessment_paragraph(historical_baseline, firms_intelligence, priority_land_cover))
