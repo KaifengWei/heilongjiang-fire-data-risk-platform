@@ -350,7 +350,7 @@ def _final_paragraph(analysis_summary: dict[str, Any], firms_intelligence: dict[
     return pieces
 
 
-def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[str, Any], firms_intelligence: dict[str, Any], historical_baseline: dict[str, Any], land_cover_context: dict[str, Any], priority_land_cover: dict[str, Any] | None, weather_context: dict[str, Any] | None, daily_series: list[dict[str, Any]]) -> bytes:
+def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[str, Any], firms_intelligence: dict[str, Any], historical_baseline: dict[str, Any], land_cover_context: dict[str, Any], priority_land_cover: dict[str, Any] | None, weather_context: dict[str, Any] | None, daily_series: list[dict[str, Any]], agricultural_relevance: dict[str, Any] | None = None) -> bytes:
     doc = Document()
     section = doc.sections[0]
     section.top_margin = Cm(1.8)
@@ -367,7 +367,7 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_after = Pt(5)
-    r = p.add_run("卫星火点检测与风险分析平台分析报告")
+    r = p.add_run("农业秸秆焚烧火点遥感检测与风险分析平台分析报告")
     _set_run_font(r, size=16, bold=True)
 
     p = doc.add_paragraph()
@@ -407,6 +407,38 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
     if land:
         _heading(doc, "地表背景")
         _paragraph(doc, land)
+
+    if agricultural_relevance:
+        _heading(doc, "农业秸秆焚烧相关性分析")
+        relevant_counts = agricultural_relevance.get("counts") or {}
+        _paragraph(doc, [
+            ("较高相关 ", True), (_fmt_int(relevant_counts.get("较高相关")), False),
+            (" 条；可能相关 ", True), (_fmt_int(relevant_counts.get("可能相关")), False),
+            (" 条；较低相关 ", True), (_fmt_int(relevant_counts.get("较低相关")), False),
+            (" 条；证据不足 ", True), (_fmt_int(relevant_counts.get("证据不足")), False),
+            (" 条。", False),
+        ])
+        _paragraph(doc, [
+            ("土地覆盖：", True),
+            (str(agricultural_relevance.get("land_cover_product") or "MCD12Q1"), False),
+            (" ", False),
+            (str(agricultural_relevance.get("land_cover_year") or ""), False),
+            ("；有效匹配 ", False),
+            (_fmt_int(agricultural_relevance.get("land_cover_matched")), True),
+            (" 条。农事时段配置 ", False),
+            (_fmt_int(agricultural_relevance.get("calendar_rules_count")), True),
+            (" 条规则。", False),
+        ])
+        region_rows = agricultural_relevance.get("regions") or {}
+        for region_name, item in list(region_rows.items())[:20]:
+            counts = item.get("counts") or {}
+            _paragraph(doc, [
+                (str(region_name) + "：", True),
+                ("较高相关 " + _fmt_int(counts.get("较高相关")) +
+                 "，可能相关 " + _fmt_int(counts.get("可能相关")) +
+                 "，证据不足 " + _fmt_int(counts.get("证据不足")) + "。", False),
+            ], after=3)
+        _paragraph(doc, [(str(agricultural_relevance.get("disclaimer") or ""), False)], size=9.5)
 
     weather_blocks = _weather_paragraphs(weather_context)
     if weather_blocks:

@@ -76,6 +76,13 @@
             </div>
             <p class="region-preview-warning">自动分析将包含 CSV 中所有已匹配地区；点击下方地区标签仅用于预览轮廓，不会排除其他地区。未匹配记录会提示，但不纳入区域统计。</p>
           </section>
+          <details class="agricultural-calendar-advanced">
+            <summary>农事时段规则（可选，安装后自动用于新任务）</summary>
+            <p>需要提供有明确来源的地区、作物和关联月份。未配置时仍可分析耕地线索，但不会推定当地收获期。</p>
+            <input id="agriculturalCalendarFile" type="file" accept=".json,application/json">
+            <button id="agriculturalCalendarSaveButton" type="button" class="app-button app-button-ghost">安装农事规则</button>
+            <p id="agriculturalCalendarFeedback" class="region-preview-detail" aria-live="polite"></p>
+          </details>
           <button id="analyzeButton" class="app-button app-button-primary upload-submit" type="submit">分析全部匹配地区</button>
           <div id="analysisProgress" class="analysis-progress" hidden><div><span></span></div><p>正在读取并分析本次 FIRMS 数据，请保持窗口开启…</p></div>
         </form>

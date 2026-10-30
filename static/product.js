@@ -399,6 +399,32 @@
   previewBoundary?.addEventListener('change', resetRegionPreview);
   previewButton?.addEventListener('click', loadRegionPreview);
 
+  const cropCalendarFile = $('#agriculturalCalendarFile');
+  const cropCalendarButton = $('#agriculturalCalendarSaveButton');
+  const cropCalendarFeedback = $('#agriculturalCalendarFeedback');
+  cropCalendarButton?.addEventListener('click', async () => {
+    const file = cropCalendarFile?.files?.[0];
+    if (!file) {
+      cropCalendarFeedback.textContent = '请先选择农事规则JSON文件。';
+      return;
+    }
+    const data = new FormData();
+    data.append('calendar_file', file);
+    cropCalendarButton.disabled = true;
+    cropCalendarFeedback.textContent = '正在校验并安装…';
+    try {
+      const response = await fetch('/api/agriculture/calendar', { method: 'POST', body: data });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || '安装失败');
+      cropCalendarFeedback.textContent = result.message +
+        ' 共 ' + result.installed_count + ' 条。';
+    } catch (err) {
+      cropCalendarFeedback.textContent = err.message || '安装失败';
+    } finally {
+      cropCalendarButton.disabled = false;
+    }
+  });
+
   catalogSaveButton?.addEventListener('click', async () => {
     const boundary = previewBoundary?.files?.[0];
     if (!boundary) {

@@ -145,6 +145,7 @@ class AutoAnalysisService:
         uploads: list[StagedUpload],
         *,
         selected_regions: list[dict[str, Any]] | None = None,
+        agricultural_calendar_rules: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         inspection = self.inspect(uploads)
 
@@ -157,6 +158,9 @@ class AutoAnalysisService:
                 "analysis_scope": "firms_only",
                 "auto_analysis": True,
                 "detected_roles": ["firms_csv"],
+                # Snapshot prevents later changes to local calendar from
+                # silently rewriting the historical interpretation of a task.
+                "agricultural_calendar_rules": agricultural_calendar_rules or [],
                 **(
                     {"selected_regions": [
                         {

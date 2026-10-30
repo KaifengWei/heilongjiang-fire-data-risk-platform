@@ -61,6 +61,11 @@ from fire_monitor.services.historical_weather_context_service import (
 from fire_monitor.services.risk_assessment_service import (
     RiskAssessmentService,
 )
+from fire_monitor.services.agricultural_relevance_service import (
+    AgriculturalRelevanceService,
+)
+from fire_monitor.services.crop_calendar_store import CropCalendarStore, MAX_BYTES as CALENDAR_MAX_BYTES
+
 from fire_monitor.services.auto_analysis_service import (
     AutoAnalysisProcessingError,
     AutoAnalysisService,
@@ -257,6 +262,10 @@ def create_app(
             land_cover_raster_path
         )
     )
+    agricultural_relevance_service = AgriculturalRelevanceService(land_cover_context_service)
+    crop_calendar_store = CropCalendarStore(
+        settings.runtime_dir / "config" / "crop_calendar_rules.json"
+    )
 
     county_geojson_path = (
         Path(county_boundary_path)
@@ -359,6 +368,8 @@ def create_app(
     app.extensions[
         "land_cover_context_service"
     ] = land_cover_context_service
+    app.extensions["agricultural_relevance_service"] = agricultural_relevance_service
+    app.extensions["crop_calendar_store"] = crop_calendar_store
 
     app.extensions[
         "county_context_service"
@@ -738,6 +749,10 @@ def create_app(
                 task_firms_observations
             )
         )
+        agricultural_relevance = agricultural_relevance_service.analyze(
+            task_firms_observations,
+            calendar_rules=(task.get("parameters") or {}).get("agricultural_calendar_rules") or [],
+        )
 
         priority_land_cover = (
             land_cover_context_service
@@ -803,6 +818,7 @@ def create_app(
                 land_cover_context=(
                     land_cover_context
                 ),
+                agricultural_relevance=agricultural_relevance,
                 priority_land_cover=(
                     priority_land_cover
                 ),
@@ -902,6 +918,33 @@ def create_app(
             "message": "边界已保存到本地，后续上传 FIRMS CSV 时将自动参与地区识别。",
         })
 
+    @app.get("/api/agriculture/calendar")
+    def get_agricultural_calendar():
+        rules = crop_calendar_store.load_rules()
+        return jsonify({
+            "installed_count": len(rules),
+            "regions": sorted({r["region_name"] for r in rules}),
+            "note": "只有在地区名称一致时才使用当地农事规则；未配置地区不推定收获期。",
+        })
+
+    @app.post("/api/agriculture/calendar")
+    def install_agricultural_calendar():
+        upload = request.files.get("calendar_file")
+        if upload is None or not upload.filename:
+            return jsonify({"error": "请选择带来源的农事时段JSON文件。"}), 400
+        if Path(upload.filename.replace("\\", "/")).suffix.lower() != ".json":
+            return jsonify({"error": "仅支持JSON农事时段文件。"}), 400
+        try:
+            installed = crop_calendar_store.import_json(
+                upload.stream.read(CALENDAR_MAX_BYTES + 1)
+            )
+        except (OSError, ValueError) as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify({
+            "installed_count": installed,
+            "message": "农事规则已安装；仅影响后续新建的任务，历史任务保留原有规则快照。",
+        })
+
     @app.post("/api/region-preview")
     def preview_analysis_region():
         """只预览可用行政区覆盖，不修改正式分析区域。"""
@@ -987,6 +1030,7 @@ def create_app(
                 result = auto_analysis_service.create_and_process(
                     staged_uploads,
                     selected_regions=selected_regions,
+                    agricultural_calendar_rules=crop_calendar_store.load_rules(),
                 )
 
         except AutoAnalysisProcessingError as exc:
@@ -1824,24 +1868,34 @@ def create_app(
             .as_dict()
         )
 
-        historical_baseline = (
-            historical_baseline_service
-            .compare(
+        export_boundaries = database.list_task_regions(task_id)
+        if export_boundaries and any(
+            row.get("source") != "builtin" for row in export_boundaries
+        ):
+            historical_baseline = {
+                "available": False,
+                "reason": "custom_region_baseline_not_installed",
+            }
+        else:
+            historical_baseline = historical_baseline_service.compare(
                 observations,
-                analysis_start=task.get(
-                    "analysis_start"
-                ),
-                analysis_end=task.get(
-                    "analysis_end"
+                analysis_start=task.get("analysis_start"),
+                analysis_end=task.get("analysis_end"),
+                selected_regions=(
+                    [row["name"] for row in export_boundaries]
+                    if export_boundaries else None
                 ),
             )
-        )
 
         land_cover_context = (
             land_cover_context_service
             .analyze(
                 observations
             )
+        )
+        agricultural_relevance = agricultural_relevance_service.analyze(
+            observations,
+            calendar_rules=(task.get("parameters") or {}).get("agricultural_calendar_rules") or [],
         )
 
         priority_land_cover = (
@@ -1905,6 +1959,7 @@ def create_app(
                 land_cover_context=(
                     land_cover_context
                 ),
+                agricultural_relevance=agricultural_relevance,
                 priority_land_cover=(
                     priority_land_cover
                 ),
@@ -1921,7 +1976,7 @@ def create_app(
         )
 
         filename = (
-            "heilongjiang_fire_analysis_"
+            "agricultural_straw_fire_analysis_"
             + task_id
             + ".docx"
         )

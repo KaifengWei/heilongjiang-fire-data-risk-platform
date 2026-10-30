@@ -85,6 +85,39 @@
           </article>
         </div>
       </section>
+      {% if agricultural_relevance and agricultural_relevance.available %}
+      <section class="agriculture-relevance-panel reveal-item">
+        <div class="agriculture-relevance-heading">
+          <div>
+            <span class="app-eyebrow">AGRICULTURAL RELEVANCE</span>
+            <h2>农业秸秆焚烧相关性识别</h2>
+          </div>
+          <small>与火点活动风险等级分开判断</small>
+        </div>
+        <div class="agriculture-relevance-grid">
+          {% for label in ['较高相关', '可能相关', '较低相关', '证据不足'] %}
+          <article>
+            <span>{{ label }}</span>
+            <strong>{{ agricultural_relevance.counts[label] }}</strong>
+            <small>条火点观测</small>
+          </article>
+          {% endfor %}
+        </div>
+        <p>耕地背景匹配使用 MCD12Q1 {{ agricultural_relevance.land_cover_year }} 年土地覆盖，共有 {{ agricultural_relevance.land_cover_matched }} / {{ agricultural_relevance.total_observations }} 条观测取得地表类别。已配置 {{ agricultural_relevance.calendar_rules_count }} 条地区农事时段规则。</p>
+        {% if agricultural_relevance.regions %}
+        <div class="agriculture-relevance-regions">
+          {% for region_name, detail in agricultural_relevance.regions.items() %}
+          <article>
+            <strong>{{ region_name }}</strong>
+            <span>较高相关 {{ detail.counts['较高相关'] }} · 可能相关 {{ detail.counts['可能相关'] }} · 较低相关 {{ detail.counts['较低相关'] }} · 证据不足 {{ detail.counts['证据不足'] }}</span>
+          </article>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <p class="agriculture-relevance-note">{{ agricultural_relevance.disclaimer }}</p>
+      </section>
+      {% endif %}
+
       {% if historical_baseline and historical_baseline.available %}
       <section class="history-decision reveal-item">
         <article

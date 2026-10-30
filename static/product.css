@@ -4520,3 +4520,23 @@ main.home-landing {
 #regionCatalogSource { width: 100%; border: 1px solid #c9dde6; background: white; border-radius: 7px; padding: 9px 10px; font-size: 12px; }
 .region-preview-authorization { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0; font-size: 12px; color: #55727f; line-height: 1.5; }
 .region-preview-authorization input { margin-top: 3px; }
+
+/* Agricultural relevance is distinct from relative hotspot attention. */
+.agriculture-relevance-panel { margin: 18px 0; padding: 22px; border: 1px solid #d9e7ed; border-radius: 16px; background: #f7fbfd; }
+.agriculture-relevance-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.agriculture-relevance-heading h2 { margin: 5px 0 14px; font-size: 20px; }
+.agriculture-relevance-heading small { font-size: 12px; color: #617b89; }
+.agriculture-relevance-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 14px; }
+.agriculture-relevance-grid article { background: #fff; border: 1px solid #e2ebef; border-radius: 11px; padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+.agriculture-relevance-grid article span { font-size: 12px; color: #607d8b; }
+.agriculture-relevance-grid article strong { font-size: 23px; color: #163e5a; }
+.agriculture-relevance-grid article small { font-size: 11px; color: #7b929d; }
+.agriculture-relevance-regions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 13px; }
+.agriculture-relevance-regions article { padding: 8px 11px; border: 1px solid #dbe9ed; background: white; border-radius: 8px; font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
+.agriculture-relevance-note { font-size: 12px; color: #667e8c; line-height: 1.65; }
+.agricultural-calendar-advanced { margin: 14px 0; padding: 13px; border: 1px solid #dbe8ee; border-radius: 12px; background: #f8fafc; font-size: 12px; }
+.agricultural-calendar-advanced summary { cursor: pointer; color: #3d7183; }
+.agricultural-calendar-advanced p { line-height: 1.7; }
+#agriculturalCalendarFile { display: block; margin: 10px 0; max-width: 100%; }
+#agriculturalCalendarSaveButton { width: 100%; }
+@media(max-width: 620px) { .agriculture-relevance-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
