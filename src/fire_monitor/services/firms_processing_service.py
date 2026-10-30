@@ -12,6 +12,7 @@ from fire_monitor.core.firms import (
 from fire_monitor.core.geography import (
     RegionIndex,
 )
+from fire_monitor.services.analysis_area_service import within_bbox
 from fire_monitor.services.import_service import (
     read_csv_with_fallback,
 )
@@ -195,19 +196,19 @@ class FirmsProcessingService:
         # Task boundaries override the legacy global region configuration.
         # Each run records its own observation-region association, avoiding
         # cross-task contamination when the same FIRMS record is reused.
-        regions = self.database.list_task_regions(task_id)
-        if not regions:
-            regions = self.database.list_regions()
-
-        if not regions:
-            raise RuntimeError(
-                "尚未导入行政区边界，"
-                "无法执行 FIRMS 正式空间落区。"
-            )
-
-        region_index = (
-            RegionIndex(regions)
-        )
+        params = task.get("parameters") or {}
+        coordinates_only = params.get("area_mode") == "coordinates_only"
+        requested_bbox = params.get("requested_bbox")
+        area_label = params.get("declared_area_label") or "本次上传数据范围"
+        if coordinates_only:
+            region_index = None
+        else:
+            regions = self.database.list_task_regions(task_id)
+            if not regions:
+                regions = self.database.list_regions()
+            if not regions:
+                raise RuntimeError("精确落区分析需要已配置的区域边界。")
+            region_index = RegionIndex(regions)
 
         firms_source = (
             self._firms_source(record)
@@ -278,20 +279,21 @@ class FirmsProcessingService:
                     outside_date_range += 1
                     continue
 
-                region_name = (
-                    region_index.locate(
-                        row["longitude"],
-                        row["latitude"],
+                if coordinates_only:
+                    if requested_bbox and not within_bbox(
+                        float(row["longitude"]), float(row["latitude"]), requested_bbox
+                    ):
+                        outside_regions += 1
+                        continue
+                    region_name = area_label
+                else:
+                    region_name = region_index.locate(
+                        row["longitude"], row["latitude"]
                     )
-                )
-
-                if not region_name:
-                    outside_regions += 1
-                    continue
-
-                row["region_name"] = (
-                    region_name
-                )
+                    if not region_name:
+                        outside_regions += 1
+                        continue
+                row["region_name"] = region_name
 
                 spatial_rows.append(
                     row

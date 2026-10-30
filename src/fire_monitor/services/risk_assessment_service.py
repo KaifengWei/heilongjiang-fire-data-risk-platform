@@ -116,7 +116,11 @@ class RiskAssessmentService:
 
         task_region_reader = getattr(self.database, "list_task_regions", None)
         task_regions = task_region_reader(task_id) if callable(task_region_reader) else []
-        available_regions = task_regions if task_regions else self.database.list_regions()
+        declared_area = (task.get("parameters") or {}).get("area_mode") == "coordinates_only"
+        available_regions = (
+            [] if declared_area else
+            (task_regions if task_regions else self.database.list_regions())
+        )
         region_names = sorted(
             {
                 row["name"]
@@ -181,7 +185,9 @@ class RiskAssessmentService:
         ]
 
         results: list[dict[str, Any]] = []
-        has_region_comparison = not task_regions or len(region_names) >= 2
+        has_region_comparison = (
+            not declared_area and (not task_regions or len(region_names) >= 2)
+        )
 
         for row in rows:
             active_position = (
@@ -230,7 +236,7 @@ class RiskAssessmentService:
             level = (
                 self._attention_level(score)
                 if has_region_comparison
-                else "单区域无相对等级"
+                else "无区域间相对等级"
             )
 
             evidence: list[str] = []

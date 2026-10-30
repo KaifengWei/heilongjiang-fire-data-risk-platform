@@ -146,6 +146,8 @@ class AutoAnalysisService:
         *,
         selected_regions: list[dict[str, Any]] | None = None,
         agricultural_calendar_rules: list[dict[str, Any]] | None = None,
+        declared_area_label: str | None = None,
+        requested_bbox: list[float] | None = None,
     ) -> dict[str, Any]:
         inspection = self.inspect(uploads)
 
@@ -161,6 +163,15 @@ class AutoAnalysisService:
                 # Snapshot prevents later changes to local calendar from
                 # silently rewriting the historical interpretation of a task.
                 "agricultural_calendar_rules": agricultural_calendar_rules or [],
+                **(
+                    {
+                        "area_mode": "coordinates_only",
+                        "declared_area_label": declared_area_label,
+                        "declared_area_is_verified": False,
+                        "requested_bbox": requested_bbox,
+                    }
+                    if declared_area_label is not None else {}
+                ),
                 **(
                     {"selected_regions": [
                         {
