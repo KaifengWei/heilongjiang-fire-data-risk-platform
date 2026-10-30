@@ -367,7 +367,7 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_after = Pt(5)
-    r = p.add_run("农业秸秆焚烧火点遥感检测与风险分析平台分析报告")
+    r = p.add_run("农业秸秆焚烧区域火点检测与分析平台分析报告")
     _set_run_font(r, size=16, bold=True)
 
     p = doc.add_paragraph()
@@ -386,6 +386,14 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
     elif task_parameters.get("selected_region"):
         selected = task_parameters["selected_region"]
         _paragraph(doc, [("本次分析区域：", True), (str(selected.get("name") or "—"), False)])
+
+    if task_parameters.get("area_mode") == "coordinates_only":
+        _paragraph(doc, [("区域口径：", True), ("用户声明的区域名称，未经行政边界核验。", False)])
+        if task_parameters.get("requested_bbox"):
+            _paragraph(doc, [
+                ("用户指定分析矩形：", True),
+                (", ".join(str(v) for v in task_parameters["requested_bbox"]), False),
+            ])
 
     _summary_table(doc, analysis_summary, historical_baseline, firms_intelligence)
 

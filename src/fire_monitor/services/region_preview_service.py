@@ -121,6 +121,8 @@ class RegionPreviewService:
         raw_rows = valid_rows = invalid_rows = matched_rows = 0
         filenames = []
         sampled_points: list[list[float]] = []
+        min_lon = min_lat = float("inf")
+        max_lon = max_lat = float("-inf")
         for filename, stream in uploads:
             if not filename.lower().endswith(".csv"):
                 raise ValueError("只接收 FIRMS CSV 数据文件。")
@@ -147,6 +149,8 @@ class RegionPreviewService:
                     invalid_rows += 1
                     continue
                 valid_rows += 1
+                min_lon, max_lon = min(min_lon, lon), max(max_lon, lon)
+                min_lat, max_lat = min(min_lat, lat), max(max_lat, lat)
                 if len(sampled_points) < 500:
                     sampled_points.append([round(lon, 5), round(lat, 5)])
                 indexes = [] if self._tree is None else self._tree.query(
@@ -184,6 +188,10 @@ class RegionPreviewService:
             "unmatched_rows": valid_rows - matched_rows,
             "boundary_scope": "available_boundaries_only",
             "sampled_points": sampled_points,
+            "observed_bbox": (
+                [round(min_lon, 5), round(min_lat, 5),
+                 round(max_lon, 5), round(max_lat, 5)] if valid_rows else None
+            ),
             "preview_shapes": {"type": "FeatureCollection", "features": outline_features},
             "candidates": candidates,
             "message": (

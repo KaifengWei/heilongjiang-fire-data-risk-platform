@@ -51,6 +51,27 @@
       {% endif %}
 
       {% set peak = task_daily_series|max(attribute='active_fire_observation_count') if task_daily_series and analysis_summary.active_fire_count > 0 else none %}
+      {% set coordinate_mode = task.parameters.area_mode == 'coordinates_only' %}
+      {% if coordinate_mode %}
+      <section class="declared-task-summary reveal-item">
+        <div>
+          <span class="app-eyebrow">OBSERVATION-BASED ANALYSIS</span>
+          <h2>{{ task.parameters.declared_area_label }}</h2>
+          <p>本次区域名称由用户声明，未核验行政边界；统计依据为上传 CSV 中的有效观测。</p>
+        </div>
+        <div class="declared-area-illustration" role="img" aria-label="通用农业区域示意，并非真实地图">
+          <div class="concept-field field-one"></div><div class="concept-field field-two"></div>
+          <div class="concept-field field-three"></div>
+          <span>通用农业区域概念示意 · 非真实地图</span>
+        </div>
+        <div class="declared-task-metadata">
+          {% if task.parameters.requested_bbox %}
+          <span>用户指定经纬度矩形：{{ task.parameters.requested_bbox|join(', ') }}</span>
+          {% endif %}
+          <span>CSV 观测位置范围：{{ observed_bbox|join(', ') if observed_bbox else '暂无有效坐标' }}</span>
+        </div>
+      </section>
+      {% endif %}
 
       <section class="situation-strip reveal-item">
         <div class="situation-copy">
@@ -61,7 +82,7 @@
             <b>{{ '{:,}'.format(analysis_summary.active_fire_count) }}</b>
             条有效主动火点观测，涉及
             <b>{{ analysis_summary.affected_regions }}</b>
-            个市（地）。
+            {{ '个分析范围。' if coordinate_mode else '个市（地）。' }}
           </p>
         </div>
 
@@ -251,7 +272,7 @@
           <div class="workspace-heading">
             <div>
               <span class="app-eyebrow">SPATIAL WORKSPACE</span>
-              <h2>火点空间分布</h2>
+              <h2>{{ '观测点分布（真实坐标）' if coordinate_mode else '火点空间分布' }}</h2>
             </div>
 
             <div class="map-layer-controls map-mode-switch" aria-label="地图显示模式">
@@ -321,7 +342,9 @@
             <h3>区域火点统计</h3>
           </div>
 
-          {% if task.parameters.selected_regions %}
+          {% if coordinate_mode %}
+          <p class="scoped-task-label">本次按用户声明的区域名称汇总，不代表行政区空间归属。</p>
+          {% elif task.parameters.selected_regions %}
           <p class="scoped-task-label">本次已识别 {{ task.parameters.selected_regions|length }} 个地区，点击下方名称切换查看。所有地区已在同一任务中完成分析。</p>
           {% elif task.parameters.selected_region %}
           <p class="scoped-task-label">本次分析区域：{{ task.parameters.selected_region.name }}</p>
@@ -554,7 +577,7 @@
 {% include '_record_manage_modal.html' %}
 {% include '_help_modal.html' %}
 <script src="{{ url_for('static', filename='product.js') }}"></script>
-{% if not task.parameters.selected_regions or not (task.parameters.selected_regions|rejectattr('source','equalto','builtin')|list) %}
+{% if not coordinate_mode and (not task.parameters.selected_regions or not (task.parameters.selected_regions|rejectattr('source','equalto','builtin')|list)) %}
 <script src="{{ url_for('static', filename='county_drilldown.js') }}"></script>
 {% endif %}
 <script src="{{ url_for('static', filename='weather_context.js') }}"></script>

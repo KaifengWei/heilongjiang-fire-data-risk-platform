@@ -232,6 +232,30 @@
   }
 
   fileInput?.addEventListener('change', updateFileText);
+  const observationPreviewButton = $('#observationPreviewButton');
+  const observationPreviewInfo = $('#observationPreviewInfo');
+  observationPreviewButton?.addEventListener('click', async () => {
+    if (!fileInput?.files?.length) {
+      if (observationPreviewInfo) observationPreviewInfo.textContent = '请先选择 FIRMS CSV。';
+      return;
+    }
+    const formData = new FormData();
+    Array.from(fileInput.files).forEach(file => formData.append('files', file));
+    observationPreviewButton.disabled = true;
+    try {
+      const response = await fetch('/api/observation-preview', { method: 'POST', body: formData });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || '预览失败');
+      if (observationPreviewInfo) observationPreviewInfo.textContent =
+        '有效坐标 ' + result.valid_coordinate_rows + ' 条，观测范围：' +
+        (result.observed_bbox?.join(', ') || '暂无') +
+        '；这不是NASA原始下载框。';
+    } catch (err) {
+      if (observationPreviewInfo) observationPreviewInfo.textContent = err.message || '预览失败。';
+    } finally {
+      observationPreviewButton.disabled = false;
+    }
+  });
 
   // Region recognition is informative: every matched area enters one task.
   // Clicking a region chip changes only the preview camera.
@@ -675,6 +699,7 @@
     const xs = boundaryPoints.map(point => Number(point[0]));
     const ys = boundaryPoints.map(point => Number(point[1]));
 
+    let coordinateBounds = null;
     const provinceBounds = xs.length ? {
       minX: Math.min(...xs),
       maxX: Math.max(...xs),
@@ -716,7 +741,7 @@
           || provinceBounds;
       }
 
-      return provinceBounds;
+      return provinceBounds || coordinateBounds;
     }
 
     let points = [];
@@ -1207,6 +1232,18 @@
       const payload = await response.json();
 
       points = Array.isArray(payload.points) ? payload.points : [];
+      if (!provinceBounds && points.length) {
+        const lons = points.map(p => Number(p[0])).filter(Number.isFinite);
+        const lats = points.map(p => Number(p[1])).filter(Number.isFinite);
+        if (lons.length && lats.length) {
+          const west = Math.min(...lons), east = Math.max(...lons);
+          const south = Math.min(...lats), north = Math.max(...lats);
+          const padX = Math.max(.05, (east - west) * .08);
+          const padY = Math.max(.05, (north - south) * .08);
+          coordinateBounds = { minX: west - padX, maxX: east + padX,
+                               minY: south - padY, maxY: north + padY };
+        }
+      }
       allDates = Array.isArray(payload.dates) ? payload.dates : [];
       regionNames = Array.isArray(payload.regions) ? payload.regions : [];
       countyNames = Array.isArray(payload.counties) ? payload.counties : [];
