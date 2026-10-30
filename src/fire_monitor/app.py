@@ -1907,6 +1907,7 @@ def create_app(
                 task_id
             )
         )
+        analysis_summary["observed_bbox"] = observation_bbox(observations)
 
         firms_intelligence = (
             FirmsIntelligenceService()
