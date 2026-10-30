@@ -120,6 +120,11 @@ from fire_monitor.services.region_preview_service import (
     load_geojson_boundaries,
     validate_nonoverlapping_regions,
 )
+from fire_monitor.services.analysis_area_service import (
+    normalize_area_label,
+    parse_request_bbox,
+    observation_bbox,
+)
 
 def create_app(
     database_path: str | Path | None = None,
@@ -540,6 +545,9 @@ def create_app(
             "existing_observations": existing_observations,
             "has_reused_data": existing_observations > 0,
             "input_file_count": len(files),
+            "area_mode": (task.get("parameters") or {}).get("area_mode"),
+            "declared_area_label": (task.get("parameters") or {}).get("declared_area_label"),
+            "requested_bbox": (task.get("parameters") or {}).get("requested_bbox"),
             "processing_complete": any(
                 run.get("status") == "completed"
                 for run in [*firms_runs, *mcd64_runs]
@@ -675,8 +683,11 @@ def create_app(
             build_analysis_summary(task)
         )
 
+        is_declared_area = (task.get("parameters") or {}).get("area_mode") == "coordinates_only"
         region_feature_collection = (
-            database.task_region_feature_collection(task_id)
+            {"type": "FeatureCollection", "features": []}
+            if is_declared_area
+            else database.task_region_feature_collection(task_id)
         )
 
         task_region_ranking = sorted(
@@ -727,7 +738,9 @@ def create_app(
         # The existing historical baseline was built for the original fixed
         # regional dataset. It must not be used as a comparison for a new
         # task-scoped polygon until an equivalent scoped baseline is installed.
-        if task_boundaries and any(item.get("source") != "builtin" for item in task_boundaries):
+        if is_declared_area or (
+            task_boundaries and any(item.get("source") != "builtin" for item in task_boundaries)
+        ):
             historical_baseline = {
                 "available": False,
                 "reason": "custom_region_baseline_not_installed",
@@ -772,6 +785,7 @@ def create_app(
                 active_section="result",
                 task=task,
                 task_id=task_id,
+                observed_bbox=observation_bbox(task_firms_observations),
                 files=files,
                 readiness=readiness,
                 scope_labels=SCOPE_LABELS,
@@ -963,6 +977,29 @@ def create_app(
             return jsonify({"error": str(exc)}), 400
         return jsonify(preview)
 
+    @app.post("/api/observation-preview")
+    def observation_preview():
+        uploads = [
+            item for item in request.files.getlist("files")
+            if item is not None and item.filename
+        ]
+        if not uploads:
+            return jsonify({"error": "请先选择FIRMS CSV。"}), 400
+        try:
+            preview = RegionPreviewService([]).preview([
+                (Path(item.filename).name, item.stream)
+                for item in uploads
+            ])
+        except (ValueError, KeyError, TypeError, OSError) as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify({
+            "input_rows": preview["input_rows"],
+            "valid_coordinate_rows": preview["valid_coordinate_rows"],
+            "invalid_coordinate_rows": preview["invalid_coordinate_rows"],
+            "observed_bbox": preview.get("observed_bbox"),
+            "note": "观测点范围不能反推出NASA实际下载请求边框。",
+        })
+
     @app.post("/analyze")
     def analyze_uploads():
         uploaded_files = [
@@ -1002,36 +1039,40 @@ def create_app(
                         )
                     )
 
-                # A CSV is ONE analysis task. Automatically include EVERY
-                # matched region in that task; area tabs only filter the map.
-                region_definitions = available_analysis_boundaries(
-                    request.files.get("boundary_file")
-                )
-                from contextlib import ExitStack
-                with ExitStack() as stack:
-                    preview = RegionPreviewService(region_definitions).preview([
-                        (
-                            item.original_filename,
-                            stack.enter_context(item.path.open("rb")),
-                        )
-                        for item in staged_uploads
-                    ])
-                if not preview["candidates"]:
-                    raise ValueError(
-                        "上传记录未匹配到已配置的区域边界，无法生成可靠的区域分析。"
-                        "请检查坐标或通过高级设置补充对应 GeoJSON。"
+                if request.form.get("use_boundary_scope") == "yes":
+                    region_definitions = available_analysis_boundaries(
+                        request.files.get("boundary_file")
                     )
-                candidate_ids = {int(item["id"]) for item in preview["candidates"]}
-                selected_regions = [
-                    region
-                    for idx, region in enumerate(region_definitions)
-                    if idx in candidate_ids
-                ]
-                result = auto_analysis_service.create_and_process(
-                    staged_uploads,
-                    selected_regions=selected_regions,
-                    agricultural_calendar_rules=crop_calendar_store.load_rules(),
-                )
+                    from contextlib import ExitStack
+                    with ExitStack() as stack:
+                        preview = RegionPreviewService(region_definitions).preview([
+                            (item.original_filename,
+                             stack.enter_context(item.path.open("rb")))
+                            for item in staged_uploads
+                        ])
+                    if not preview["candidates"]:
+                        raise ValueError("精确落区未匹配到已配置边界，请取消高级模式或补充GeoJSON。")
+                    ids = {int(item["id"]) for item in preview["candidates"]}
+                    selected_regions = [
+                        region for i, region in enumerate(region_definitions)
+                        if i in ids
+                    ]
+                    result = auto_analysis_service.create_and_process(
+                        staged_uploads,
+                        selected_regions=selected_regions,
+                        agricultural_calendar_rules=crop_calendar_store.load_rules(),
+                    )
+                else:
+                    result = auto_analysis_service.create_and_process(
+                        staged_uploads,
+                        declared_area_label=normalize_area_label(
+                            request.form.get("area_label")
+                        ),
+                        requested_bbox=parse_request_bbox(
+                            request.form.get("request_bbox")
+                        ),
+                        agricultural_calendar_rules=crop_calendar_store.load_rules(),
+                    )
 
         except AutoAnalysisProcessingError as exc:
             return render_task_detail(
@@ -1142,7 +1183,8 @@ def create_app(
 
         task_boundaries = database.list_task_regions(task_id)
         uses_custom_boundary = bool(
-            any(item.get("source") != "builtin" for item in task_boundaries)
+            (task.get("parameters") or {}).get("area_mode") == "coordinates_only"
+            or any(item.get("source") != "builtin" for item in task_boundaries)
         )
         county_by_observation_id = {}
 
@@ -1288,6 +1330,12 @@ def create_app(
             .task_firms_observations(task_id)
         )
 
+        if (task.get("parameters") or {}).get("area_mode") == "coordinates_only":
+            return jsonify({
+                "available": False,
+                "reason": "no_verified_area_weather_context",
+                "message": "当前尚无与用户声明区域对应的已核验气象资料。",
+            })
         result = (
             weather_context_service
             .analyze(
@@ -1869,8 +1917,10 @@ def create_app(
         )
 
         export_boundaries = database.list_task_regions(task_id)
-        if export_boundaries and any(
-            row.get("source") != "builtin" for row in export_boundaries
+        if (task.get("parameters") or {}).get("area_mode") == "coordinates_only" or (
+            export_boundaries and any(
+                row.get("source") != "builtin" for row in export_boundaries
+            )
         ):
             historical_baseline = {
                 "available": False,
@@ -1913,16 +1963,17 @@ def create_app(
             )
         )
 
-        weather_context = (
-            weather_context_service
-            .analyze(
+        if (task.get("parameters") or {}).get("area_mode") == "coordinates_only":
+            weather_context = {
+                "available": False,
+                "reason": "no_verified_area_weather_context",
+            }
+        else:
+            weather_context = weather_context_service.analyze(
                 task=task,
                 rows=observations,
-                county_context_service=(
-                    county_context_service
-                ),
+                county_context_service=county_context_service,
             )
-        )
 
         if (
             not weather_context.get(
@@ -1931,6 +1982,7 @@ def create_app(
             and weather_context.get(
                 "reason"
             ) == "historical_task"
+            and (task.get("parameters") or {}).get("area_mode") != "coordinates_only"
         ):
             weather_context = (
                 historical_weather_context_service
