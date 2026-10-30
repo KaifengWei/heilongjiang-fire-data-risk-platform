@@ -4203,7 +4203,7 @@ main.home-landing {
   margin: clamp(14px, 2vh, 20px) 0 0;
   padding: 0;
   color: #103847;
-  font-size: clamp(36px, 3.3vw, 54px);
+  font-size: clamp(23px, 2.2vw, 40px);
   font-weight: 780;
   line-height: 1.22;
   letter-spacing: -.026em;
