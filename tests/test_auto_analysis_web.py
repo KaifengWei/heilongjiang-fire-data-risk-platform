@@ -62,7 +62,8 @@ def test_auto_firms_upload_detects_period_processes_and_creates_record(tmp_path)
             "files": (
                 BytesIO(_firms_bytes()),
                 "firms.csv",
-            )
+            ),
+            "use_boundary_scope": "yes",
         },
         content_type="multipart/form-data",
         follow_redirects=True,
