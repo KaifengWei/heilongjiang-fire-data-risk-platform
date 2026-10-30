@@ -1233,11 +1233,17 @@
 
       points = Array.isArray(payload.points) ? payload.points : [];
       if (!provinceBounds && points.length) {
-        const lons = points.map(p => Number(p[0])).filter(Number.isFinite);
-        const lats = points.map(p => Number(p[1])).filter(Number.isFinite);
-        if (lons.length && lats.length) {
-          const west = Math.min(...lons), east = Math.max(...lons);
-          const south = Math.min(...lats), north = Math.max(...lats);
+        let west = Infinity, east = -Infinity;
+        let south = Infinity, north = -Infinity;
+        for (const point of points) {
+          const lon = Number(point[0]), lat = Number(point[1]);
+          if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+          west = Math.min(west, lon);
+          east = Math.max(east, lon);
+          south = Math.min(south, lat);
+          north = Math.max(north, lat);
+        }
+        if (Number.isFinite(west) && Number.isFinite(south)) {
           const padX = Math.max(.05, (east - west) * .08);
           const padY = Math.max(.05, (north - south) * .08);
           coordinateBounds = { minX: west - padX, maxX: east + padX,
