@@ -234,28 +234,57 @@
   fileInput?.addEventListener('change', updateFileText);
   const observationPreviewButton = $('#observationPreviewButton');
   const observationPreviewInfo = $('#observationPreviewInfo');
-  observationPreviewButton?.addEventListener('click', async () => {
+  let observationPreviewSerial = 0;
+
+  async function previewObservationExtent(automatic = false) {
     if (!fileInput?.files?.length) {
       if (observationPreviewInfo) observationPreviewInfo.textContent = '请先选择 FIRMS CSV。';
       return;
     }
-    const formData = new FormData();
-    Array.from(fileInput.files).forEach(file => formData.append('files', file));
-    observationPreviewButton.disabled = true;
-    try {
-      const response = await fetch('/api/observation-preview', { method: 'POST', body: formData });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || '预览失败');
-      if (observationPreviewInfo) observationPreviewInfo.textContent =
-        '有效坐标 ' + result.valid_coordinate_rows + ' 条，观测范围：' +
-        (result.observed_bbox?.join(', ') || '暂无') +
-        '；这不是NASA原始下载框。';
-    } catch (err) {
-      if (observationPreviewInfo) observationPreviewInfo.textContent = err.message || '预览失败。';
-    } finally {
-      observationPreviewButton.disabled = false;
+    const files = Array.from(fileInput.files);
+    // Avoid triggering an expensive second full-file read for huge uploads.
+    // The user can still explicitly request the preview.
+    if (automatic && files.reduce((sum, file) => sum + file.size, 0) > 25 * 1024 * 1024) {
+      if (observationPreviewInfo) {
+        observationPreviewInfo.textContent =
+          '已选择较大的 CSV，可直接开始分析；也可以点击上方按钮单独识别观测范围。';
+      }
+      return;
     }
+    const serial = ++observationPreviewSerial;
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+    if (observationPreviewInfo) observationPreviewInfo.textContent = '正在识别有效坐标和观测范围…';
+    if (observationPreviewButton) observationPreviewButton.disabled = true;
+    try {
+      const response = await fetch('/api/observation-preview', {
+        method: 'POST', body: formData
+      });
+      const result = await response.json();
+      if (serial !== observationPreviewSerial) return;
+      if (!response.ok) throw new Error(result.error || '识别失败');
+      if (observationPreviewInfo) observationPreviewInfo.textContent =
+        '有效坐标 ' + result.valid_coordinate_rows + ' 条；观测点范围：' +
+        (result.observed_bbox?.join(', ') || '暂无有效坐标') +
+        '。该范围来自 CSV，不代表 NASA 的完整下载请求范围。';
+    } catch (err) {
+      if (serial === observationPreviewSerial && observationPreviewInfo) {
+        observationPreviewInfo.textContent = err.message || '观测范围识别失败，仍可尝试正式分析。';
+      }
+    } finally {
+      if (serial === observationPreviewSerial && observationPreviewButton) {
+        observationPreviewButton.disabled = false;
+      }
+    }
+  }
+
+  fileInput?.addEventListener('change', () => {
+    observationPreviewSerial += 1;
+    if (observationPreviewButton) observationPreviewButton.disabled = false;
+    if (fileInput.files?.length) previewObservationExtent(true);
+    else if (observationPreviewInfo) observationPreviewInfo.textContent = '';
   });
+  observationPreviewButton?.addEventListener('click', () => previewObservationExtent(false));
 
   // Region recognition is informative: every matched area enters one task.
   // Clicking a region chip changes only the preview camera.
@@ -510,6 +539,8 @@
       files.forEach(file => transfer.items.add(file));
       fileInput.files = transfer.files;
       updateFileText();
+      observationPreviewSerial += 1;
+      previewObservationExtent(true);
     } catch (_) {}
   });
 
