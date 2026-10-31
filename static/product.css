@@ -4846,3 +4846,64 @@ body.home-body .home-capabilities p { color: #b7d2e1; }
     height: auto;
   }
 }
+
+/* 2026-10 home polish: Earth photograph is the cover, not a labeled diagram. */
+body.home-body .home-orbit-visual {
+  display: block;
+  position: relative;
+  background: #081d32;
+}
+body.home-body .home-orbit-image-frame {
+  position: absolute;
+  inset: 0;
+}
+body.home-body .home-orbit-image-frame::after {
+  background: linear-gradient(180deg, rgba(3, 20, 39, .08), transparent 45%, rgba(5, 22, 38, .18));
+}
+body.home-body .is-image-missing .home-orbit-fallback { inset: 15px; }
+
+/* The old fixed white sidebar used !important; scope the override to home. */
+body.app-body.home-body .app-sidebar {
+  background: linear-gradient(185deg, #091d32 0%, #0b2a46 65%, #091d32 100%) !important;
+  border-right-color: rgba(122, 194, 228, .26) !important;
+}
+body.app-body.home-body .app-brand-copy strong { color: #f1f9ff !important; }
+body.app-body.home-body .app-brand-copy small { color: #c3deed !important; }
+body.app-body.home-body .app-side-nav a:not(.is-disabled),
+body.app-body.home-body .app-side-nav button {
+  color: #d6eafa;
+}
+body.app-body.home-body .app-side-nav a:not(.is-disabled):hover,
+body.app-body.home-body .app-side-nav button:hover {
+  color: #fff;
+  background: rgba(82, 172, 216, .19);
+}
+body.app-body.home-body .app-side-nav a.active {
+  color: #ffffff;
+  background: rgba(34, 135, 188, .3);
+}
+body.app-body.home-body .nav-icon {
+  color: #e7f7ff;
+  background: rgba(93, 165, 203, .2);
+}
+body.app-body.home-body .app-side-nav .result-nav-link.is-disabled {
+  opacity: .66 !important;
+  color: #abc8d9 !important;
+  filter: none;
+}
+body.app-body.home-body .side-nav-separator {
+  background: rgba(129, 191, 218, .25);
+}
+body.app-body.home-body .app-side-footer {
+  color: #c6dfec !important;
+  border-top-color: rgba(130, 193, 220, .25);
+}
+body.app-body.home-body .app-side-footer b { color: #f0f9ff !important; }
+/* On business pages, keep the existing light sidebar but never hide version/disabled labels. */
+body.app-body:not(.home-body) .app-side-nav .result-nav-link.is-disabled {
+  opacity: .52;
+}
+body.app-body:not(.home-body) .app-side-footer,
+body.app-body:not(.home-body) .app-brand-copy small {
+  color: #546f7e !important;
+}
