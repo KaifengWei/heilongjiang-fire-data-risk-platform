@@ -88,9 +88,9 @@
 
         <div class="situation-facts">
           <article>
-            <span>火点最集中</span>
-            <strong>{{ analysis_summary.main_region }}</strong>
-            <small>本次记录中数量最高</small>
+            <span>{{ '本次分析范围' if coordinate_mode else '火点最集中地区' }}</span>
+            <strong>{{ analysis_summary.declared_area_label if coordinate_mode else analysis_summary.main_region }}</strong>
+            <small>{{ '按所提交的有效观测汇总' if coordinate_mode else '本次记录中数量最高' }}</small>
           </article>
 
           <article>
@@ -339,7 +339,7 @@
         <aside class="map-side-panel">
           <div class="side-panel-heading">
             <span class="app-eyebrow">REGIONS</span>
-            <h3>区域火点统计</h3>
+            <h3>{{ '本次观测概览' if coordinate_mode else '区域火点统计' }}</h3>
           </div>
 
           {% if coordinate_mode %}
@@ -350,16 +350,26 @@
           <p class="scoped-task-label">本次分析区域：{{ task.parameters.selected_region.name }}</p>
           {% endif %}
           <button class="region-filter-row active" type="button" data-region-filter="">
-            <span>全部地区 · 综合总览</span>
+            <span>{{ '全部观测 · 综合总览' if coordinate_mode else '全部地区 · 综合总览' }}</span>
             <b>{{ '{:,}'.format(analysis_summary.active_fire_count) }}</b>
           </button>
 
+          {% if coordinate_mode %}
+          <div class="sensor-breakdown" aria-label="按卫星来源统计">
+            <strong>按卫星来源</strong>
+            <p>以下为同一任务中的真实观测分组，不代表行政区归属。</p>
+            {% for item in sensor_overview %}
+            <div class="sensor-breakdown-row"><span>{{ item.name }}</span><b>{{ '{:,}'.format(item.count) }}</b></div>
+            {% endfor %}
+          </div>
+          {% else %}
           {% for row in task_region_ranking %}
             <button class="region-filter-row" type="button" data-region-filter="{{ row.region_name }}">
               <span>{{ row.region_name }}</span>
               <b>{{ '{:,}'.format(row.active_fire_count) }}</b>
             </button>
           {% endfor %}
+          {% endif %}
         </aside>
       </section>
       <section class="action-guidance reveal-item">

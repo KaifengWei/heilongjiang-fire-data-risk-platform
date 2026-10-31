@@ -727,6 +727,19 @@ def create_app(
             )
         )
 
+        # For boundary-free tasks, summarize actual satellite sources,
+        # never imply that a user-supplied name defines city polygons.
+        sensor_counts: dict[str, int] = {}
+        for observation in task_firms_observations:
+            sensor_name = str(observation.get("satellite") or "").strip() or "未标注卫星"
+            sensor_counts[sensor_name] = sensor_counts.get(sensor_name, 0) + 1
+        sensor_overview = [
+            {"name": name, "count": count}
+            for name, count in sorted(
+                sensor_counts.items(), key=lambda item: (-item[1], item[0])
+            )
+        ]
+
         firms_intelligence = (
             FirmsIntelligenceService()
             .analyze(
@@ -823,6 +836,7 @@ def create_app(
                 task_region_ranking=(
                     task_region_ranking
                 ),
+                sensor_overview=sensor_overview,
                 firms_intelligence=(
                     firms_intelligence
                 ),

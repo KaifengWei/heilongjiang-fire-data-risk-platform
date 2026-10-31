@@ -52,8 +52,8 @@
 
             <div class="record-stats">
               <div><span>有效火点</span><strong>{{ '{:,}'.format(record.active_fire_count) }}</strong></div>
-              <div><span>涉及区域</span><strong>{{ record.affected_regions }}</strong></div>
-              <div><span>主要区域</span><strong>{{ record.main_region }}</strong></div>
+              <div><span>{{ '用户声明范围' if record.area_mode == 'coordinates_only' else '涉及地区' }}</span><strong>{{ record.declared_area_label if record.area_mode == 'coordinates_only' else record.affected_regions }}</strong></div>
+              <div><span>{{ '统计口径' if record.area_mode == 'coordinates_only' else '重点地区' }}</span><strong>{{ 'CSV 有效观测' if record.area_mode == 'coordinates_only' else record.main_region }}</strong></div>
             </div>
 
             <div class="record-time">
