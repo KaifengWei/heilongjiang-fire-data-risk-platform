@@ -82,6 +82,7 @@ def test_one_upload_analyzes_all_matched_regions_and_map(tmp_path):
     assert {row["properties"]["name"] for row in boundary["features"]} == {"甲市", "乙市"}
     result_page = client.get(f"/tasks/{task_id}").get_data(as_text=True)
     assert "全部地区" in result_page and "甲市" in result_page and "乙市" in result_page
+    assert "按卫星来源" not in result_page
 
 
 def test_custom_geojson_scope_does_not_modify_builtin_regions(tmp_path):

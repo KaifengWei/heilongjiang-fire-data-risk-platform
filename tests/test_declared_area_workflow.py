@@ -31,6 +31,10 @@ def test_no_polygon_still_analyzes_all_csv_points(tmp_path):
     assert {x["region_name"] for x in rows} == {"用户关注区域"}
     html = client.get(f"/tasks/{task}").get_data(as_text=True)
     assert "通用农业区域概念示意" in html
+    assert "全部观测 · 综合总览" in html
+    assert "按卫星来源" in html
+    assert "不代表行政区空间归属" in html
+    assert "全部地区 · 综合总览" not in html
     assert "110.5" in html
     assert client.get(f"/api/tasks/{task}/map-data").get_json()["point_count"] == 2
     assert client.get(f"/api/tasks/{task}/weather-context").get_json()["available"] is False
