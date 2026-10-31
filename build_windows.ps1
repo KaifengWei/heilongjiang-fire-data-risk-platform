@@ -2,6 +2,26 @@ $ErrorActionPreference = "Stop"
 
 Set-Location $PSScriptRoot
 
+# Prevent shipping an EXE with a broken Earth-cover image. The image is
+# supplied separately and must be present before any build is started.
+$HomeCover = Join-Path $PSScriptRoot "static\images\home_earth_orbit.webp"
+if (-not (Test-Path -LiteralPath $HomeCover -PathType Leaf)) {
+    throw "Homepage Earth cover is missing: $HomeCover. Copy the verified WebP image before building."
+}
+$CoverStream = [System.IO.File]::OpenRead($HomeCover)
+try {
+    $CoverHeader = New-Object byte[] 12
+    $BytesRead = $CoverStream.Read($CoverHeader, 0, 12)
+} finally {
+    $CoverStream.Dispose()
+}
+if ($BytesRead -ne 12 -or
+    [Text.Encoding]::ASCII.GetString($CoverHeader, 0, 4) -ne "RIFF" -or
+    [Text.Encoding]::ASCII.GetString($CoverHeader, 8, 4) -ne "WEBP") {
+    throw "Homepage Earth cover is not a valid WebP file: $HomeCover"
+}
+
+Write-Host "Homepage cover verified: $HomeCover" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "==============================================" -ForegroundColor Cyan

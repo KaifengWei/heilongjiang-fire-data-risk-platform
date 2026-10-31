@@ -33,6 +33,15 @@ APP_NAME = (
 )
 
 
+# Fail before freezing if the user-approved visual asset is absent.
+# The complete static directory below will then package this image.
+home_cover = PROJECT_ROOT / "static" / "images" / "home_earth_orbit.webp"
+if not home_cover.is_file():
+    raise RuntimeError(
+        "Homepage Earth cover missing: " + str(home_cover)
+        + ". Restore the approved WebP image before packaging."
+    )
+
 datas = [
     (
         str(
