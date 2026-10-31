@@ -78,7 +78,12 @@
                  src="{{ url_for('static', filename='images/home_earth_orbit.webp') }}"
                  alt="从太空俯瞰地球的视觉封面"
                  loading="eager"
-                 decoding="async">
+                 decoding="async"
+                 onerror="this.hidden=true;this.parentElement.classList.add('is-image-missing')">
+            <div class="home-orbit-fallback" role="status">
+              <strong>地球封面资源未加载</strong>
+              <span>请将配套的 home_earth_orbit.webp 放入 static/images 后刷新首页。</span>
+            </div>
           </div>
           <div class="home-visual-caption">
             <span>地球遥感视觉封面</span>
