@@ -33,6 +33,27 @@ APP_NAME = (
 )
 
 
+# Do not ship an incomplete desktop app when the approved Earth cover
+# is missing or when an unrelated file has been renamed to .webp.
+home_cover_path = PROJECT_ROOT / "static" / "images" / "home_earth_orbit.webp"
+if not home_cover_path.is_file() or home_cover_path.stat().st_size < 1024:
+    raise RuntimeError(
+        "Homepage WebP cover is missing or empty: "
+        + str(home_cover_path)
+        + ". Restore the approved image to static/images before packaging."
+    )
+with home_cover_path.open("rb") as home_cover_file:
+    home_cover_header = home_cover_file.read(12)
+if (
+    len(home_cover_header) != 12
+    or home_cover_header[:4] != b"RIFF"
+    or home_cover_header[8:] != b"WEBP"
+):
+    raise RuntimeError(
+        "Homepage cover is not a valid WebP container: " + str(home_cover_path)
+    )
+
+
 datas = [
     (
         str(

@@ -1,0 +1,81 @@
+﻿param(
+    [string] $CoverSource = ""
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+$projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
+$productName = "农业秸秆焚烧区域火点检测与分析平台"
+$coverPath = Join-Path $projectRoot "static\images\home_earth_orbit.webp"
+
+Push-Location $projectRoot
+try {
+    if ($CoverSource.Trim()) {
+        $sourcePath = (Resolve-Path -LiteralPath $CoverSource -ErrorAction Stop).Path
+        if ($sourcePath -ne $coverPath) {
+            New-Item -ItemType Directory -Path (Split-Path $coverPath -Parent) -Force | Out-Null
+            Copy-Item -LiteralPath $sourcePath -Destination $coverPath -Force
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $coverPath -PathType Leaf)) {
+        throw "Missing homepage asset: $coverPath. Run with -CoverSource pointing to the approved WebP."
+    }
+    if ((Get-Item -LiteralPath $coverPath).Length -lt 1024) {
+        throw "Homepage WebP is too small to package: $coverPath"
+    }
+    $stream = [System.IO.File]::OpenRead($coverPath)
+    try {
+        $header = New-Object byte[] 12
+        if ($stream.Read($header, 0, 12) -ne 12) {
+            throw "Cannot read WebP header: $coverPath"
+        }
+        $fourcc = [System.Text.Encoding]::ASCII.GetString($header, 0, 4)
+        $format = [System.Text.Encoding]::ASCII.GetString($header, 8, 4)
+        if ($fourcc -ne "RIFF" -or $format -ne "WEBP") {
+            throw "Incorrect WebP file signature: $coverPath"
+        }
+    }
+    finally {
+        $stream.Dispose()
+    }
+
+    Write-Host "[1/3] Run full Python tests"
+    & python -m pytest -q
+    if ($LASTEXITCODE -ne 0) { throw "Python regression tests failed." }
+
+    Write-Host "[2/3] Check JavaScript syntax (when Node.js is installed)"
+    if (Get-Command node -ErrorAction SilentlyContinue) {
+        foreach ($js in @("static/product.js", "static/county_drilldown.js", "static/home.js")) {
+            & node --check $js
+            if ($LASTEXITCODE -ne 0) { throw "JavaScript syntax failed: $js" }
+        }
+    }
+    else {
+        Write-Warning "Node.js is absent; JavaScript syntax is covered by GitHub Actions."
+    }
+
+    Write-Host "[3/3] Build the Windows desktop application"
+    & python -m PyInstaller --clean --noconfirm fire_monitor.spec
+    if ($LASTEXITCODE -ne 0) { throw "PyInstaller build failed." }
+
+    $outputDir = Join-Path $projectRoot ("dist\" + $productName)
+    $exePath = Join-Path $outputDir ($productName + ".exe")
+    if (-not (Test-Path -LiteralPath $exePath -PathType Leaf)) {
+        throw "Expected EXE not found: $exePath"
+    }
+
+    $packagedCovers = @(
+        (Join-Path $outputDir "_internal\static\images\home_earth_orbit.webp"),
+        (Join-Path $outputDir "static\images\home_earth_orbit.webp")
+    )
+    if (-not ($packagedCovers | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })) {
+        throw "Build completed without the homepage image. Do not release this EXE."
+    }
+    Write-Host "Build verified: $exePath"
+    Write-Host "Next: run the EXE and check the manual acceptance scenarios in docs/windows_exe_acceptance.md"
+}
+finally {
+    Pop-Location
+}
