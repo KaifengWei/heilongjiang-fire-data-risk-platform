@@ -22,3 +22,30 @@ def test_observed_bbox_is_from_hotspot_points_not_requested_download_bounds():
     assert observation_bbox([{"longitude": 110.5, "latitude": 30.7},
                              {"longitude": 111.3, "latitude": 31.9}]) == [110.5, 30.7, 111.3, 31.9]
     assert observation_bbox([]) is None
+
+
+def test_multiple_nonadjacent_areas_are_grid_groups_not_city_names():
+    from fire_monitor.services.analysis_area_service import group_observations_by_grid
+    result = group_observations_by_grid([
+        {"longitude": 126.65, "latitude": 45.75},
+        {"longitude": 126.75, "latitude": 45.83},
+        {"longitude": 123.5, "latitude": 47.2},
+        {"longitude": "not-a-number", "latitude": "42"},
+    ])
+    assert result["total"] == 3
+    assert result["cell_count"] == 2
+    assert [row["count"] for row in result["groups"]] == [2, 1]
+    assert "经度 126" in result["groups"][0]["label"]
+    assert "行政区" in result["note"]
+
+
+def test_grid_group_limit_keeps_remainder_and_negative_coords():
+    from fire_monitor.services.analysis_area_service import group_observations_by_grid
+    result = group_observations_by_grid([
+        {"longitude": -0.2, "latitude": 20.5},
+        {"longitude": -1.2, "latitude": 20.5},
+        {"longitude": -2.2, "latitude": 20.5},
+    ], max_groups=2)
+    assert result["cell_count"] == 3
+    assert result["total"] == 3
+    assert result["other_count"] == 1

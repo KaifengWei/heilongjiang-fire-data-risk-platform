@@ -88,9 +88,9 @@
 
         <div class="situation-facts">
           <article>
-            <span>火点最集中</span>
+            <span>{{ '分析区域' if coordinate_mode else '火点最集中' }}</span>
             <strong>{{ analysis_summary.main_region }}</strong>
-            <small>本次记录中数量最高</small>
+            <small>{{ '用户填写的范围名称' if coordinate_mode else '本次记录中数量最高' }}</small>
           </article>
 
           <article>
@@ -338,17 +338,29 @@
 
         <aside class="map-side-panel">
           <div class="side-panel-heading">
-            <span class="app-eyebrow">REGIONS</span>
-            <h3>区域火点统计</h3>
+            <span class="app-eyebrow">{{ 'OBSERVATION CELLS' if coordinate_mode else 'REGIONS' }}</span>
+            <h3>{{ '观测位置分组' if coordinate_mode else '区域火点统计' }}</h3>
           </div>
 
           {% if coordinate_mode %}
-          <p class="scoped-task-label">本次按用户声明的区域名称汇总，不代表行政区空间归属。</p>
+          <p class="scoped-task-label">本次共 {{ location_groups.total }} 条有坐标的观测，分布在 {{ location_groups.cell_count }} 个经纬度网格。以下为观测数量最多的分组，不是行政区划分。</p>
+          {% if location_groups.cell_count > 0 %}
+          <div class="observation-grid-groups">
+            <div class="grid-observation-total"><span>全部观测</span><strong>{{ '{:,}'.format(analysis_summary.active_fire_count) }}</strong></div>
+            {% for group in location_groups.groups %}
+            <div class="grid-observation-row"><span>{{ group.label }}</span><strong>{{ '{:,}'.format(group.count) }}</strong></div>
+            {% endfor %}
+            {% if location_groups.other_count %}
+            <div class="grid-observation-row"><span>其余网格</span><strong>{{ '{:,}'.format(location_groups.other_count) }}</strong></div>
+            {% endif %}
+          </div>
+          {% endif %}
           {% elif task.parameters.selected_regions %}
           <p class="scoped-task-label">本次已识别 {{ task.parameters.selected_regions|length }} 个地区，点击下方名称切换查看。所有地区已在同一任务中完成分析。</p>
           {% elif task.parameters.selected_region %}
           <p class="scoped-task-label">本次分析区域：{{ task.parameters.selected_region.name }}</p>
           {% endif %}
+          {% if not coordinate_mode %}
           <button class="region-filter-row active" type="button" data-region-filter="">
             <span>全部地区 · 综合总览</span>
             <b>{{ '{:,}'.format(analysis_summary.active_fire_count) }}</b>
@@ -360,6 +372,7 @@
               <b>{{ '{:,}'.format(row.active_fire_count) }}</b>
             </button>
           {% endfor %}
+          {% endif %}
         </aside>
       </section>
       <section class="action-guidance reveal-item">

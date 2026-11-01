@@ -4882,3 +4882,37 @@ body.home-body .home-orbit-visual .home-orbit-image-frame {
 body.home-body .home-orbit-visual .home-orbit-image-frame::after {
   background: linear-gradient(180deg, rgba(5,24,45,.04), transparent 40%, rgba(5,24,45,.12));
 }
+
+/* Group by actual coordinates only: no invented city assignments.
+   The existing exact-region buttons remain available to boundary-mode tasks. */
+.observation-grid-groups {
+  display: grid;
+  gap: 7px;
+  margin: 12px 12px 20px;
+}
+.grid-observation-total, .grid-observation-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  line-height: 1.45;
+  font-size: 12px;
+}
+.grid-observation-total {
+  color: #1b5c79;
+  background: #e7f3f8;
+  font-weight: 700;
+}
+.grid-observation-row {
+  color: #426579;
+  background: #f5f9fb;
+  border: 1px solid #e1ebef;
+}
+.grid-observation-row span { overflow-wrap: anywhere; }
+.grid-observation-total strong, .grid-observation-row strong {
+  flex: 0 0 auto;
+  color: #164964;
+  font-variant-numeric: tabular-nums;
+}

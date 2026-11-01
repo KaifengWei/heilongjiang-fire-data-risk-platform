@@ -420,6 +420,24 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
     if analysis_summary.get("area_mode") != "coordinates_only":
         _visual_bar_table(doc, top_region_rows, "图1 重点地区火点观测数量对比")
 
+    grid_summary = analysis_summary.get("location_groups") or {}
+    if (
+        analysis_summary.get("area_mode") == "coordinates_only"
+        and grid_summary.get("cell_count", 0) > 1
+    ):
+        _heading(doc, "观测位置分组")
+        _paragraph(doc, [(grid_summary.get("note") or "", False)])
+        for group in grid_summary.get("groups", []):
+            _paragraph(doc, [
+                (str(group["label"]) + "：", True),
+                (_fmt_int(group["count"]) + " 条观测", False),
+            ], after=3)
+        if grid_summary.get("other_count"):
+            _paragraph(doc, [
+                ("其余网格：", True),
+                (_fmt_int(grid_summary["other_count"]) + " 条观测", False),
+            ], after=3)
+
     _heading(doc, "时间变化")
     _paragraph(doc, _time_paragraph(firms_intelligence))
     top_dates = sorted(daily_series, key=lambda row: int(row.get("active_fire_observation_count") or 0), reverse=True)[:5]

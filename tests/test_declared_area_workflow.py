@@ -64,3 +64,23 @@ def test_same_records_different_task_names(tmp_path):
     stats = app.extensions["statistics_service"]
     assert {r["region_name"] for r in stats.task_firms_observations(a)} == {"甲区"}
     assert {r["region_name"] for r in stats.task_firms_observations(b)} == {"乙区"}
+
+
+def test_one_csv_multiple_coordinate_groups_are_shown_and_exported(tmp_path):
+    from docx import Document
+    app = make(tmp_path)
+    task_id = tid(upload(app.test_client(), area_label="跨地区测试范围"))
+    page = app.test_client().get(f"/tasks/{task_id}")
+    assert page.status_code == 200
+    text = page.get_data(as_text=True)
+    assert "观测位置分组" in text
+    assert "经度 110°" in text
+    assert "经度 127°" in text
+    assert "不是行政区划分" in text
+    report = app.test_client().get(f"/tasks/{task_id}/report.docx")
+    assert report.status_code == 200
+    doc = Document(BytesIO(report.data))
+    report_text = "\n".join(p.text for p in doc.paragraphs)
+    assert "观测位置分组" in report_text
+    assert "经度 110°" in report_text
+    assert "经度 127°" in report_text

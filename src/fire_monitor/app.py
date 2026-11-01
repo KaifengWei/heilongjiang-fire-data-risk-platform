@@ -124,6 +124,7 @@ from fire_monitor.services.analysis_area_service import (
     normalize_area_label,
     parse_request_bbox,
     observation_bbox,
+    group_observations_by_grid,
 )
 
 def create_app(
@@ -786,6 +787,10 @@ def create_app(
                 task=task,
                 task_id=task_id,
                 observed_bbox=observation_bbox(task_firms_observations),
+                location_groups=(
+                    group_observations_by_grid(task_firms_observations)
+                    if is_declared_area else None
+                ),
                 files=files,
                 readiness=readiness,
                 scope_labels=SCOPE_LABELS,
@@ -1908,6 +1913,8 @@ def create_app(
             )
         )
         analysis_summary["observed_bbox"] = observation_bbox(observations)
+        if (task.get("parameters") or {}).get("area_mode") == "coordinates_only":
+            analysis_summary["location_groups"] = group_observations_by_grid(observations)
 
         firms_intelligence = (
             FirmsIntelligenceService()

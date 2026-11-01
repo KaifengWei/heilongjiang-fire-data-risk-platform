@@ -57,3 +57,44 @@ def observation_bbox(rows: list[dict[str, Any]]) -> list[float] | None:
         round(max(item[0] for item in coordinates), 5),
         round(max(item[1] for item in coordinates), 5),
     ]
+
+
+def group_observations_by_grid(
+    observations: list[dict[str, Any]],
+    *,
+    max_groups: int = 6,
+) -> dict[str, Any]:
+    """Aggregate real FIRMS coordinates by one-degree cells, not city names.
+
+    This is a descriptive grouping to review a multi-area CSV without
+    pretending to identify actual administrative boundaries.
+    """
+    from collections import Counter
+    counts: Counter[tuple[int, int]] = Counter()
+    for row in observations:
+        try:
+            lon = float(row["longitude"])
+            lat = float(row["latitude"])
+        except (TypeError, ValueError, KeyError):
+            continue
+        if not (math.isfinite(lon) and math.isfinite(lat)):
+            continue
+        if -180 <= lon <= 180 and -90 <= lat <= 90:
+            counts[(math.floor(lon), math.floor(lat))] += 1
+
+    items = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    visible = max(0, int(max_groups))
+    groups = [
+        {
+            "label": f"经度 {longitude}°～{longitude + 1}°，纬度 {latitude}°～{latitude + 1}°",
+            "count": count,
+        }
+        for (longitude, latitude), count in items[:visible]
+    ]
+    return {
+        "total": sum(counts.values()),
+        "cell_count": len(counts),
+        "groups": groups,
+        "other_count": sum(count for _, count in items[visible:]),
+        "note": "按1°经纬度网格汇总真实观测坐标，不代表行政区界线或地块归属。",
+    }
