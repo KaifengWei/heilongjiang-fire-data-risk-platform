@@ -84,3 +84,20 @@ def test_one_csv_multiple_coordinate_groups_are_shown_and_exported(tmp_path):
     assert "观测位置分组" in report_text
     assert "经度 110°" in report_text
     assert "经度 127°" in report_text
+
+
+def test_declared_area_hides_unrelated_fixed_landcover_image(tmp_path, monkeypatch):
+    """Available raster evidence must not display an unrelated fixed-area map."""
+    app = make(tmp_path)
+    context = app.extensions["land_cover_context_service"]
+    monkeypatch.setattr(context, "analyze", lambda _rows: {
+        "available": True,
+        "visual_title": "测试地表证据",
+        "guidance": "仅展示本次观测点的地表分析信息。",
+    })
+    monkeypatch.setattr(context, "build_priority_guidance", lambda _data, _regions: None)
+    task_id = tid(upload(app.test_client(), area_label="自定义分析区域"))
+    html = app.test_client().get(f"/tasks/{task_id}").get_data(as_text=True)
+    assert "测试地表证据" in html
+    assert "仅展示本次观测点的地表分析信息" in html
+    assert "mcd12q1_2024_landcover.png" not in html
