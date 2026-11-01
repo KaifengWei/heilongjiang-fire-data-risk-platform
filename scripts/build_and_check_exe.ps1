@@ -41,8 +41,19 @@ try {
         $stream.Dispose()
     }
 
+    # The PowerShell prompt can show (fire-monitor) while "python" still
+    # resolves to Anaconda base. Always invoke the named Conda environment.
+    if (-not (Get-Command conda -ErrorAction SilentlyContinue)) {
+        throw "Conda command not found. Open Anaconda PowerShell Prompt and run this script again."
+    }
+    Write-Host "[0/3] Verify the named fire-monitor Conda environment"
+    & conda run --no-capture-output -n fire-monitor python -c "import sys; import shapely; from osgeo import gdal; import pandas; import docx; print('Python:', sys.executable); print('Shapely:', shapely.__version__)"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Conda environment fire-monitor is missing required packages or cannot start. Check: conda run -n fire-monitor python -c 'import shapely; from osgeo import gdal'"
+    }
+
     Write-Host "[1/3] Run full Python tests"
-    & python -m pytest -q
+    & conda run --no-capture-output -n fire-monitor python -m pytest -q
     if ($LASTEXITCODE -ne 0) { throw "Python regression tests failed." }
 
     Write-Host "[2/3] Check JavaScript syntax (when Node.js is installed)"
@@ -57,7 +68,7 @@ try {
     }
 
     Write-Host "[3/3] Build the Windows desktop application"
-    & python -m PyInstaller --clean --noconfirm fire_monitor.spec
+    & conda run --no-capture-output -n fire-monitor python -m PyInstaller --clean --noconfirm fire_monitor.spec
     if ($LASTEXITCODE -ne 0) { throw "PyInstaller build failed." }
 
     $outputDir = Join-Path $projectRoot ("dist\" + $productName)
