@@ -28,20 +28,23 @@
       <div class="app-alert error reveal-item"><strong>未能开始分析</strong><span>{{ page_error }}</span></div>
       {% endif %}
 
-      <section class="start-card analyze-start-card reveal-item">
-        <div class="start-card-copy">
+      <section class="analysis-intro-band reveal-item" aria-label="分析流程概览">
+        <div class="analysis-intro-copy">
           <span class="app-chip">FIRMS CSV · 一键分析</span>
           <h2>上传 FIRMS 数据，开展区域火点检测与分析</h2>
-          <p>一份 CSV 中所有有效观测统一分析，不需要先选择市县或上传地图边界。软件结合观测日期、实际位置及可用农业背景信息生成结果。</p>
-          <div class="start-flow">
-            <div><b>01</b><span><strong>选择 CSV</strong><small>NASA FIRMS</small></span></div><i>→</i>
-            <div><b>02</b><span><strong>确定范围</strong><small>区域名称 / 可选矩形</small></span></div><i>→</i>
-            <div><b>03</b><span><strong>综合分析</strong><small>全量统计 / 位置分组</small></span></div>
-          </div>
+          <p>本软件面向农业相关区域的 FIRMS 火点观测分析。一份 CSV 中的有效观测统一分析，区域名称与筛选矩形均为选填。</p>
         </div>
+        <div class="start-flow analysis-intro-flow" aria-label="三个分析步骤">
+          <div><b>01</b><span><strong>选择 CSV</strong><small>NASA FIRMS</small></span></div><i aria-hidden="true">→</i>
+          <div><b>02</b><span><strong>确定范围</strong><small>区域名称 / 可选矩形</small></span></div><i aria-hidden="true">→</i>
+          <div><b>03</b><span><strong>综合分析</strong><small>全量统计 / 位置分组</small></span></div>
+        </div>
+      </section>
 
-        <form id="autoAnalyzeForm" class="upload-panel" method="post"
-              action="{{ url_for('analyze_uploads') }}" enctype="multipart/form-data">
+      <form id="autoAnalyzeForm" class="upload-panel analysis-workbench-form reveal-item" method="post"
+            action="{{ url_for('analyze_uploads') }}" enctype="multipart/form-data">
+        <div class="analysis-workbench-layout">
+          <section class="analysis-workbench-inputs" aria-label="上传和分析参数">
           <div class="upload-panel-head"><div><span>上传数据</span><strong>开始一次新的分析</strong></div><span class="upload-status-dot"></span></div>
           <label class="upload-dropzone" id="uploadDropzone" for="analysisFiles">
             <input id="analysisFiles" name="files" type="file" multiple accept=".csv,text/csv" required>
@@ -60,9 +63,31 @@
             <label for="requestBbox">按经纬度矩形筛选（选填：西,南,东,北）</label>
             <input id="requestBbox" name="request_bbox" type="text" placeholder="例如：110,30,113,33">
             <p>不填写矩形即分析整份 CSV；只有主动填写时才筛选矩形内的记录。区域名称不用于空间筛选，矩形也不代表行政区边界。</p>
-            <button type="button" class="app-button app-button-ghost" id="observationPreviewButton">查看 CSV 观测范围</button>
-            <p id="observationPreviewInfo" class="declared-area-preview" aria-live="polite"></p>
+
           </section>
+          </section>
+
+          <aside class="analysis-workbench-preview" aria-label="观测范围预览和使用说明">
+            <div class="analysis-preview-heading">
+              <span class="app-eyebrow">OBSERVATION PREVIEW</span>
+              <h3>观测范围预览</h3>
+              <p>选择 FIRMS CSV 后，可以先读取实际观测点的坐标跨度，再决定是否填写筛选矩形。</p>
+            </div>
+            <button type="button" class="app-button app-button-ghost" id="observationPreviewButton">查看 CSV 观测范围</button>
+                        <p id="observationPreviewInfo" class="declared-area-preview" aria-live="polite"></p>
+            <div class="analysis-preview-guidance">
+              <strong>两种范围的区别</strong>
+              <p><b>CSV 观测范围</b>是有效火点坐标形成的外接范围，不等于 NASA 下载时选择的区域。</p>
+              <p><b>用户填写的矩形</b>仅用于筛选本次数据；不填写时保留整份 CSV 的有效观测。</p>
+            </div>
+            <div class="analysis-preview-footnote">分析结果中的位置与数量以实际数据为准，不根据区域名称推断行政区归属。</div>
+          </aside>
+        </div>
+
+        <div class="analysis-workbench-extras" aria-label="可选高级功能">
+          <div class="analysis-extras-heading">
+            <strong>高级设置</strong><span>通常不需要调整；展开后横向使用完整页面宽度</span>
+          </div>
           <details class="advanced-boundary-workflow">
             <summary>高级选项：精确地区边界（GeoJSON，一般无需使用）</summary>
             <label class="region-preview-authorization"><input type="checkbox" name="use_boundary_scope" value="yes"> 本次使用行政区边界精确匹配（只统计匹配区域）</label>
@@ -97,10 +122,14 @@
             <button id="agriculturalCalendarSaveButton" type="button" class="app-button app-button-ghost">安装农事规则</button>
             <p id="agriculturalCalendarFeedback" class="region-preview-detail" aria-live="polite"></p>
           </details>
+        </div>
+
+        <div class="analysis-workbench-footer">
+          <p>确认 CSV 文件及可选区域参数后开始分析，完成后自动进入结果页面。</p>
           <button id="analyzeButton" class="app-button app-button-primary upload-submit" type="submit">开始区域火点分析</button>
-          <div id="analysisProgress" class="analysis-progress" hidden><div><span></span></div><p>正在读取并分析本次 FIRMS 数据，请保持窗口开启…</p></div>
-        </form>
-      </section>
+        </div>
+        <div id="analysisProgress" class="analysis-progress" hidden><div><span></span></div><p>正在读取并分析本次 FIRMS 数据，请保持窗口开启…</p></div>
+      </form>
 
       <section class="analyze-note-grid reveal-item">
         <article><strong>自动识别</strong><span>日期、卫星、仪器与质量字段由软件自动判断。</span></article>
