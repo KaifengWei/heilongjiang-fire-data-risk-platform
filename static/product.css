@@ -5121,3 +5121,78 @@ body.home-body .home-orbit-visual .home-orbit-image-frame::after {
   .analyze-page-main .analysis-workbench-footer { flex-direction: column; align-items: stretch; }
   .analyze-page-main .analysis-workbench-footer #analyzeButton { width: 100%; }
 }
+
+/* Replace decorative field collage with task-evidence summary.
+   Percentages describe matched FIRMS observation points, NOT area coverage. */
+.declared-task-summary .declared-area-evidence {
+  min-width: 0;
+  padding: 15px 18px;
+  border: 1px solid #d5e6ed;
+  border-radius: 12px;
+  background: #fff;
+}
+.declared-task-summary .declared-area-evidence h3 {
+  margin: 7px 0;
+  color: #164c61;
+  font-size: 18px;
+}
+.declared-task-summary .declared-area-evidence > p {
+  margin: 6px 0 10px;
+  color: #637d8c;
+  line-height: 1.7;
+  font-size: 12px;
+}
+.declared-task-summary .declared-area-evidence > small {
+  display: block;
+  color: #6a8390;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.declared-task-summary .declared-evidence-bars {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+.declared-task-summary .declared-evidence-row {
+  display: grid;
+  grid-template-columns: minmax(104px, auto) minmax(50px, 1fr) 52px;
+  align-items: center;
+  gap: 9px;
+  color: #456877;
+  font-size: 11px;
+}
+.declared-task-summary .declared-evidence-row b {
+  font-size: 11px;
+  text-align: right;
+  color: #185a71;
+  font-variant-numeric: tabular-nums;
+}
+.declared-task-summary .declared-evidence-track {
+  height: 8px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: #e6eff2;
+}
+.declared-task-summary .declared-evidence-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2f91a4, #66b69e);
+}
+.declared-task-summary .declared-evidence-coordinate {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5edf2;
+  align-items: baseline;
+}
+.declared-task-summary .declared-evidence-coordinate strong {
+  color: #176987;
+  font-size: 17px;
+}
+.declared-task-summary .declared-evidence-coordinate span {
+  color: #637c87;
+  font-size: 12px;
+}

@@ -57,12 +57,46 @@
         <div>
           <span class="app-eyebrow">OBSERVATION-BASED ANALYSIS</span>
           <h2>{{ task.parameters.declared_area_label }}</h2>
-          <p>本次区域名称由用户声明，未核验行政边界；统计依据为上传 CSV 中的有效观测。</p>
+          <p>本次区域名称由用户声明，未核验行政边界；统计依据为上传 CSV 中的有效观测。右侧为有数据支撑的观测背景摘要。</p>
         </div>
-        <div class="declared-area-illustration" role="img" aria-label="通用农业区域示意，并非真实地图">
-          <div class="concept-field field-one"></div><div class="concept-field field-two"></div>
-          <div class="concept-field field-three"></div>
-          <span>通用农业区域概念示意 · 非真实地图</span>
+        <div class="declared-area-evidence" aria-label="基于实际观测的地表背景摘要">
+          <span class="app-eyebrow">OBSERVATION LAND COVER</span>
+          {% if land_cover_context and land_cover_context.available %}
+          <h3>{{ land_cover_context.visual_title }}</h3>
+          <p>{{ land_cover_context.guidance }}</p>
+          {% if land_cover_context.matched_observations is defined and land_cover_context.total_observations is defined %}
+          <small>地表来源：MCD12Q1 {{ land_cover_context.year }} · 成功匹配 {{ land_cover_context.matched_observations }} / {{ land_cover_context.total_observations }} 条观测</small>
+          {% endif %}
+          {% if land_cover_context.counts is defined and land_cover_context.matched_observations|default(0) > 0 %}
+          <div class="declared-evidence-bars" aria-label="匹配火点观测的地表类别占比">
+            {% for code, label in [
+              ('agriculture', '农田及交错植被'), ('forest', '林地'),
+              ('grass_shrub', '草地与灌丛'), ('wetland_water', '湿地与水体'),
+              ('urban', '建设用地'), ('barren_snow', '裸地与冰雪')
+            ] %}
+              {% set count = land_cover_context.counts.get(code, 0) %}
+              {% if count > 0 %}
+              {% set share = (100 * count / land_cover_context.matched_observations)|round(1) %}
+              <div class="declared-evidence-row">
+                <span>{{ label }}</span>
+                <div class="declared-evidence-track" aria-hidden="true"><i style="width: {{ share }}%"></i></div>
+                <b>{{ share }}%</b>
+              </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+          {% endif %}
+          <small>占比仅针对成功匹配的火点观测，不代表整个区域的地表面积比例。</small>
+          {% else %}
+          <h3>暂无足够地表分类依据</h3>
+          <p>本次观测未取得充分匹配的土地覆盖数据。下方仍可查看真实观测点位置，不据此推定农田、平原或其他地貌类型。</p>
+          <div class="declared-evidence-coordinate">
+            <strong>{{ '{:,}'.format(location_groups.total) if location_groups else '—' }}</strong>
+            <span>条具有有效坐标的观测</span>
+            <strong>{{ location_groups.cell_count if location_groups else '—' }}</strong>
+            <span>个 1° 经纬度网格</span>
+          </div>
+          {% endif %}
         </div>
         <div class="declared-task-metadata">
           {% if task.parameters.requested_bbox %}

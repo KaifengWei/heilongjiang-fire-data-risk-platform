@@ -30,7 +30,8 @@ def test_no_polygon_still_analyzes_all_csv_points(tmp_path):
     assert len(rows) == 2
     assert {x["region_name"] for x in rows} == {"用户关注区域"}
     html = client.get(f"/tasks/{task}").get_data(as_text=True)
-    assert "通用农业区域概念示意" in html
+    assert "暂无足够地表分类依据" in html
+    assert "通用农业区域概念示意" not in html
     assert "110.5" in html
     assert client.get(f"/api/tasks/{task}/map-data").get_json()["point_count"] == 2
     assert client.get(f"/api/tasks/{task}/weather-context").get_json()["available"] is False
@@ -101,3 +102,27 @@ def test_declared_area_hides_unrelated_fixed_landcover_image(tmp_path, monkeypat
     assert "测试地表证据" in html
     assert "仅展示本次观测点的地表分析信息" in html
     assert "mcd12q1_2024_landcover.png" not in html
+
+
+def test_declared_summary_shows_measured_land_cover_shares(tmp_path, monkeypatch):
+    """Display only matched FIRMS-point land-cover evidence, not a fake area map."""
+    app = make(tmp_path)
+    service = app.extensions["land_cover_context_service"]
+    monkeypatch.setattr(service, "analyze", lambda _rows: {
+        "available": True,
+        "visual_title": "农田背景与林地背景并存",
+        "guidance": "这是本次有效观测位置的土地覆盖分类。",
+        "year": 2024,
+        "matched_observations": 2,
+        "total_observations": 2,
+        "counts": {"agriculture": 1, "forest": 1},
+    })
+    monkeypatch.setattr(service, "build_priority_guidance", lambda _data, _regions: None)
+    task_id = tid(upload(app.test_client(), area_label="作物观察区域"))
+    text = app.test_client().get(f"/tasks/{task_id}").get_data(as_text=True)
+    assert "农田背景与林地背景并存" in text
+    assert "农田及交错植被" in text
+    assert "林地" in text
+    assert text.count("50.0%") >= 2
+    assert "不代表整个区域的地表面积比例" in text
+    assert "通用农业区域概念示意" not in text
