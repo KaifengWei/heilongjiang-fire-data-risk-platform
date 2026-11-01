@@ -4846,3 +4846,39 @@ body.home-body .home-capabilities p { color: #b7d2e1; }
     height: auto;
   }
 }
+
+/* P0 integrated homepage polish: keep photo free of caption strips.
+   The old sidebar uses !important light-background declarations; override
+   those ONLY on the home route to fix the unreadable light-on-light text. */
+body.home-body .app-sidebar {
+  background: linear-gradient(185deg, #07182b, #0b2742 64%, #091f36) !important;
+  border-right-color: rgba(106, 180, 219, .22) !important;
+}
+body.home-body .app-brand-copy strong { color: #f2faff !important; }
+body.home-body .app-brand-copy small { color: #c4dfed !important; }
+body.home-body .app-side-nav a,
+body.home-body .app-side-nav button { color: #d4eaf5 !important; }
+body.home-body .app-side-nav a.active,
+body.home-body .app-side-nav a.active span { color: #f7fcff !important; }
+body.home-body .app-side-nav a:hover,
+body.home-body .app-side-nav button:hover { color: #fff !important; }
+body.home-body .app-side-nav .result-nav-link.is-disabled {
+  opacity: .66;
+  color: #abc8d8 !important;
+  filter: none;
+}
+body.home-body .app-side-footer {
+  color: #bbd6e5 !important;
+  border-top-color: rgba(128,185,214,.27) !important;
+  font-size: 12px;
+}
+body.home-body .app-side-footer b {
+  color: #e0f6ff !important;
+  font-weight: 800;
+}
+body.home-body .home-orbit-visual .home-orbit-image-frame {
+  inset: 0;
+}
+body.home-body .home-orbit-visual .home-orbit-image-frame::after {
+  background: linear-gradient(180deg, rgba(5,24,45,.04), transparent 40%, rgba(5,24,45,.12));
+}

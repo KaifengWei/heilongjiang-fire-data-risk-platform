@@ -27,7 +27,7 @@
 <div class="home-hero-copy">
 <div class="home-intro-panel">
   <p class="home-intro-statement">让主动火点数据，成为清晰、可核查的分析结果。</p>
-  <p class="home-hero-lead">围绕 <strong>NASA FIRMS</strong> 数据，整合区域分布、历史同期、地表背景与天气信息，让用户快速找到需要关注的地区和日期。</p>
+  <p class="home-hero-lead">上传 <strong>NASA FIRMS</strong> 主动火点数据，按用户设定的分析范围查看火点变化、农业相关性与风险关注信息。地表、历史和天气资料仅在适用于当前区域时使用。</p>
   <div class="home-intro-steps" aria-label="平台分析流程">
     <article class="home-intro-step">
       <span class="home-intro-step-number" aria-hidden="true">01</span>
@@ -64,15 +64,11 @@
           <div class="home-source-strip">
             <span>NASA FIRMS</span><i></i>
             <span>用户自定区域</span><i></i>
-            <span>历史同期 / 地表 / 天气上下文</span>
+            <span>农业相关性 / 风险分析</span>
           </div>
         </div>
 
         <div class="home-hero-visual home-orbit-visual" aria-label="遥感地球视觉封面">
-          <div class="home-visual-topline">
-            <span>AGRICULTURAL AREA · CONTEXT VIEW</span>
-            <b>DATA-DRIVEN ANALYSIS</b>
-          </div>
           <div class="home-orbit-image-frame">
             <img class="home-orbit-image"
                  src="{{ url_for('static', filename='images/home_earth_orbit.webp') }}"
@@ -84,10 +80,6 @@
               <strong>地球封面资源未加载</strong>
               <span>请将配套的 home_earth_orbit.webp 放入 static/images 后刷新首页。</span>
             </div>
-          </div>
-          <div class="home-visual-caption">
-            <span>地球遥感视觉封面</span>
-            <small>仅用于首页视觉展示，实际火点及分析结果均以用户上传的数据为准。</small>
           </div>
         </div>
       </section>
