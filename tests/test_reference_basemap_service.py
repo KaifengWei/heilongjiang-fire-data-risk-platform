@@ -110,3 +110,17 @@ def test_basemap_upload_endpoint_rejects_missing_consent_and_invalid_file(tmp_pa
     assert _upload(client, authorized="no").status_code == 400
     assert _upload(client, raw=b"not a json").status_code == 400
     assert client.get("/api/map/background").get_json()["installed"] is False
+
+
+def test_installed_background_survives_separate_app_instance(tmp_path):
+    app = create_app(
+        database_path=tmp_path / "db.sqlite",
+        uploads_root=tmp_path / "uploads", testing=True,
+    )
+    first = app.test_client()
+    assert _upload(first).status_code == 200
+    restarted = create_app(
+        database_path=tmp_path / "db.sqlite",
+        uploads_root=tmp_path / "uploads", testing=True,
+    )
+    assert restarted.test_client().get("/api/map/background").get_json()["installed"]

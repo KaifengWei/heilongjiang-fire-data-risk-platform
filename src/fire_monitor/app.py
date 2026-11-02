@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import os
 import tempfile
 from io import StringIO
 from pathlib import Path
@@ -147,9 +148,17 @@ def create_app(
         database_path
     )
 
-    # Keep installed reference maps beside the user's local database.
-    map_data_dir = (Path(database_path).parent if database_path is not None
-                    else settings.runtime_dir)
+    # Keep user-installed maps outside the PyInstaller output directory,
+    # which is replaced every time the Windows desktop app is rebuilt.
+    if database_path is not None:
+        map_data_dir = Path(database_path).parent
+    elif os.name == "nt":
+        map_data_dir = (
+            Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local")))
+            / "AgriculturalFirmsAnalysis"
+        )
+    else:
+        map_data_dir = settings.runtime_dir
     reference_basemap_store = ReferenceBasemapStore(map_data_dir)
 
     database = Database(

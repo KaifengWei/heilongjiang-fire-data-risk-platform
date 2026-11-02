@@ -16,3 +16,5 @@
 地图合规参考：自然资源部标准地图服务 https://bzdt.ch.mnr.gov.cn/ 。原始 GIS 数据与经过审核的最终地图不是同一个产品；软件内可将用户拥有权限的 GeoJSON 用于本地分析背景，但公开展示、分发或出版前须核实相应规范与审核要求。
 
 **当前版本不声称已经内置全国底图。** 用户没有安装对应区域的真实数据时继续显示经纬度网格，不自动下载在线地图，不绘制虚构的国界或行政区轮廓。
+
+安装后的离线底图保存至当前 Windows 用户的 `%LOCALAPPDATA%\\AgriculturalFirmsAnalysis\\map_background\\reference_basemap.json`，不放在 `dist` 打包输出目录；重新打包 EXE 不会清除该文件。测试环境使用测试数据库所在目录隔离数据。
