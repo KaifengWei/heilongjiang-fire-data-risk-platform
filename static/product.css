@@ -5196,3 +5196,75 @@ body.home-body .home-orbit-visual .home-orbit-image-frame::after {
   color: #637c87;
   font-size: 12px;
 }
+
+/* Agricultural relevance: concise summary + sortable proportional bars.
+   Values are observation classifications, never model probabilities. */
+.agriculture-relevance-compact .agriculture-relevance-heading h2 { margin-bottom: 12px; }
+.agriculture-relevance-compact .agriculture-relevance-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0 0 12px;
+  gap: 9px;
+}
+.agriculture-relevance-compact .agriculture-relevance-metric {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 15px;
+  border: 1px solid #dbe8ee;
+  border-radius: 10px;
+  background: #fff;
+  border-left-width: 4px;
+}
+.agriculture-relevance-compact .agriculture-relevance-metric span { color: #537384; font-size: 12px; }
+.agriculture-relevance-compact .agriculture-relevance-metric strong {
+  font-size: 24px;
+  line-height: 1;
+  color: #1e4c62;
+  font-variant-numeric: tabular-nums;
+}
+.agriculture-relevance-compact .is-high { --evidence-color: #23798a; }
+.agriculture-relevance-compact .is-possible { --evidence-color: #5eab87; }
+.agriculture-relevance-compact .is-low { --evidence-color: #d7a862; }
+.agriculture-relevance-compact .is-unknown { --evidence-color: #a6b8c4; }
+.agriculture-relevance-compact .agriculture-relevance-metric { border-left-color: var(--evidence-color); }
+.agriculture-relevance-evidence-line {
+  display: flex;
+  gap: 8px 22px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #dfebef;
+  padding: 0 2px 14px;
+  color: #547282;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.agriculture-relevance-evidence-line b { color: #24526a; }
+.agriculture-region-heading {
+  margin-top: 16px;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.agriculture-region-heading h3 { margin: 0 0 4px; color: #1d4960; font-size: 15px; }
+.agriculture-region-heading p { margin: 0; max-width: 690px; color: #708893; font-size: 12px; line-height: 1.6; }
+.agriculture-region-heading > span { white-space: nowrap; color: #748d98; font-size: 12px; }
+.agriculture-region-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 12px 0; font-size: 11px; color: #607b88; }
+.agriculture-region-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.agriculture-region-legend span::before { content: ""; width: 9px; height: 9px; border-radius: 3px; background: var(--evidence-color); }
+.agriculture-region-list { display: grid; gap: 0; }
+.agriculture-region-row { min-width: 0; display: grid; grid-template-columns: minmax(100px, .8fr) minmax(80px, 2.7fr) 75px; gap: 16px; padding: 9px 3px; align-items: center; border-bottom: 1px solid #e5eef2; }
+.agriculture-region-row strong { color: #2f566b; font-size: 12px; overflow-wrap: anywhere; font-weight: 600; }
+.agriculture-region-stack { min-width: 0; height: 12px; display: flex; border-radius: 4px; overflow: hidden; background: #edf2f4; }
+.agriculture-region-stack span { height: 100%; background: var(--evidence-color); }
+.agriculture-region-total { text-align: right; color: #446879; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.agriculture-region-more { padding-top: 10px; }
+.agriculture-region-more summary { color: #1d6c87; font-size: 12px; font-weight: 600; cursor: pointer; }
+.agriculture-region-more .agriculture-region-list { padding-top: 9px; }
+.agriculture-relevance-compact .agriculture-relevance-note { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid #e1ebef; font-size: 11px; }
+@media (max-width: 710px) {
+  .agriculture-relevance-compact .agriculture-relevance-grid { grid-template-columns: repeat(2,minmax(0, 1fr)); }
+  .agriculture-region-row { gap: 9px; grid-template-columns: minmax(70px, 1fr) minmax(75px, 1.8fr) 56px; }
+  .agriculture-relevance-compact .agriculture-relevance-metric { padding: 11px; }
+}

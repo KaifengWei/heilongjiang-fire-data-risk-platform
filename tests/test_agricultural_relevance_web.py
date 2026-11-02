@@ -102,3 +102,55 @@ def test_calendar_api_rejects_unsupported_or_unsourced_rules(tmp_path):
     }, content_type="multipart/form-data")
     assert res.status_code == 400
     assert app.extensions["crop_calendar_store"].load_rules() == []
+
+
+def test_relevance_region_distribution_is_ranked_and_collapsible(tmp_path, monkeypatch):
+    app = create_app(
+        database_path=tmp_path / "db.sqlite",
+        uploads_root=tmp_path / "uploads",
+        testing=True,
+    )
+    client = app.test_client()
+    def stub_evidence(_rows, **_kwargs):
+        regions = {}
+        for i in range(8):
+            total = i + 1
+            regions[f"示例区{i}"] = {
+                "total": total,
+                "counts": {
+                    "较高相关": 0,
+                    "可能相关": total - 1,
+                    "较低相关": 1,
+                    "证据不足": 0,
+                },
+            }
+        return {
+            "available": True,
+            "counts": {"较高相关": 0, "可能相关": 28, "较低相关": 8, "证据不足": 0},
+            "total_observations": 36,
+            "land_cover_matched": 36,
+            "land_cover_year": 2024,
+            "calendar_rules_count": 0,
+            "regions": regions,
+            "disclaimer": "测试数据，仅验证界面排列。",
+        }
+
+    monkeypatch.setattr(
+        app.extensions["agricultural_relevance_service"], "analyze",
+        stub_evidence,
+    )
+    csv = (
+        b"latitude,longitude,acq_date,acq_time,satellite,instrument,confidence,version,frp\n"
+        b"39.5,110.5,2026-10-12,0320,N,VIIRS,n,2.0NRT,8.5\n"
+    )
+    response = client.post("/analyze", data={"files": (BytesIO(csv), "firms.csv")},
+                           content_type="multipart/form-data")
+    assert response.status_code == 302
+    html = client.get(response.headers["Location"]).get_data(as_text=True)
+    assert "各地区相关性分布" in html
+    assert "展开其余 2 个地区" in html
+    assert 'class="agriculture-region-stack"' in html
+    assert html.index("示例区7") < html.index("示例区6")
+    assert "较高相关 0 · 可能相关" not in html
+    assert "不代表焚烧发生概率" in html
+    assert "2024" in html

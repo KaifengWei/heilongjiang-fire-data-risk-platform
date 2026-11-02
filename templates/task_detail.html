@@ -141,33 +141,77 @@
         </div>
       </section>
       {% if agricultural_relevance and agricultural_relevance.available %}
-      <section class="agriculture-relevance-panel reveal-item">
+      <section class="agriculture-relevance-panel agriculture-relevance-compact reveal-item">
         <div class="agriculture-relevance-heading">
           <div>
             <span class="app-eyebrow">AGRICULTURAL RELEVANCE</span>
             <h2>农业秸秆焚烧相关性识别</h2>
           </div>
-          <small>与火点活动风险等级分开判断</small>
+          <small>农业背景线索，与火点活动关注等级分别判断</small>
         </div>
-        <div class="agriculture-relevance-grid">
-          {% for label in ['较高相关', '可能相关', '较低相关', '证据不足'] %}
-          <article>
+        <div class="agriculture-relevance-grid" aria-label="相关性等级观测数量">
+          {% for label, modifier in [
+            ('较高相关','high'), ('可能相关','possible'),
+            ('较低相关','low'), ('证据不足','unknown')
+          ] %}
+          <div class="agriculture-relevance-metric is-{{ modifier }}">
             <span>{{ label }}</span>
-            <strong>{{ agricultural_relevance.counts[label] }}</strong>
-            <small>条火点观测</small>
-          </article>
+            <strong>{{ '{:,}'.format(agricultural_relevance.counts[label]) }}</strong>
+          </div>
           {% endfor %}
         </div>
-        <p>耕地背景匹配使用 MCD12Q1 {{ agricultural_relevance.land_cover_year }} 年土地覆盖，共有 {{ agricultural_relevance.land_cover_matched }} / {{ agricultural_relevance.total_observations }} 条观测取得地表类别。已配置 {{ agricultural_relevance.calendar_rules_count }} 条地区农事时段规则。</p>
-        {% if agricultural_relevance.regions %}
-        <div class="agriculture-relevance-regions">
-          {% for region_name, detail in agricultural_relevance.regions.items() %}
-          <article>
-            <strong>{{ region_name }}</strong>
-            <span>较高相关 {{ detail.counts['较高相关'] }} · 可能相关 {{ detail.counts['可能相关'] }} · 较低相关 {{ detail.counts['较低相关'] }} · 证据不足 {{ detail.counts['证据不足'] }}</span>
-          </article>
+        <div class="agriculture-relevance-evidence-line">
+          <span><b>地表匹配</b> {{ agricultural_relevance.land_cover_matched }} / {{ agricultural_relevance.total_observations }} 条</span>
+          <span><b>土地覆盖</b> MCD12Q1 {{ agricultural_relevance.land_cover_year }}</span>
+          <span><b>农事规则</b> {{ agricultural_relevance.calendar_rules_count }} 条</span>
+        </div>
+        {% if agricultural_region_ranking %}
+        <div class="agriculture-region-heading">
+          <div>
+            <h3>各地区相关性分布</h3>
+            <p>按有效观测量排序。彩条表示各等级在本地区观测中的比例，不代表焚烧发生概率。</p>
+          </div>
+          <span>共 {{ agricultural_region_ranking|length }} 个地区</span>
+        </div>
+        <div class="agriculture-region-legend" aria-label="彩条图例">
+          <span class="is-high">较高相关</span>
+          <span class="is-possible">可能相关</span>
+          <span class="is-low">较低相关</span>
+          <span class="is-unknown">证据不足</span>
+        </div>
+        {% macro relevance_region_row(region) %}
+          <div class="agriculture-region-row">
+            <strong title="{{ region.name }}">{{ region.name }}</strong>
+            <div class="agriculture-region-stack" role="img"
+              aria-label="{{ region.name }}：较高相关 {{ region.counts['较高相关'] }}，可能相关 {{ region.counts['可能相关'] }}，较低相关 {{ region.counts['较低相关'] }}，证据不足 {{ region.counts['证据不足'] }}">
+              {% for level, modifier in [
+                ('较高相关','high'), ('可能相关','possible'),
+                ('较低相关','low'), ('证据不足','unknown')
+              ] %}
+                {% set count = region.counts[level] %}
+                {% if count > 0 and region.total > 0 %}
+                <span class="is-{{ modifier }}" style="width:{{ 100 * count / region.total }}%" title="{{ level }} {{ count }} 条"></span>
+                {% endif %}
+              {% endfor %}
+            </div>
+            <span class="agriculture-region-total">{{ '{:,}'.format(region.total) }} 条</span>
+          </div>
+        {% endmacro %}
+        <div class="agriculture-region-list">
+          {% for region in agricultural_region_ranking[:6] %}
+            {{ relevance_region_row(region) }}
           {% endfor %}
         </div>
+        {% if agricultural_region_ranking|length > 6 %}
+        <details class="agriculture-region-more">
+          <summary>展开其余 {{ agricultural_region_ranking|length - 6 }} 个地区</summary>
+          <div class="agriculture-region-list">
+            {% for region in agricultural_region_ranking[6:] %}
+              {{ relevance_region_row(region) }}
+            {% endfor %}
+          </div>
+        </details>
+        {% endif %}
         {% endif %}
         <p class="agriculture-relevance-note">{{ agricultural_relevance.disclaimer }}</p>
       </section>

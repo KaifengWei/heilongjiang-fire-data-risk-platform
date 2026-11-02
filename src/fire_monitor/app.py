@@ -768,6 +768,15 @@ def create_app(
             calendar_rules=(task.get("parameters") or {}).get("agricultural_calendar_rules") or [],
         )
 
+        agricultural_region_ranking = sorted(
+            [
+                {"name": name, **detail}
+                for name, detail in (agricultural_relevance.get("regions") or {}).items()
+                if int(detail.get("total", 0)) > 0
+            ],
+            key=lambda row: (-int(row["total"]), row["name"]),
+        )
+
         priority_land_cover = (
             land_cover_context_service
             .build_priority_guidance(
@@ -838,6 +847,7 @@ def create_app(
                     land_cover_context
                 ),
                 agricultural_relevance=agricultural_relevance,
+                agricultural_region_ranking=agricultural_region_ranking,
                 priority_land_cover=(
                     priority_land_cover
                 ),
