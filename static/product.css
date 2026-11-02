@@ -5292,3 +5292,16 @@ body.home-body .home-orbit-visual .home-orbit-image-frame::after {
   font-size: 11px;
   line-height: 1.6;
 }
+
+/* Coordinate viewport toolbar – only used when a real outline exists. */
+.map-viewport-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 2px 0 10px;
+}
+.map-viewport-toolbar .app-button {
+  padding: 8px 15px;
+  min-height: 36px;
+  font-size: 13px;
+}
+.analyze-page-main .analysis-workbench-footer { justify-content: flex-end; }

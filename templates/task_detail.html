@@ -57,7 +57,6 @@
         <div>
           <span class="app-eyebrow">OBSERVATION-BASED ANALYSIS</span>
           <h2>{{ task.parameters.declared_area_label }}</h2>
-          <p>本次区域名称由用户声明，未核验行政边界；统计依据为上传 CSV 中的有效观测。右侧为有数据支撑的观测背景摘要。</p>
         </div>
         <div class="declared-area-evidence" aria-label="基于实际观测的地表背景摘要">
           <span class="app-eyebrow">OBSERVATION LAND COVER</span>
@@ -351,14 +350,8 @@
             <div>
               <span class="app-eyebrow">SPATIAL WORKSPACE</span>
               <h2>{{ '观测点分布（真实坐标）' if coordinate_mode else '火点空间分布' }}</h2>
-              {% if coordinate_mode %}
-              <p class="map-spatial-reference-note">
-                {% if map_context_count %}
-                已叠加 {{ map_context_count }} 处已安装地区的真实轮廓，仅供位置参照，不代表行政落区核验或全国底图。
-                {% else %}
-                当前坐标范围暂无已安装的地区边界，继续按真实经纬度显示，不使用虚构底图。
-                {% endif %}
-              </p>
+              {% if coordinate_mode and map_context_count %}
+              <p class="map-spatial-reference-note">已加载 {{ map_context_count }} 处地理轮廓</p>
               {% endif %}
             </div>
 
@@ -378,6 +371,11 @@
             </div>
           </div>
 
+          {% if coordinate_mode and map_context_count %}
+          <div class="map-viewport-toolbar">
+            <button type="button" id="mapZoomModeButton" class="app-button app-button-ghost" aria-pressed="false">查看轮廓全貌</button>
+          </div>
+          {% endif %}
           <div class="interactive-map-shell">
             <canvas id="taskMapCanvas" width="1100" height="650"></canvas>
             <div class="map-loading-chip" id="mapLoadingChip">正在加载火点…</div>

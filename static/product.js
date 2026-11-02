@@ -642,6 +642,7 @@
 
     const taskId = workspace.getAttribute('data-task-id') || '';
     const coordinateMode = workspace.getAttribute('data-coordinate-mode') === 'true';
+    const zoomModeButton = $('#mapZoomModeButton');
     if (!taskId) return;
 
     const loadingChip = $('#mapLoadingChip');
@@ -729,10 +730,12 @@
       };
     }
 
+    let showFullOutline = false;
     function activeBounds() {
-      // Coordinate-only tasks are framed by *observed* points, even if
-      // the installed boundary layer covers only part of the viewport.
-      if (coordinateMode) return coordinateBounds;
+      if (coordinateMode) {
+        return (showFullOutline ? provinceBounds : coordinateBounds)
+          || coordinateBounds || provinceBounds;
+      }
 
       if (window.__countyDrilldownFeature) {
         return featureBounds(
@@ -1221,6 +1224,15 @@
       }
     }
 
+    zoomModeButton?.addEventListener('click', () => {
+      if (!coordinateBounds || !provinceBounds) return;
+      showFullOutline = !showFullOutline;
+      zoomModeButton.setAttribute('aria-pressed', String(showFullOutline));
+      zoomModeButton.textContent = showFullOutline
+        ? '返回观测范围' : '查看轮廓全貌';
+      redrawMap();
+    });
+
     // Draw the boundary immediately. The page no longer waits for
     // 28k+ fire records to be embedded in the initial HTML.
     redrawMap();
@@ -1238,7 +1250,9 @@
       const payload = await response.json();
 
       points = Array.isArray(payload.points) ? payload.points : [];
-      if (!provinceBounds && points.length) {
+      // Always derive the observation viewport. Optional map outlines
+      // must never suppress the FIRMS-point camera bounds.
+      if ((coordinateMode || !provinceBounds) && points.length) {
         let west = Infinity, east = -Infinity;
         let south = Infinity, north = -Infinity;
         for (const point of points) {

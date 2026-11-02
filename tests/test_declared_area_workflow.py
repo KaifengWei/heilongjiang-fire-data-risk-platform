@@ -191,3 +191,24 @@ def test_user_installed_boundary_is_visual_reference_only(tmp_path):
     points = app.test_client().get(f"/api/tasks/{task_id}/map-data").get_json()
     assert points["point_count"] == 2
     assert database.list_task_regions(task_id) == []
+
+
+def test_map_viewport_keeps_observation_bounds_when_reference_is_present(tmp_path):
+    app = make(tmp_path)
+    app.extensions["fire_database"].upsert_regions([{
+        "name": "小范围边界",
+        "level": "city",
+        "geometry": {"type": "Polygon", "coordinates": [[
+            [110, 30], [111, 30], [111, 31], [110, 31], [110, 30],
+        ]]},
+    }])
+    task_id = tid(upload(app.test_client()))
+    html = app.test_client().get(f"/tasks/{task_id}").get_data(as_text=True)
+    assert 'id="mapZoomModeButton"' in html
+    assert "查看轮廓全貌" in html
+    assert "不代表行政落区核验或全国底图" not in html
+    assert "本次区域名称由用户声明，未核验行政边界" not in html
+    js = app.test_client().get("/static/product.js").get_data(as_text=True)
+    assert "if ((coordinateMode || !provinceBounds) && points.length)" in js
+    assert "showFullOutline = !showFullOutline" in js
+    assert "showFullOutline ? provinceBounds : coordinateBounds" in js

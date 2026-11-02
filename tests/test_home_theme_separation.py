@@ -119,6 +119,7 @@ def test_analysis_preview_copy_is_concise_and_readable(tmp_path):
     ):
         assert removed not in html
 
+    assert "确认 CSV 文件及可选区域参数后开始分析" not in html
     assert "两种范围的区别" in html
     assert "当前文件中有效火点的实际坐标范围" in html
     assert "填写后，仅筛选本次分析数据" in html
