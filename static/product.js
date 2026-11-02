@@ -642,6 +642,7 @@
     if (!workspace || !canvas || !featuresNode) return;
 
     const taskId = workspace.getAttribute('data-task-id') || '';
+    const coordinateMode = workspace.getAttribute('data-coordinate-mode') === 'true';
     if (!taskId) return;
 
     const loadingChip = $('#mapLoadingChip');
@@ -730,6 +731,10 @@
     }
 
     function activeBounds() {
+      // Coordinate-only tasks are framed by *observed* points, even if
+      // the installed boundary layer covers only part of the viewport.
+      if (coordinateMode) return coordinateBounds;
+
       if (window.__countyDrilldownFeature) {
         return featureBounds(
           window.__countyDrilldownFeature
@@ -1067,8 +1072,10 @@
 
       if (!context) {
         if (mapEmpty) {
-          mapEmpty.textContent = '行政区边界暂不可用。';
-          mapEmpty.hidden = false;
+          mapEmpty.textContent = coordinateMode
+            ? '当前没有可显示的有效观测坐标。'
+            : '行政区边界暂不可用。';
+          mapEmpty.hidden = !loaded;
         }
         return;
       }

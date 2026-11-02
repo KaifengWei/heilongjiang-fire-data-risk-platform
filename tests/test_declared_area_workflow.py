@@ -126,3 +126,41 @@ def test_declared_summary_shows_measured_land_cover_shares(tmp_path, monkeypatch
     assert text.count("50.0%") >= 2
     assert "不代表整个区域的地表面积比例" in text
     assert "通用农业区域概念示意" not in text
+
+
+def test_declared_area_renders_only_real_installed_boundary_context(tmp_path):
+    import json
+    import re
+
+    app = make(tmp_path)
+    database = app.extensions["fire_database"]
+    database.upsert_regions([
+        {
+            "name": "本地参照轮廓",
+            "level": "city",
+            "geometry": {"type": "Polygon", "coordinates": [[
+                [110.1, 30.1], [110.9, 30.1], [110.9, 30.9],
+                [110.1, 30.9], [110.1, 30.1],
+            ]]},
+        },
+        {
+            "name": "远端轮廓",
+            "level": "city",
+            "geometry": {"type": "Polygon", "coordinates": [[
+                [145, 40], [146, 40], [146, 41], [145, 41], [145, 40],
+            ]]},
+        },
+    ])
+    task_id = tid(upload(app.test_client(), request_bbox="110,30,111,31"))
+    html = app.test_client().get(f"/tasks/{task_id}").get_data(as_text=True)
+    assert 'data-coordinate-mode="true"' in html
+    assert "已叠加 1 处已安装地区的真实轮廓" in html
+    match = re.search(r'<script id="taskMapFeatures" type="application/json">(.*?)</script>',
+                      html, flags=re.S)
+    assert match is not None
+    features = json.loads(match.group(1))["features"]
+    assert len(features) == 1
+    assert features[0]["properties"]["name"] == "本地参照轮廓"
+    assert features[0]["properties"]["reference_only"] is True
+    assert features[0]["geometry"]["type"] == "Polygon"
+    assert app.test_client().get(f"/api/tasks/{task_id}/map-data").get_json()["point_count"] == 1

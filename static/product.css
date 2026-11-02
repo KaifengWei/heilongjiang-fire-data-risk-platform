@@ -5268,3 +5268,12 @@ body.home-body .home-orbit-visual .home-orbit-image-frame::after {
   .agriculture-region-row { gap: 9px; grid-template-columns: minmax(70px, 1fr) minmax(75px, 1.8fr) 56px; }
   .agriculture-relevance-compact .agriculture-relevance-metric { padding: 11px; }
 }
+
+/* Coordinate-only map: installed polygons are context, not classification. */
+.map-spatial-reference-note {
+  max-width: 780px;
+  margin: 5px 0 0;
+  color: #6b8794;
+  font-size: 11px;
+  line-height: 1.6;
+}

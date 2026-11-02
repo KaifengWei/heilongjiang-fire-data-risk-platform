@@ -126,6 +126,9 @@ from fire_monitor.services.analysis_area_service import (
     observation_bbox,
     group_observations_by_grid,
 )
+from fire_monitor.services.map_context_service import (
+    build_observation_boundary_context,
+)
 
 def create_app(
     database_path: str | Path | None = None,
@@ -685,12 +688,6 @@ def create_app(
         )
 
         is_declared_area = (task.get("parameters") or {}).get("area_mode") == "coordinates_only"
-        region_feature_collection = (
-            {"type": "FeatureCollection", "features": []}
-            if is_declared_area
-            else database.task_region_feature_collection(task_id)
-        )
-
         task_region_ranking = sorted(
             task_region_statistics,
             key=lambda row: (
@@ -768,6 +765,16 @@ def create_app(
             calendar_rules=(task.get("parameters") or {}).get("agricultural_calendar_rules") or [],
         )
 
+        task_observed_bbox = observation_bbox(task_firms_observations)
+        if is_declared_area:
+            region_feature_collection = build_observation_boundary_context(
+                database.region_feature_collection().get("features", []),
+                task_observed_bbox,
+            )
+        else:
+            region_feature_collection = database.task_region_feature_collection(task_id)
+        map_context_count = len(region_feature_collection["features"])
+
         agricultural_region_ranking = sorted(
             [
                 {"name": name, **detail}
@@ -795,7 +802,8 @@ def create_app(
                 active_section="result",
                 task=task,
                 task_id=task_id,
-                observed_bbox=observation_bbox(task_firms_observations),
+                observed_bbox=task_observed_bbox,
+                map_context_count=map_context_count,
                 location_groups=(
                     group_observations_by_grid(task_firms_observations)
                     if is_declared_area else None

@@ -36,7 +36,7 @@
       </div>
     </header>
 
-    <main class="app-main result-workspace-main" id="taskWorkspace" data-task-id="{{ task_id }}">
+    <main class="app-main result-workspace-main" id="taskWorkspace" data-task-id="{{ task_id }}" data-coordinate-mode="{{ 'true' if task.parameters.area_mode == 'coordinates_only' else 'false' }}">
       {% if page_error %}
       <div class="app-alert error">
         <strong>本次分析未完全完成</strong>
@@ -351,6 +351,15 @@
             <div>
               <span class="app-eyebrow">SPATIAL WORKSPACE</span>
               <h2>{{ '观测点分布（真实坐标）' if coordinate_mode else '火点空间分布' }}</h2>
+              {% if coordinate_mode %}
+              <p class="map-spatial-reference-note">
+                {% if map_context_count %}
+                已叠加 {{ map_context_count }} 处已安装地区的真实轮廓，仅供位置参照，不代表行政落区核验或全国底图。
+                {% else %}
+                当前坐标范围暂无已安装的地区边界，继续按真实经纬度显示，不使用虚构底图。
+                {% endif %}
+              </p>
+              {% endif %}
             </div>
 
             <div class="map-layer-controls map-mode-switch" aria-label="地图显示模式">
