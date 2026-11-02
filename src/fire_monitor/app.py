@@ -129,6 +129,9 @@ from fire_monitor.services.analysis_area_service import (
 from fire_monitor.services.map_context_service import (
     build_observation_boundary_context,
 )
+from fire_monitor.services.reference_basemap_service import (
+    ReferenceBasemapStore, MAX_UPLOAD_BYTES as MAP_MAX_BYTES,
+)
 
 def create_app(
     database_path: str | Path | None = None,
@@ -143,6 +146,11 @@ def create_app(
     settings = load_settings(
         database_path
     )
+
+    # Keep installed reference maps beside the user's local database.
+    map_data_dir = (Path(database_path).parent if database_path is not None
+                    else settings.runtime_dir)
+    reference_basemap_store = ReferenceBasemapStore(map_data_dir)
 
     database = Database(
         settings.database_path
@@ -783,9 +791,20 @@ def create_app(
                 reference_features,
                 task_observed_bbox,
             )
+            basemap_features = reference_basemap_store.context(task_observed_bbox)["features"]
+            if basemap_features:
+                region_feature_collection["features"] = (
+                    basemap_features + region_feature_collection["features"]
+                )
         else:
             region_feature_collection = database.task_region_feature_collection(task_id)
-        map_context_count = len(region_feature_collection["features"])
+            basemap_features = []
+        map_context_count = sum(
+            feature.get("properties", {}).get("reference_layer") != "basemap"
+            for feature in region_feature_collection["features"]
+        )
+        basemap_summary = reference_basemap_store.summary()
+        map_basemap_count = len(basemap_features)
 
         agricultural_region_ranking = sorted(
             [
@@ -816,6 +835,8 @@ def create_app(
                 task_id=task_id,
                 observed_bbox=task_observed_bbox,
                 map_context_count=map_context_count,
+                map_basemap_count=map_basemap_count,
+                basemap_summary=basemap_summary,
                 location_groups=(
                     group_observations_by_grid(task_firms_observations)
                     if is_declared_area else None
@@ -1130,6 +1151,27 @@ def create_app(
                 task_id=result["task_id"],
             )
         )
+
+    @app.get("/api/map/background")
+    def map_background_status():
+        return jsonify(reference_basemap_store.summary())
+
+    @app.post("/api/map/background")
+    def map_background_install():
+        uploaded = request.files.get("background_file")
+        if uploaded is None or not uploaded.filename:
+            return jsonify({"error": "请先选择 GeoJSON 地图文件。"}), 400
+        if Path(uploaded.filename.replace("\\\\", "/")).suffix.lower() not in {".geojson", ".json"}:
+            return jsonify({"error": "仅支持 GeoJSON 地图文件。"}), 400
+        try:
+            result = reference_basemap_store.install(
+                uploaded.stream.read(MAP_MAX_BYTES + 1),
+                source=request.form.get("source", ""),
+                authorized=request.form.get("authorized") == "yes",
+            )
+        except (ValueError, OSError) as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify(result)
 
     # =====================================================
     # 分析任务页面

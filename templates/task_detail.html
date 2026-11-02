@@ -350,8 +350,11 @@
             <div>
               <span class="app-eyebrow">SPATIAL WORKSPACE</span>
               <h2>{{ '观测点分布（真实坐标）' if coordinate_mode else '火点空间分布' }}</h2>
-              {% if coordinate_mode and map_context_count %}
-              <p class="map-spatial-reference-note">已加载 {{ map_context_count }} 处地理轮廓</p>
+              {% if coordinate_mode and (map_context_count or map_basemap_count) %}
+              <p class="map-spatial-reference-note">
+                {% if map_basemap_count %}地图：{{ basemap_summary.source }}{% endif %}
+                {% if map_context_count %}{{ map_context_count }} 处地区轮廓{% endif %}
+              </p>
               {% endif %}
             </div>
 
@@ -371,9 +374,29 @@
             </div>
           </div>
 
-          {% if coordinate_mode and map_context_count %}
+          {% if coordinate_mode %}
           <div class="map-viewport-toolbar">
+            {% if map_context_count or map_basemap_count %}
             <button type="button" id="mapZoomModeButton" class="app-button app-button-ghost" aria-pressed="false">查看轮廓全貌</button>
+            {% endif %}
+            <details class="map-background-installer">
+              <summary>导入离线地图（GeoJSON）</summary>
+              <form id="mapBackgroundForm" enctype="multipart/form-data">
+                <label>地图文件
+                  <input type="file" name="background_file" accept=".geojson,.json" required>
+                </label>
+                <label>数据来源
+                  <input type="text" name="source" maxlength="250" required placeholder="发布机构、版本及许可">
+                </label>
+                <label class="map-background-auth">
+                  <input type="checkbox" name="authorized" value="yes" required>
+                  我已确认地图数据使用权限
+                </label>
+                <button type="submit" class="app-button app-button-ghost">安装离线底图</button>
+                <p id="mapBackgroundFeedback" aria-live="polite"></p>
+              </form>
+              <small>地图用于位置展示，不改变火点分析结果。</small>
+            </details>
           </div>
           {% endif %}
           <div class="interactive-map-shell">

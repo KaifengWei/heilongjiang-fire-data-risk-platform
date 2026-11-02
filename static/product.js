@@ -643,6 +643,8 @@
     const taskId = workspace.getAttribute('data-task-id') || '';
     const coordinateMode = workspace.getAttribute('data-coordinate-mode') === 'true';
     const zoomModeButton = $('#mapZoomModeButton');
+    const backgroundForm = $('#mapBackgroundForm');
+    const backgroundFeedback = $('#mapBackgroundFeedback');
     if (!taskId) return;
 
     const loadingChip = $('#mapLoadingChip');
@@ -1231,6 +1233,25 @@
       zoomModeButton.textContent = showFullOutline
         ? '返回观测范围' : '查看轮廓全貌';
       redrawMap();
+    });
+
+    backgroundForm?.addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = backgroundForm.querySelector('button[type="submit"]');
+      const data = new FormData(backgroundForm);
+      if (button) button.disabled = true;
+      if (backgroundFeedback) backgroundFeedback.textContent = '正在安装地图…';
+      try {
+        const response = await fetch('/api/map/background', { method: 'POST', body: data });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || '地图安装失败');
+        if (backgroundFeedback) backgroundFeedback.textContent = '地图已安装，正在更新预览。';
+        window.location.reload();
+      } catch (err) {
+        if (backgroundFeedback) backgroundFeedback.textContent = err.message || '地图安装失败';
+      } finally {
+        if (button) button.disabled = false;
+      }
     });
 
     // Draw the boundary immediately. The page no longer waits for

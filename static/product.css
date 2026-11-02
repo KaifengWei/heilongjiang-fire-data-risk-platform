@@ -5305,3 +5305,47 @@ body.home-body .home-orbit-visual .home-orbit-image-frame::after {
   font-size: 13px;
 }
 .analyze-page-main .analysis-workbench-footer { justify-content: flex-end; }
+
+/* Offline georeferenced background: small optional collapsible form. */
+.map-viewport-toolbar { align-items: center; flex-wrap: wrap; gap: 10px; }
+.map-background-installer {
+  min-width: min(100%, 260px);
+  border: 1px solid #d6e6ed;
+  border-radius: 10px;
+  padding: 9px 13px;
+  background: #f7fbfd;
+}
+.map-background-installer > summary {
+  cursor: pointer;
+  color: #245b74;
+  font-size: 13px;
+  font-weight: 650;
+}
+.map-background-installer form {
+  display: grid;
+  gap: 10px;
+  width: min(420px, 100%);
+  margin: 13px 0 9px;
+}
+.map-background-installer form label {
+  display: grid;
+  gap: 5px;
+  color: #456779;
+  font-size: 13px;
+}
+.map-background-installer input[type="file"],
+.map-background-installer input[type="text"] {
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid #d2e0e8;
+  border-radius: 7px;
+  background: #fff;
+  padding: 9px;
+  font-size: 13px;
+}
+.map-background-installer .map-background-auth {
+  grid-template-columns: 17px minmax(0, 1fr);
+  align-items: center;
+}
+.map-background-installer small { color: #708894; line-height: 1.6; }
+#mapBackgroundFeedback { margin: 0; font-size: 12px; color: #315f73; }
