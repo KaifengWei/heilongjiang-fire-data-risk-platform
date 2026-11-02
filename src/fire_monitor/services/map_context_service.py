@@ -58,13 +58,16 @@ def build_observation_boundary_context(
         if simplified.is_empty:
             continue
         properties = feature.get("properties") or {}
+        public_properties = {
+            "name": str(properties.get("name") or ""),
+            "source": str(properties.get("source") or "local_catalog"),
+            "reference_only": True,
+        }
+        if properties.get("reference_layer") == "basemap":
+            public_properties["reference_layer"] = "basemap"
         features.append({
             "type": "Feature",
-            "properties": {
-                "name": str(properties.get("name") or ""),
-                "source": str(properties.get("source") or "local_catalog"),
-                "reference_only": True,
-            },
+            "properties": public_properties,
             "geometry": mapping(simplified),
         })
     return {"type": "FeatureCollection", "features": features}

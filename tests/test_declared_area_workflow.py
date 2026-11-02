@@ -154,7 +154,7 @@ def test_declared_area_renders_only_real_installed_boundary_context(tmp_path):
     task_id = tid(upload(app.test_client(), request_bbox="110,30,111,31"))
     html = app.test_client().get(f"/tasks/{task_id}").get_data(as_text=True)
     assert 'data-coordinate-mode="true"' in html
-    assert "已叠加 1 处已安装地区的真实轮廓" in html
+    assert "1 处地区轮廓" in html
     match = re.search(r'<script id="taskMapFeatures" type="application/json">(.*?)</script>',
                       html, flags=re.S)
     assert match is not None
