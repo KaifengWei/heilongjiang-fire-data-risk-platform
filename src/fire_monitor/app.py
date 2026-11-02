@@ -767,8 +767,20 @@ def create_app(
 
         task_observed_bbox = observation_bbox(task_firms_observations)
         if is_declared_area:
+            # Reuse only polygons that are genuinely installed: original
+            # sourced region outlines and user-authorized boundary catalog.
+            # This is visual context and does not filter or classify points.
+            reference_features = database.region_feature_collection().get("features", [])
+            reference_features.extend({
+                "type": "Feature",
+                "properties": {
+                    "name": item["name"],
+                    "source": item["source"],
+                },
+                "geometry": item["geometry"],
+            } for item in database.list_user_catalog_regions())
             region_feature_collection = build_observation_boundary_context(
-                database.region_feature_collection().get("features", []),
+                reference_features,
                 task_observed_bbox,
             )
         else:

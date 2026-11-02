@@ -164,3 +164,30 @@ def test_declared_area_renders_only_real_installed_boundary_context(tmp_path):
     assert features[0]["properties"]["reference_only"] is True
     assert features[0]["geometry"]["type"] == "Polygon"
     assert app.test_client().get(f"/api/tasks/{task_id}/map-data").get_json()["point_count"] == 1
+
+
+def test_user_installed_boundary_is_visual_reference_only(tmp_path):
+    import json
+    import re
+
+    app = make(tmp_path)
+    database = app.extensions["fire_database"]
+    database.install_user_catalog_regions([{
+        "name": "已安装示例边界",
+        "level": "custom",
+        "geometry": {"type": "Polygon", "coordinates": [[
+            [110, 30], [111, 30], [111, 31], [110, 31], [110, 30],
+        ]]},
+    }], data_source="本地测试文件，不用于正式发布", source_sha256="test-source")
+    task_id = tid(upload(app.test_client(), area_label="任意用户名称"))
+    page = app.test_client().get(f"/tasks/{task_id}").get_data(as_text=True)
+    match = re.search(r'<script id="taskMapFeatures" type="application/json">(.*?)</script>',
+                      page, flags=re.S)
+    assert match
+    features = json.loads(match.group(1))["features"]
+    assert [feature["properties"]["name"] for feature in features] == ["已安装示例边界"]
+    assert features[0]["properties"]["reference_only"] is True
+    assert features[0]["properties"]["source"] == "user_catalog"
+    points = app.test_client().get(f"/api/tasks/{task_id}/map-data").get_json()
+    assert points["point_count"] == 2
+    assert database.list_task_regions(task_id) == []
