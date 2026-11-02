@@ -248,8 +248,7 @@
       if (!response.ok) throw new Error(result.error || '预览失败');
       if (observationPreviewInfo) observationPreviewInfo.textContent =
         '有效坐标 ' + result.valid_coordinate_rows + ' 条，观测范围：' +
-        (result.observed_bbox?.join(', ') || '暂无') +
-        '；这不是NASA原始下载框。';
+        (result.observed_bbox?.join(', ') || '暂无');
     } catch (err) {
       if (observationPreviewInfo) observationPreviewInfo.textContent = err.message || '预览失败。';
     } finally {

@@ -62,8 +62,6 @@
             <input id="declaredAreaLabel" name="area_label" type="text" maxlength="80" placeholder="例如：本次农业生产区域">
             <label for="requestBbox">按经纬度矩形筛选（选填：西,南,东,北）</label>
             <input id="requestBbox" name="request_bbox" type="text" placeholder="例如：110,30,113,33">
-            <p>不填写矩形即分析整份 CSV；只有主动填写时才筛选矩形内的记录。区域名称不用于空间筛选，矩形也不代表行政区边界。</p>
-
           </section>
           </section>
 
@@ -74,19 +72,18 @@
               <p>选择 FIRMS CSV 后，可以先读取实际观测点的坐标跨度，再决定是否填写筛选矩形。</p>
             </div>
             <button type="button" class="app-button app-button-ghost" id="observationPreviewButton">查看 CSV 观测范围</button>
-                        <p id="observationPreviewInfo" class="declared-area-preview" aria-live="polite"></p>
+            <p id="observationPreviewInfo" class="declared-area-preview" aria-live="polite"></p>
             <div class="analysis-preview-guidance">
               <strong>两种范围的区别</strong>
-              <p><b>CSV 观测范围</b>是有效火点坐标形成的外接范围，不等于 NASA 下载时选择的区域。</p>
-              <p><b>用户填写的矩形</b>仅用于筛选本次数据；不填写时保留整份 CSV 的有效观测。</p>
+              <p><b>CSV 观测范围</b><span>当前文件中有效火点的实际坐标范围</span></p>
+              <p><b>用户矩形范围</b><span>填写后，仅筛选本次分析数据</span></p>
             </div>
-            <div class="analysis-preview-footnote">分析结果中的位置与数量以实际数据为准，不根据区域名称推断行政区归属。</div>
           </aside>
         </div>
 
         <div class="analysis-workbench-extras" aria-label="可选高级功能">
           <div class="analysis-extras-heading">
-            <strong>高级设置</strong><span>通常不需要调整；展开后横向使用完整页面宽度</span>
+            <strong>高级设置</strong>
           </div>
           <details class="advanced-boundary-workflow">
             <summary>高级选项：精确地区边界（GeoJSON，一般无需使用）</summary>
