@@ -38,7 +38,11 @@ def test_no_polygon_still_analyzes_all_csv_points(tmp_path):
     report = client.get(f"/tasks/{task}/report.docx")
     assert report.status_code == 200
     doc = Document(BytesIO(report.data))
-    assert "未经行政边界核验" in "\n".join(p.text for p in doc.paragraphs)
+    report_text = "\n".join(p.text for p in doc.paragraphs)
+    assert "空间位置与火点分布" in report_text
+    assert "110.50000°E" in report_text
+    assert len(doc.inline_shapes) >= 1
+    assert "未经行政边界核验" not in report_text
 
 def test_requested_rectangle_filters_and_invalid_rejected(tmp_path):
     app = make(tmp_path)
@@ -82,9 +86,10 @@ def test_one_csv_multiple_coordinate_groups_are_shown_and_exported(tmp_path):
     assert report.status_code == 200
     doc = Document(BytesIO(report.data))
     report_text = "\n".join(p.text for p in doc.paragraphs)
-    assert "观测位置分组" in report_text
-    assert "经度 110°" in report_text
-    assert "经度 127°" in report_text
+    assert "空间位置与火点分布" in report_text
+    assert "观测经度：110.50000°E ～ 127.50000°E" in report_text
+    assert "最密集 0.25° 网格" in report_text
+    assert len(doc.inline_shapes) >= 1
 
 
 def test_declared_area_hides_unrelated_fixed_landcover_image(tmp_path, monkeypatch):
