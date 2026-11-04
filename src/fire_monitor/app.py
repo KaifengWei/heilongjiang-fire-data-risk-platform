@@ -784,28 +784,29 @@ def create_app(
 
         task_observed_bbox = observation_bbox(task_firms_observations)
         if is_declared_area:
-            # Reuse only polygons that are genuinely installed: original
-            # sourced region outlines and user-authorized boundary catalog.
-            # This is visual context and does not filter or classify points.
-            reference_features = database.region_feature_collection().get("features", [])
-            reference_features.extend({
-                "type": "Feature",
-                "properties": {
-                    "name": item["name"],
-                    "source": item["source"],
-                },
-                "geometry": item["geometry"],
-            } for item in database.list_user_catalog_regions())
-            region_feature_collection = build_observation_boundary_context(
-                reference_features,
-                task_observed_bbox,
-            )
-            # Include the complete installed map; the Canvas switches between
-            # the observed FIRMS extent and this full reference footprint.
+            # An installed provincial background is the sole reference layer.
+            # Mixing it with the old city/county outlines creates duplicate
+            # borders and labels, as observed in the Windows EXE. If no
+            # background exists, keep the original local fallback intact.
             basemap_features = reference_basemap_store.full_context()["features"]
             if basemap_features:
-                region_feature_collection["features"] = (
-                    basemap_features + region_feature_collection["features"]
+                region_feature_collection = {
+                    "type": "FeatureCollection",
+                    "features": basemap_features,
+                }
+            else:
+                reference_features = database.region_feature_collection().get("features", [])
+                reference_features.extend({
+                    "type": "Feature",
+                    "properties": {
+                        "name": item["name"],
+                        "source": item["source"],
+                    },
+                    "geometry": item["geometry"],
+                } for item in database.list_user_catalog_regions())
+                region_feature_collection = build_observation_boundary_context(
+                    reference_features,
+                    task_observed_bbox,
                 )
         else:
             region_feature_collection = database.task_region_feature_collection(task_id)

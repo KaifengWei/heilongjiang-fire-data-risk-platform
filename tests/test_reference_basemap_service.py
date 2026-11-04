@@ -206,3 +206,55 @@ def test_map_label_collision_logic_is_present_in_runtime_script(tmp_path):
     assert "查看底图全貌" in js
     assert "地图区域" in js
     assert r"/^地图区域\s*\d+$/" in js
+
+
+def test_declared_map_uses_single_installed_provincial_layer(tmp_path):
+    """Avoid a double map layer when local city boundaries also exist."""
+    app = create_app(
+        database_path=tmp_path / "regions.sqlite",
+        uploads_root=tmp_path / "uploads", testing=True,
+    )
+    app.extensions["fire_database"].upsert_regions([{
+        "name": "旧市级边界",
+        "level": "city",
+        "geometry": {"type": "Polygon", "coordinates": [[
+            [110, 30], [112, 30], [112, 32], [110, 32], [110, 30],
+        ]]},
+    }])
+    client = app.test_client()
+    assert _upload(client).status_code == 200
+    csv = (
+        b"latitude,longitude,acq_date,acq_time,satellite,instrument,confidence,version,frp\n"
+        b"30.5,110.5,2026-03-15,0320,N,VIIRS,n,2.0NRT,8.5\n"
+    )
+    task = client.post("/analyze", data={"files": (BytesIO(csv), "firms.csv")},
+                       content_type="multipart/form-data")
+    assert task.status_code == 302
+    page = client.get(task.headers["Location"]).get_data(as_text=True)
+    match = re.search(
+        r'<script id="taskMapFeatures" type="application/json">(.*?)</script>',
+        page, flags=re.S,
+    )
+    assert match is not None
+    features = json.loads(match.group(1))["features"]
+    assert len(features) == 2
+    assert all(x["properties"]["reference_layer"] == "basemap" for x in features)
+    assert "旧市级边界" not in {x["properties"].get("name") for x in features}
+    task_id = task.headers["Location"].rstrip("/").split("/")[-1]
+    assert client.get(f"/api/tasks/{task_id}/map-data").get_json()["point_count"] == 1
+    assert app.extensions["fire_database"].list_task_regions(task_id) == []
+
+
+def test_canvas_uses_short_chinese_labels_and_draws_them_above_points(tmp_path):
+    app = create_app(
+        database_path=tmp_path / "map.sqlite",
+        uploads_root=tmp_path / "uploads", testing=True,
+    )
+    script = app.test_client().get("/static/product.js").get_data(as_text=True)
+    assert "function displayProvinceName(value)" in script
+    assert "'liaoning': '辽宁'" in script
+    assert "'inner mongolia': '内蒙古'" in script
+    assert "const maxLabels = showFullOutline ? 22 : 8" in script
+    assert "const tickSteps = [.25, .5, 1, 2, 5, 10, 20]" in script
+    assert script.count("drawMapLabels(context);") == 2
+    assert script.index("drawMapLabels(context);", script.index("function redrawMap()")) > script.index("visible.forEach(point =>", script.index("function redrawMap()"))

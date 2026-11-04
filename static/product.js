@@ -966,7 +966,11 @@
       const spanX = Math.max(.001, bounds.maxX - bounds.minX);
       const spanY = Math.max(.001, bounds.maxY - bounds.minY);
       const maxSpan = Math.max(spanX, spanY);
-      const step = maxSpan > 8 ? 2 : maxSpan > 4 ? 1 : maxSpan > 2 ? .5 : .25;
+      // Keep the graticule useful at both country and observation scales.
+      // The old constant 2-degree grid crowded the national overview.
+      const tickSteps = [.25, .5, 1, 2, 5, 10, 20];
+      const desired = maxSpan / 9;
+      const step = tickSteps.find(value => value >= desired) || 30;
 
       ctx.save();
       ctx.strokeStyle = 'rgba(103,145,160,.10)';
@@ -1054,90 +1058,122 @@
         });
       });
 
-      if (!selectedRegion) {
-        ctx.save();
-        ctx.font = coordinateMode
-          ? '11px Microsoft YaHei, sans-serif'
-          : '10px Microsoft YaHei, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+    }
 
-        if (coordinateMode) {
-          const candidates = features.map(feature => {
-            const name = String(feature.properties?.name || '').trim();
-            // Old imports may have lost shapeName. Do not show fake labels.
-            if (!name || /^地图区域\s*\d+$/.test(name)) return null;
-            const box = featureBounds(feature);
-            if (!box) return null;
-            const west = Math.max(box.minX, bounds.minX);
-            const east = Math.min(box.maxX, bounds.maxX);
-            const south = Math.max(box.minY, bounds.minY);
-            const north = Math.min(box.maxY, bounds.maxY);
-            if (west >= east || south >= north) return null;
-            const labelWidth = ctx.measureText(name).width + 12;
-            const [left, top] = project([west, north]);
-            const [right, bottom] = project([east, south]);
-            const visibleWidth = Math.abs(right - left);
-            const visibleHeight = Math.abs(bottom - top);
-            if (visibleWidth < labelWidth * .85 || visibleHeight < 19) return null;
-            const anchor = feature.properties?.label_point;
-            const xCoord = Array.isArray(anchor) && anchor.length === 2
-              && anchor[0] >= west && anchor[0] <= east
-              ? anchor[0] : (west + east) / 2;
-            const yCoord = Array.isArray(anchor) && anchor.length === 2
-              && anchor[1] >= south && anchor[1] <= north
-              ? anchor[1] : (south + north) / 2;
-            const [x, y] = project([xCoord, yCoord]);
-            return { name, x, y, width: labelWidth, area: visibleWidth * visibleHeight };
-          }).filter(Boolean).sort((a, b) => b.area - a.area);
+    function displayProvinceName(value) {
+      // UI-only, standard short Chinese names for recognized province names
+      // in CHN ADM1. Unknown names remain exactly as supplied by the data.
+      const original = String(value || '').trim();
+      const normalized = original.toLowerCase()
+        .replace(/\s+/g, ' ').trim()
+        .replace(/\s+(province|municipality|special administrative region|autonomous region)$/, '')
+        .replace(/\s+(uyghur|uygur|uighur|hui|zhuang)$/, '').trim();
+      const names = {
+        'anhui': '安徽', 'beijing': '北京', 'chongqing': '重庆',
+        'fujian': '福建', 'gansu': '甘肃', 'guangdong': '广东',
+        'guangxi': '广西', 'guizhou': '贵州', 'hainan': '海南',
+        'hebei': '河北', 'heilongjiang': '黑龙江', 'henan': '河南',
+        'hubei': '湖北', 'hunan': '湖南', 'inner mongolia': '内蒙古',
+        'nei mongol': '内蒙古', 'jiangsu': '江苏', 'jiangxi': '江西',
+        'jilin': '吉林', 'liaoning': '辽宁', 'ningxia': '宁夏',
+        'qinghai': '青海', 'shaanxi': '陕西', 'shandong': '山东',
+        'shanghai': '上海', 'shanxi': '山西', 'sichuan': '四川',
+        'tianjin': '天津', 'tibet': '西藏', 'xizang': '西藏',
+        'xinjiang': '新疆', 'yunnan': '云南', 'zhejiang': '浙江',
+        'hong kong': '香港', 'macao': '澳门', 'macau': '澳门',
+        'taiwan': '台湾',
+      };
+      return Object.prototype.hasOwnProperty.call(names, normalized)
+        ? names[normalized] : original;
+    }
 
-          const occupied = [];
-          for (const label of candidates) {
-            if (occupied.length >= 24) break;
-            const rect = {
-              left: label.x - label.width / 2 - 3,
-              right: label.x + label.width / 2 + 3,
-              top: label.y - 11,
-              bottom: label.y + 11,
-            };
-            if (rect.left < 9 || rect.right > context.width - 9
-              || rect.top < 9 || rect.bottom > context.height - 9) continue;
-            const overlaps = occupied.some(box =>
-              rect.left < box.right && rect.right > box.left
-              && rect.top < box.bottom && rect.bottom > box.top
-            );
-            if (overlaps) continue;
-            ctx.fillStyle = 'rgba(248,251,252,.86)';
-            ctx.fillRect(label.x - label.width / 2, label.y - 9, label.width, 18);
-            ctx.fillStyle = 'rgba(38,82,99,.88)';
-            ctx.fillText(label.name, label.x, label.y);
-            occupied.push(rect);
-          }
-        } else {
-          // Preserve the original region labels in precision-boundary mode.
-          features.forEach(feature => {
-            const name = feature.properties?.name || '';
-            const box = featureBounds(feature);
-            if (!name || !box) return;
-            const [x, y] = project([
-              (box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2,
-            ]);
-            const width = ctx.measureText(name).width + 8;
-            ctx.fillStyle = 'rgba(248,251,252,.78)';
-            ctx.fillRect(x - width / 2, y - 8, width, 16);
-            ctx.fillStyle = 'rgba(44,83,98,.70)';
-            ctx.fillText(name, x, y);
-          });
-        }
-        ctx.restore();
-      } else if (!window.__countyDrilldownActiveCity) {
-        ctx.save();
+    function drawMapLabels(context) {
+      if (!context) return;
+      const { ctx, project } = context;
+      const bounds = activeBounds();
+      if (!bounds) return;
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      if (!selectedRegion && coordinateMode) {
         ctx.font = '600 12px Microsoft YaHei, sans-serif';
-        ctx.textAlign = 'center';
+        const labelFeatures = hasBasemap
+          ? features.filter(feature => feature.properties?.reference_layer === 'basemap')
+          : features;
+        const candidates = labelFeatures.map(feature => {
+          const name = String(feature.properties?.name || '').trim();
+          if (!name || /^地图区域\s*\d+$/.test(name)) return null;
+          const label = hasBasemap ? displayProvinceName(name) : name;
+          const box = featureBounds(feature);
+          if (!box) return null;
+          const west = Math.max(box.minX, bounds.minX);
+          const east = Math.min(box.maxX, bounds.maxX);
+          const south = Math.max(box.minY, bounds.minY);
+          const north = Math.min(box.maxY, bounds.maxY);
+          if (west >= east || south >= north) return null;
+          const labelWidth = ctx.measureText(label).width + 12;
+          const [left, top] = project([west, north]);
+          const [right, bottom] = project([east, south]);
+          const visibleWidth = Math.abs(right - left);
+          const visibleHeight = Math.abs(bottom - top);
+          if (visibleWidth < labelWidth * .9 || visibleHeight < 22) return null;
+          const anchor = feature.properties?.label_point;
+          const xCoord = Array.isArray(anchor) && anchor.length === 2
+            && anchor[0] >= west && anchor[0] <= east
+            ? anchor[0] : (west + east) / 2;
+          const yCoord = Array.isArray(anchor) && anchor.length === 2
+            && anchor[1] >= south && anchor[1] <= north
+            ? anchor[1] : (south + north) / 2;
+          const [x, y] = project([xCoord, yCoord]);
+          return { label, x, y, width: labelWidth, area: visibleWidth * visibleHeight };
+        }).filter(Boolean).sort((a, b) => b.area - a.area);
+
+        const occupied = [];
+        const maxLabels = showFullOutline ? 22 : 8;
+        for (const item of candidates) {
+          if (occupied.length >= maxLabels) break;
+          const rect = {
+            left: item.x - item.width / 2 - 4,
+            right: item.x + item.width / 2 + 4,
+            top: item.y - 12,
+            bottom: item.y + 12,
+          };
+          if (rect.left < 8 || rect.right > context.width - 8
+            || rect.top < 8 || rect.bottom > context.height - 8) continue;
+          if (occupied.some(box =>
+            rect.left < box.right && rect.right > box.left
+            && rect.top < box.bottom && rect.bottom > box.top
+          )) continue;
+          ctx.fillStyle = 'rgba(250,252,253,.90)';
+          ctx.fillRect(item.x - item.width / 2, item.y - 10, item.width, 20);
+          ctx.fillStyle = 'rgba(33,79,97,.92)';
+          ctx.fillText(item.label, item.x, item.y);
+          occupied.push(rect);
+        }
+      } else if (!selectedRegion) {
+        // Keep the original naming behavior in precision-boundary mode.
+        ctx.font = '10px Microsoft YaHei, sans-serif';
+        features.forEach(feature => {
+          const name = feature.properties?.name || '';
+          const box = featureBounds(feature);
+          if (!name || !box) return;
+          const [x, y] = project([
+            (box.minX + box.maxX) / 2,
+            (box.minY + box.maxY) / 2,
+          ]);
+          const width = ctx.measureText(name).width + 8;
+          ctx.fillStyle = 'rgba(248,251,252,.82)';
+          ctx.fillRect(x - width / 2, y - 8, width, 16);
+          ctx.fillStyle = 'rgba(44,83,98,.75)';
+          ctx.fillText(name, x, y);
+        });
+      } else if (!window.__countyDrilldownActiveCity) {
+        ctx.font = '600 12px Microsoft YaHei, sans-serif';
         ctx.fillStyle = 'rgba(26,78,97,.74)';
         ctx.fillText(selectedRegion, context.width / 2, 26);
-        ctx.restore();
       }
+      ctx.restore();
     }
 
     function redrawMap() {
@@ -1159,6 +1195,7 @@
 
       if (!loaded) {
         if (mapEmpty) mapEmpty.hidden = true;
+        drawMapLabels(context);
         return;
       }
 
@@ -1278,6 +1315,9 @@
         mapVisibleCount.textContent = displayCount.toLocaleString('zh-CN');
         mapVisibleMetricLabel.textContent = displayLabel;
       }
+
+      // Render geographic labels above dense red points, not beneath them.
+      drawMapLabels(context);
 
       if (focusPoint) {
         const [x, y] = project([focusPoint.lon, focusPoint.lat]);
