@@ -159,3 +159,63 @@ def test_second_analysis_reuses_existing_observation_but_keeps_task_result(tmp_p
         assert "农业秸秆焚烧区域火点检测与分析平台" in text
         assert "1 条有效主动火点观测" in text
         assert "有效火点观测" in all_cells
+
+
+
+def test_legacy_precise_record_keeps_own_boundaries_when_map_installed_later(tmp_path):
+    """Old city-scoped history is never silently changed by a new basemap."""
+    import json
+    import re
+    from docx import Document
+
+    app = _app_with_region(tmp_path)
+    client = app.test_client()
+    uploaded = client.post("/analyze", data={
+        "files": (BytesIO(_firms_bytes()), "firms.csv"),
+        "use_boundary_scope": "yes",
+    }, content_type="multipart/form-data", follow_redirects=False)
+    assert uploaded.status_code == 302
+    location = uploaded.headers["Location"]
+    task_id = location.rstrip("/").split("/")[-1]
+
+    old_page = client.get(location).get_data(as_text=True)
+    assert 'data-coordinate-mode="false"' in old_page
+    assert "哈尔滨市" in old_page
+    old_count = app.extensions["statistics_service"].task_region_statistics(task_id)
+    assert old_count[0]["active_fire_count"] == 1
+
+    visual_map = {
+        "type": "FeatureCollection",
+        "features": [{
+            "type": "Feature",
+            "properties": {"shapeName": "Guangdong"},
+            "geometry": {"type": "Polygon", "coordinates": [[
+                [110, 20], [112, 20], [112, 22], [110, 22], [110, 20]
+            ]]},
+        }],
+    }
+    installed = client.post("/api/map/background", data={
+        "background_file": (BytesIO(json.dumps(visual_map).encode()), "china.geojson"),
+        "source": "geoBoundaries test provenance",
+        "authorized": "yes",
+    }, content_type="multipart/form-data")
+    assert installed.status_code == 200
+
+    refreshed = client.get(location).get_data(as_text=True)
+    assert 'data-coordinate-mode="false"' in refreshed
+    match = re.search(
+        r'<script id="taskMapFeatures" type="application/json">(.*?)</script>',
+        refreshed, flags=re.S,
+    )
+    assert match is not None
+    outlines = json.loads(match.group(1))["features"]
+    assert {item["properties"].get("name") for item in outlines} == {"哈尔滨市"}
+    assert all(item["properties"].get("reference_layer") != "basemap" for item in outlines)
+    assert app.extensions["statistics_service"].task_region_statistics(task_id) == old_count
+
+    response = client.get(f"/tasks/{task_id}/report.docx")
+    assert response.status_code == 200
+    document = Document(BytesIO(response.data))
+    content = "\n".join(p.text for p in document.paragraphs)
+    assert "1 条有效主动火点观测" in content
+    assert "哈尔滨市" in content
