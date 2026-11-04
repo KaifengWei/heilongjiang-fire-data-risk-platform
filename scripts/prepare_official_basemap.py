@@ -27,6 +27,7 @@ from fire_monitor.services.basemap_preparation_service import (
 from fire_monitor.services.reference_basemap_service import (
     MAX_OUTPUT_BYTES, ReferenceBasemapStore,
 )
+from fire_monitor.user_data_paths import desktop_runtime_dir
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -88,7 +89,7 @@ def main(argv: list[str] | None = None) -> int:
             local_appdata = os.environ.get("LOCALAPPDATA")
             if os.name != "nt" or not local_appdata:
                 raise ValueError("--install 仅支持已配置 LOCALAPPDATA 的 Windows；其它平台请用 --output。")
-            store = ReferenceBasemapStore(Path(local_appdata) / "AgriculturalFirmsAnalysis")
+            store = ReferenceBasemapStore(desktop_runtime_dir())
             result_installed = store.install(
                 result.geojson,
                 source=args.source,

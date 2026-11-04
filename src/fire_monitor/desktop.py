@@ -22,14 +22,11 @@ from werkzeug.serving import (
 from fire_monitor.app import (
     create_app,
 )
+from fire_monitor.user_data_paths import user_data_root, desktop_runtime_dir
 
 
 APP_TITLE = (
     "农业秸秆焚烧区域火点检测与分析平台"
-)
-
-APP_DATA_FOLDER = (
-    "HeilongjiangFireMonitor"
 )
 
 DEFAULT_HOST = (
@@ -41,37 +38,6 @@ DEFAULT_HEIGHT = 900
 
 MIN_WIDTH = 1100
 MIN_HEIGHT = 700
-
-
-def user_data_root() -> Path:
-    """返回当前 Windows 用户的可写软件数据目录。"""
-
-    local_app_data = (
-        os.environ.get(
-            "LOCALAPPDATA"
-        )
-    )
-
-    if local_app_data:
-
-        root = (
-            Path(local_app_data)
-            / APP_DATA_FOLDER
-        )
-
-    else:
-
-        root = (
-            Path.home()
-            / ".heilongjiang_fire_monitor"
-        )
-
-    root.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    return root
 
 
 def _find_free_port(
@@ -120,10 +86,7 @@ class DesktopServer:
             user_data_root()
         )
 
-        runtime_root = (
-            data_root
-            / "runtime"
-        )
+        runtime_root = desktop_runtime_dir()
 
         uploads_root = (
             data_root

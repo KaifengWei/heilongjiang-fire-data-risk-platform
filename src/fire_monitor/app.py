@@ -133,6 +133,7 @@ from fire_monitor.services.map_context_service import (
 from fire_monitor.services.reference_basemap_service import (
     ReferenceBasemapStore, MAX_UPLOAD_BYTES as MAP_MAX_BYTES,
 )
+from fire_monitor.user_data_paths import desktop_runtime_dir
 
 def create_app(
     database_path: str | Path | None = None,
@@ -153,10 +154,7 @@ def create_app(
     if database_path is not None:
         map_data_dir = Path(database_path).parent
     elif os.name == "nt":
-        map_data_dir = (
-            Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local")))
-            / "AgriculturalFirmsAnalysis"
-        )
+        map_data_dir = desktop_runtime_dir()
     else:
         map_data_dir = settings.runtime_dir
     reference_basemap_store = ReferenceBasemapStore(map_data_dir)
