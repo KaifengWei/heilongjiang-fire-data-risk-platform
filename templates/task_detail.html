@@ -377,7 +377,7 @@
           {% if coordinate_mode %}
           <div class="map-viewport-toolbar">
             {% if map_context_count or map_basemap_count %}
-            <button type="button" id="mapZoomModeButton" class="app-button app-button-ghost" aria-pressed="false">查看轮廓全貌</button>
+            <button type="button" id="mapZoomModeButton" class="app-button app-button-ghost" aria-pressed="false">{{ '查看底图全貌' if map_basemap_count else '查看轮廓全貌' }}</button>
             {% endif %}
             <details class="map-background-installer">
               <summary>导入离线地图（GeoJSON）</summary>

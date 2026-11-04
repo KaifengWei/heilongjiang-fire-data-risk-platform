@@ -800,7 +800,9 @@ def create_app(
                 reference_features,
                 task_observed_bbox,
             )
-            basemap_features = reference_basemap_store.context(task_observed_bbox)["features"]
+            # Include the complete installed map; the Canvas switches between
+            # the observed FIRMS extent and this full reference footprint.
+            basemap_features = reference_basemap_store.full_context()["features"]
             if basemap_features:
                 region_feature_collection["features"] = (
                     basemap_features + region_feature_collection["features"]

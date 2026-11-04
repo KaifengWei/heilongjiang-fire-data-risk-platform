@@ -58,12 +58,25 @@ class ReferenceBasemapStore:
         }
 
     def context(self, observed_bbox: list[float] | None) -> dict[str, Any]:
+        """Map features intersecting the observation extent (legacy local view)."""
         saved = self.load()
         if saved is None:
             return {"type": "FeatureCollection", "features": []}
         return build_observation_boundary_context(
             saved["features"], observed_bbox, limit=100,
         )
+
+    def full_context(self) -> dict[str, Any]:
+        """All installed map features for a true full-outline view.
+
+        Imports are already validated and size-limited on installation.
+        No fake national extent is synthesized for partial datasets.
+        """
+        saved = self.load()
+        return {
+            "type": "FeatureCollection",
+            "features": list(saved["features"]) if saved is not None else [],
+        }
 
     def install(self, raw: bytes, *, source: str, authorized: bool) -> dict[str, Any]:
         source = str(source or "").strip()
@@ -113,7 +126,17 @@ class ReferenceBasemapStore:
             props = feature.get("properties") or {}
             if not isinstance(props, dict):
                 props = {}
-            name = str(props.get("name") or props.get("NAME") or f"地图区域{index + 1}")[:90]
+            # geoBoundaries uses shapeName; never fabricate a province name
+            # from its position in a GeoJSON file.
+            raw_name = next(
+                (props[key] for key in (
+                    "shapeName", "name", "NAME", "NAME_1", "name_zh",
+                    "NAME_CHN", "province_name", "province", "Name"
+                ) if isinstance(props.get(key), str) and props[key].strip()),
+                "",
+            )
+            name = str(raw_name).strip()[:90]
+            label_point = geometry.representative_point()
             simplified = geometry.simplify(0.003, preserve_topology=True)
             processed.append({
                 "type": "Feature",
@@ -122,6 +145,7 @@ class ReferenceBasemapStore:
                     "source": source,
                     "reference_only": True,
                     "reference_layer": "basemap",
+                    "label_point": [label_point.x, label_point.y],
                 },
                 "geometry": mapping(simplified),
             })

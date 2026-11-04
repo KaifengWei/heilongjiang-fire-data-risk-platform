@@ -677,6 +677,9 @@
     }
 
     const features = featureCollection?.features || [];
+    const hasBasemap = features.some(
+      feature => feature.properties?.reference_layer === 'basemap'
+    );
     const featureByName = new Map(
       features.map(feature => [
         feature.properties?.name || '',
@@ -1053,29 +1056,79 @@
 
       if (!selectedRegion) {
         ctx.save();
-        ctx.font = '10px Microsoft YaHei, sans-serif';
+        ctx.font = coordinateMode
+          ? '11px Microsoft YaHei, sans-serif'
+          : '10px Microsoft YaHei, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        features.forEach(feature => {
-          if (feature.properties?.reference_layer === 'basemap') return;
-          const name = feature.properties?.name || '';
-          const box = featureBounds(feature);
-          if (!name || !box) return;
+        if (coordinateMode) {
+          const candidates = features.map(feature => {
+            const name = String(feature.properties?.name || '').trim();
+            // Old imports may have lost shapeName. Do not show fake labels.
+            if (!name || /^地图区域\\s*\\d+$/.test(name)) return null;
+            const box = featureBounds(feature);
+            if (!box) return null;
+            const west = Math.max(box.minX, bounds.minX);
+            const east = Math.min(box.maxX, bounds.maxX);
+            const south = Math.max(box.minY, bounds.minY);
+            const north = Math.min(box.maxY, bounds.maxY);
+            if (west >= east || south >= north) return null;
+            const labelWidth = ctx.measureText(name).width + 12;
+            const [left, top] = project([west, north]);
+            const [right, bottom] = project([east, south]);
+            const visibleWidth = Math.abs(right - left);
+            const visibleHeight = Math.abs(bottom - top);
+            if (visibleWidth < labelWidth * .85 || visibleHeight < 19) return null;
+            const anchor = feature.properties?.label_point;
+            const xCoord = Array.isArray(anchor) && anchor.length === 2
+              && anchor[0] >= west && anchor[0] <= east
+              ? anchor[0] : (west + east) / 2;
+            const yCoord = Array.isArray(anchor) && anchor.length === 2
+              && anchor[1] >= south && anchor[1] <= north
+              ? anchor[1] : (south + north) / 2;
+            const [x, y] = project([xCoord, yCoord]);
+            return { name, x, y, width: labelWidth, area: visibleWidth * visibleHeight };
+          }).filter(Boolean).sort((a, b) => b.area - a.area);
 
-          const [x, y] = project([
-            (box.minX + box.maxX) / 2,
-            (box.minY + box.maxY) / 2,
-          ]);
-
-          const width = ctx.measureText(name).width + 8;
-          ctx.fillStyle = 'rgba(248,251,252,.78)';
-          ctx.fillRect(x - width / 2, y - 8, width, 16);
-
-          ctx.fillStyle = 'rgba(44,83,98,.70)';
-          ctx.fillText(name, x, y);
-        });
-
+          const occupied = [];
+          for (const label of candidates) {
+            if (occupied.length >= 24) break;
+            const rect = {
+              left: label.x - label.width / 2 - 3,
+              right: label.x + label.width / 2 + 3,
+              top: label.y - 11,
+              bottom: label.y + 11,
+            };
+            if (rect.left < 9 || rect.right > context.width - 9
+              || rect.top < 9 || rect.bottom > context.height - 9) continue;
+            const overlaps = occupied.some(box =>
+              rect.left < box.right && rect.right > box.left
+              && rect.top < box.bottom && rect.bottom > box.top
+            );
+            if (overlaps) continue;
+            ctx.fillStyle = 'rgba(248,251,252,.86)';
+            ctx.fillRect(label.x - label.width / 2, label.y - 9, label.width, 18);
+            ctx.fillStyle = 'rgba(38,82,99,.88)';
+            ctx.fillText(label.name, label.x, label.y);
+            occupied.push(rect);
+          }
+        } else {
+          // Preserve the original region labels in precision-boundary mode.
+          features.forEach(feature => {
+            const name = feature.properties?.name || '';
+            const box = featureBounds(feature);
+            if (!name || !box) return;
+            const [x, y] = project([
+              (box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2,
+            ]);
+            const width = ctx.measureText(name).width + 8;
+            ctx.fillStyle = 'rgba(248,251,252,.78)';
+            ctx.fillRect(x - width / 2, y - 8, width, 16);
+            ctx.fillStyle = 'rgba(44,83,98,.70)';
+            ctx.fillText(name, x, y);
+          });
+        }
         ctx.restore();
       } else if (!window.__countyDrilldownActiveCity) {
         ctx.save();
@@ -1247,7 +1300,8 @@
       showFullOutline = !showFullOutline;
       zoomModeButton.setAttribute('aria-pressed', String(showFullOutline));
       zoomModeButton.textContent = showFullOutline
-        ? '返回观测范围' : '查看轮廓全貌';
+        ? '返回观测范围'
+        : (hasBasemap ? '查看底图全貌' : '查看轮廓全貌');
       redrawMap();
     });
 

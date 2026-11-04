@@ -94,8 +94,14 @@ def test_imported_basemap_is_display_only_for_declared_csv_task(tmp_path):
     )
     assert match
     features = json.loads(match.group(1))["features"]
-    assert len(features) == 1
-    assert features[0]["properties"]["reference_layer"] == "basemap"
+    # All installed provinces are embedded for the complete-map toggle,
+    # even when some do not intersect this task's observed FIRMS extent.
+    assert len(features) == 2
+    assert {x["properties"]["name"] for x in features} == {
+        "已核查参考区", "不相交区",
+    }
+    assert all(x["properties"]["reference_layer"] == "basemap" for x in features)
+    assert "查看底图全貌" in page
     task_id = task.headers["Location"].rstrip("/").split("/")[-1]
     assert client.get(f"/api/tasks/{task_id}/map-data").get_json()["point_count"] == 2
     assert app.extensions["fire_database"].list_task_regions(task_id) == []
@@ -124,3 +130,78 @@ def test_installed_background_survives_separate_app_instance(tmp_path):
         uploads_root=tmp_path / "uploads", testing=True,
     )
     assert restarted.test_client().get("/api/map/background").get_json()["installed"]
+
+
+
+def test_geoboundaries_shape_name_and_full_extent_without_fake_labels(tmp_path):
+    """The original province names are preserved and map-wide zoom is real."""
+    store = ReferenceBasemapStore(tmp_path)
+    raw = json.dumps({
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {"shapeName": "Liaoning", "shapeISO": "CN-21"},
+                "geometry": {"type": "Polygon", "coordinates": [[
+                    [120, 40], [123, 40], [123, 42], [120, 42], [120, 40]
+                ]]},
+            },
+            {
+                "type": "Feature",
+                "properties": {"shapeName": "Guangdong", "shapeISO": "CN-44"},
+                "geometry": {"type": "Polygon", "coordinates": [[
+                    [111, 21], [115, 21], [115, 24], [111, 24], [111, 21]
+                ]]},
+            },
+        ],
+    }).encode("utf-8")
+    store.install(raw, source="geoBoundaries CHN ADM1", authorized=True)
+    assert [x["properties"]["name"] for x in store.full_context()["features"]] == [
+        "Liaoning", "Guangdong"
+    ]
+    assert [x["properties"]["name"] for x in store.context([120, 40, 123, 42])["features"]] == ["Liaoning"]
+    assert all(
+        len(x["properties"]["label_point"]) == 2
+        for x in store.full_context()["features"]
+    )
+
+
+def test_reimport_same_file_recovers_real_names_from_legacy_placeholders(tmp_path):
+    """Previously imported GeoJSON remains recoverable without redownload."""
+    store = ReferenceBasemapStore(tmp_path)
+    raw_old = json.dumps({
+        "type": "FeatureCollection",
+        "features": [{
+            "type": "Feature", "properties": {},
+            "geometry": {"type": "Polygon", "coordinates": [[
+                [100, 30], [101, 30], [101, 31], [100, 31], [100, 30]
+            ]]},
+        }],
+    }).encode("utf-8")
+    store.install(raw_old, source="测试旧版", authorized=True)
+    assert store.full_context()["features"][0]["properties"]["name"] == ""
+
+    raw_new = json.dumps({
+        "type": "FeatureCollection",
+        "features": [{
+            "type": "Feature", "properties": {"shapeName": "Yunnan"},
+            "geometry": {"type": "Polygon", "coordinates": [[
+                [100, 30], [101, 30], [101, 31], [100, 31], [100, 30]
+            ]]},
+        }],
+    }).encode("utf-8")
+    store.install(raw_new, source="geoBoundaries CHN ADM1", authorized=True)
+    assert store.full_context()["features"][0]["properties"]["name"] == "Yunnan"
+
+
+def test_map_label_collision_logic_is_present_in_runtime_script(tmp_path):
+    app = create_app(
+        database_path=tmp_path / "db.sqlite",
+        uploads_root=tmp_path / "uploads", testing=True,
+    )
+    js = app.test_client().get("/static/product.js").get_data(as_text=True)
+    assert "const occupied = []" in js
+    assert "occupied.some(" in js
+    assert "label_point" in js
+    assert "查看底图全貌" in js
+    assert "地图区域" in js
