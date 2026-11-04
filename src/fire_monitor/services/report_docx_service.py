@@ -456,7 +456,7 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
         _heading(doc, "地表背景")
         _paragraph(doc, land)
 
-    if agricultural_relevance:
+    if agricultural_relevance and agricultural_relevance.get("available"):
         _heading(doc, "农业秸秆焚烧相关性分析")
         relevant_counts = agricultural_relevance.get("counts") or {}
         _paragraph(doc, [
@@ -467,26 +467,31 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
             (" 条。", False),
         ])
         _paragraph(doc, [
-            ("土地覆盖：", True),
+            ("地表匹配 ", True),
+            (_fmt_int(agricultural_relevance.get("land_cover_matched")), False),
+            (" / " + _fmt_int(agricultural_relevance.get("total_observations")) + " 条；", False),
+            ("土地覆盖 ", True),
             (str(agricultural_relevance.get("land_cover_product") or "MCD12Q1"), False),
-            (" ", False),
-            (str(agricultural_relevance.get("land_cover_year") or ""), False),
-            ("；有效匹配 ", False),
-            (_fmt_int(agricultural_relevance.get("land_cover_matched")), True),
-            (" 条。农事时段配置 ", False),
-            (_fmt_int(agricultural_relevance.get("calendar_rules_count")), True),
-            (" 条规则。", False),
+            (" " + str(agricultural_relevance.get("land_cover_year") or "") + "；", False),
+            ("农事规则 ", True),
+            (_fmt_int(agricultural_relevance.get("calendar_rules_count")) + " 条。", False),
         ])
-        region_rows = agricultural_relevance.get("regions") or {}
-        for region_name, item in list(region_rows.items())[:20]:
-            counts = item.get("counts") or {}
+        # Follow the result page: rank regions by observed volume, rather
+        # than repeating the same four categories up to twenty times.
+        regions = agricultural_relevance.get("regions") or {}
+        ranked = sorted(
+            regions.items(),
+            key=lambda pair: (-int((pair[1] or {}).get("total") or 0), str(pair[0])),
+        )
+        if len(ranked) > 1:
+            parts = [
+                str(name) + " " + _fmt_int((row or {}).get("total")) + " 条"
+                for name, row in ranked[:5]
+            ]
             _paragraph(doc, [
-                (str(region_name) + "：", True),
-                ("较高相关 " + _fmt_int(counts.get("较高相关")) +
-                 "，可能相关 " + _fmt_int(counts.get("可能相关")) +
-                 "，证据不足 " + _fmt_int(counts.get("证据不足")) + "。", False),
-            ], after=3)
-        _paragraph(doc, [(str(agricultural_relevance.get("disclaimer") or ""), False)], size=9.5)
+                ("观测量较多的地区：", True),
+                ("；".join(parts) + "。", False),
+            ])
 
     weather_blocks = _weather_paragraphs(weather_context)
     if weather_blocks:

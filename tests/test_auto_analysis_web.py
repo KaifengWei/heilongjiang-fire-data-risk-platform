@@ -144,3 +144,18 @@ def test_second_analysis_reuses_existing_observation_but_keeps_task_result(tmp_p
     )
     assert runs[0]["metadata"]["new_observations"] == 0
     assert runs[0]["metadata"]["existing_observations"] == 1
+
+    # Reused observations still belong to both tasks. Word must report the
+    # observation count, not only newly inserted global SQLite rows.
+    from docx import Document
+    for task_id in task_ids:
+        response = client.get(f"/tasks/{task_id}/report.docx")
+        assert response.status_code == 200
+        word = Document(BytesIO(response.data))
+        text = "\n".join(p.text for p in word.paragraphs)
+        all_cells = "\n".join(
+            cell.text for table in word.tables for row in table.rows for cell in row.cells
+        )
+        assert "农业秸秆焚烧区域火点检测与分析平台" in text
+        assert "1 条有效主动火点观测" in text
+        assert "有效火点观测" in all_cells
