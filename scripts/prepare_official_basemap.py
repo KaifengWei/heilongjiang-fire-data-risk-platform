@@ -25,7 +25,7 @@ from fire_monitor.services.basemap_preparation_service import (
     write_geojson_atomic,
 )
 from fire_monitor.services.reference_basemap_service import (
-    MAX_UPLOAD_BYTES, ReferenceBasemapStore,
+    MAX_OUTPUT_BYTES, ReferenceBasemapStore,
 )
 
 
@@ -80,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
             print("无面或缺少图层的文件：")
             for name in result.empty_files:
                 print(" ", name)
-        if result.output_bytes > MAX_UPLOAD_BYTES:
+        if result.output_bytes > MAX_OUTPUT_BYTES - 4096:
             raise ValueError("输出文件过大，请提高 --simplify；未写入任何输出。")
 
         # Validate the exact output before updating the user's installed map.

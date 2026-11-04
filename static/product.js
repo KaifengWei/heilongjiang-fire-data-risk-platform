@@ -699,37 +699,34 @@
       });
     });
 
-    const xs = boundaryPoints.map(point => Number(point[0]));
-    const ys = boundaryPoints.map(point => Number(point[1]));
+    function pointsBounds(coords) {
+      // Never spread large nationwide outlines into Math.min/Math.max:
+      // browsers cap function argument counts for long arrays.
+      let minX = Infinity, maxX = -Infinity;
+      let minY = Infinity, maxY = -Infinity;
+      for (const point of coords) {
+        const x = Number(point[0]), y = Number(point[1]);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+      }
+      return Number.isFinite(minX)
+        ? { minX, maxX, minY, maxY }
+        : null;
+    }
 
     let coordinateBounds = null;
-    const provinceBounds = xs.length ? {
-      minX: Math.min(...xs),
-      maxX: Math.max(...xs),
-      minY: Math.min(...ys),
-      maxY: Math.max(...ys),
-    } : null;
+    const provinceBounds = pointsBounds(boundaryPoints);
 
     function featureBounds(feature) {
       if (!feature) return null;
-
       const localPoints = [];
-
       ringsOf(feature.geometry).forEach(ring => {
         ring.forEach(point => localPoints.push(point));
       });
-
-      if (!localPoints.length) return null;
-
-      const localXs = localPoints.map(point => Number(point[0]));
-      const localYs = localPoints.map(point => Number(point[1]));
-
-      return {
-        minX: Math.min(...localXs),
-        maxX: Math.max(...localXs),
-        minY: Math.min(...localYs),
-        maxY: Math.max(...localYs),
-      };
+      return pointsBounds(localPoints);
     }
 
     let showFullOutline = false;
@@ -1010,24 +1007,42 @@
       drawFeatures.forEach(feature => {
         const name = feature.properties?.name || '';
         const active = selectedRegion && name === selectedRegion;
+        const basemap = feature.properties?.reference_layer === 'basemap';
+
+        if (basemap) {
+          // Use even-odd filling so lakes and polygon holes remain holes.
+          // A reference basemap is drawn below FIRMS points, never used as
+          // an administrative selection or a made-up place-name label.
+          ctx.beginPath();
+          ringsOf(feature.geometry).forEach(ring => {
+            ring.forEach((point, index) => {
+              const [x, y] = project(point);
+              if (index === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            });
+            ctx.closePath();
+          });
+          ctx.fillStyle = 'rgba(222,238,239,.42)';
+          ctx.fill('evenodd');
+          ctx.strokeStyle = 'rgba(81,131,149,.68)';
+          ctx.lineWidth = .95;
+          ctx.stroke();
+          return;
+        }
 
         ringsOf(feature.geometry).forEach(ring => {
           if (!ring.length) return;
-
           ctx.beginPath();
-
           ring.forEach((point, index) => {
             const [x, y] = project(point);
             if (index === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
           });
-
           ctx.closePath();
           ctx.fillStyle = active
             ? 'rgba(52,145,165,.10)'
             : 'rgba(248,251,252,.96)';
           ctx.fill();
-
           ctx.strokeStyle = active
             ? 'rgba(33,126,148,.96)'
             : 'rgba(91,147,167,.76)';
@@ -1043,6 +1058,7 @@
         ctx.textBaseline = 'middle';
 
         features.forEach(feature => {
+          if (feature.properties?.reference_layer === 'basemap') return;
           const name = feature.properties?.name || '';
           const box = featureBounds(feature);
           if (!name || !box) return;

@@ -94,5 +94,20 @@ def test_discovery_does_not_descend_geodatabase_folders(tmp_path):
     _tile(root / "A.gpkg", [RECT_A])
     assert {x.name for x in discover_sources(root)} == {"H49.gdb", "A.gpkg"}
     assert discover_sources(root / "A.gpkg") == [root / "A.gpkg"]
+    (root / "pack.zip").write_bytes(b"dummy")
     with pytest.raises(ValueError, match="已解压"):
-        discover_sources(root / "pack.zip")  # not an existing path
+        discover_sources(root / "pack.zip")
+
+
+def test_map_canvas_scales_without_argument_spreading():
+    # Code regression for large national outlines; runtime geometry is
+    # still sourced exclusively from properly installed geodata.
+    from pathlib import Path
+    js_path = Path(__file__).resolve().parents[1] / "static" / "product.js"
+    source = js_path.read_text(encoding="utf-8")
+    body = source[source.index("async function initTaskMapWorkspace()"):]
+    assert "function pointsBounds(coords)" in body
+    assert "Math.min(...xs)" not in body
+    assert "Math.max(...localXs)" not in body
+    assert "ctx.fill('evenodd')" in body
+    assert "reference_layer === 'basemap'" in body
