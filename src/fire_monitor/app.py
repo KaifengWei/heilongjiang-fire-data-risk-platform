@@ -134,6 +134,7 @@ from fire_monitor.services.reference_basemap_service import (
     ReferenceBasemapStore, MAX_UPLOAD_BYTES as MAP_MAX_BYTES,
 )
 from fire_monitor.user_data_paths import desktop_runtime_dir
+from fire_monitor.services.spatial_report_service import build_spatial_report_context
 
 def create_app(
     database_path: str | Path | None = None,
@@ -2086,6 +2087,22 @@ def create_app(
                 )
             )
 
+        # Spatial report is calculated at export time from this task's
+        # canonical observations. Use the same installed GeoJSON as Canvas in
+        # declared mode; old precise-area tasks retain their saved boundaries.
+        is_coordinate_task = (
+            (task.get("parameters") or {}).get("area_mode") == "coordinates_only"
+        )
+        if is_coordinate_task:
+            map_features = reference_basemap_store.full_context()["features"]
+            map_source = reference_basemap_store.summary().get("source") or ""
+        else:
+            map_features = database.task_region_feature_collection(task_id)["features"]
+            map_source = "任务保存的区域边界" if map_features else ""
+        spatial_report = build_spatial_report_context(
+            observations, map_features, source=map_source,
+        )
+
         report_bytes = (
             build_analysis_report_docx(
                 task=task,
@@ -2102,6 +2119,7 @@ def create_app(
                     land_cover_context
                 ),
                 agricultural_relevance=agricultural_relevance,
+                spatial_context=spatial_report,
                 priority_land_cover=(
                     priority_land_cover
                 ),

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from io import BytesIO
+import re
 from typing import Any
 
 from docx import Document
@@ -187,12 +188,12 @@ def _overall_paragraph(analysis_summary: dict[str, Any], firms_intelligence: dic
     pieces: list[tuple[str, bool]] = [
         ("本次分析覆盖 ", False), (str(analysis_summary.get("period") or "—"), True),
         ("，共识别 ", False), (_fmt_int(total), True),
-        (" 条有效主动火点观测，涉及 ", False), (_fmt_int(analysis_summary.get("affected_regions")), True),
-        (" 个分析范围。" if analysis_summary.get("area_mode") == "coordinates_only" else " 个市（地）。", False),
+        (" 条有效主动火点观测。", False),
     ]
     if analysis_summary.get("area_mode") == "coordinates_only":
-        pieces.append(("本次仅按用户声明范围汇总，不进行市县级空间排名。", False))
         return pieces
+    pieces += [("涉及 ", False), (_fmt_int(analysis_summary.get("affected_regions")), True),
+               (" 个市（地）。", False)]
     if top:
         top3_total = sum(int(row.get("observation_count") or 0) for row in top)
         parts = []
@@ -340,11 +341,12 @@ def _final_paragraph(analysis_summary: dict[str, Any], firms_intelligence: dict[
     summary = firms_intelligence.get("summary") or {}
     if analysis_summary.get("area_mode") == "coordinates_only":
         return [
-            ("本次分析以用户声明区域内的有效观测为依据。", False),
-            ("火点高值日期为 ", False),
+            ("本次火点活动高值日期为 ", False),
             (str(summary.get("peak_date") or "暂无"), True),
-            ("。可重点查看火点活动集中日期、重复活跃位置与耕地背景；"
-             "当前缺少可核验的区域边界、历史或天气数据时，不进行相应比较。", False),
+            ("，当日观测 ", False),
+            (_fmt_int(summary.get("peak_count")), True),
+            (" 条。优先结合上方最密集经纬网格与重复活跃位置查看，"
+             "再结合耕地背景及已配置的农事时段判断农业活动相关性。", False),
         ]
     priority = historical_baseline.get("priority_regions", []) if historical_baseline else []
     names = "、".join(str(row.get("region_name")) for row in priority[:3] if row.get("region_name"))
@@ -361,7 +363,7 @@ def _final_paragraph(analysis_summary: dict[str, Any], firms_intelligence: dict[
     return pieces
 
 
-def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[str, Any], firms_intelligence: dict[str, Any], historical_baseline: dict[str, Any], land_cover_context: dict[str, Any], priority_land_cover: dict[str, Any] | None, weather_context: dict[str, Any] | None, daily_series: list[dict[str, Any]], agricultural_relevance: dict[str, Any] | None = None) -> bytes:
+def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[str, Any], firms_intelligence: dict[str, Any], historical_baseline: dict[str, Any], land_cover_context: dict[str, Any], priority_land_cover: dict[str, Any] | None, weather_context: dict[str, Any] | None, daily_series: list[dict[str, Any]], agricultural_relevance: dict[str, Any] | None = None, spatial_context: dict[str, Any] | None = None) -> bytes:
     doc = Document()
     section = doc.sections[0]
     section.top_margin = Cm(1.8)
@@ -384,7 +386,13 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_after = Pt(12)
-    r = p.add_run(f"{task.get('name') or '分析任务'}    {analysis_summary.get('period') or ''}")
+    report_name = str(task.get("name") or "分析任务")
+    period = str(analysis_summary.get("period") or "")
+    period_dates = re.findall(r"\d{4}-\d{2}-\d{2}", period)
+    subtitle = report_name
+    if period and not (period_dates and all(date in report_name for date in period_dates)):
+        subtitle += "    " + period
+    r = p.add_run(subtitle)
     _set_run_font(r, size=10.5)
 
     task_parameters = task.get("parameters") or {}
@@ -399,20 +407,71 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
         _paragraph(doc, [("本次分析区域：", True), (str(selected.get("name") or "—"), False)])
 
     if task_parameters.get("area_mode") == "coordinates_only":
-        _paragraph(doc, [("区域口径：", True), ("用户声明的区域名称，未经行政边界核验。", False)])
+        declared = str(task_parameters.get("declared_area_label") or "").strip()
+        if declared and declared != "本次上传数据范围":
+            _paragraph(doc, [("分析区域：", True), (declared, False)])
         if task_parameters.get("requested_bbox"):
             _paragraph(doc, [
-                ("用户指定分析矩形：", True),
+                ("筛选矩形（西、南、东、北）：", True),
                 (", ".join(str(v) for v in task_parameters["requested_bbox"]), False),
             ])
 
-    if task_parameters.get("area_mode") == "coordinates_only" and analysis_summary.get("observed_bbox"):
-        _paragraph(doc, [
-            ("CSV有效观测点经纬度范围：", True),
-            (", ".join(str(v) for v in analysis_summary["observed_bbox"]), False),
-        ])
-
     _summary_table(doc, analysis_summary, historical_baseline, firms_intelligence)
+
+    if spatial_context and spatial_context.get("available"):
+        _heading(doc, "空间位置与火点分布")
+        west, south, east, north = spatial_context["bbox"]
+        _paragraph(doc, [
+            ("观测经度：", True),
+            (f"{west:.5f}°E ～ {east:.5f}°E；", False),
+            ("观测纬度：", True),
+            (f"{south:.5f}°N ～ {north:.5f}°N。", False),
+        ])
+        region_rows = spatial_context.get("regions") or []
+        if region_rows:
+            top = region_rows[:5]
+            _paragraph(doc, [
+                ("底图匹配位置：", True),
+                ("；".join(
+                    f"{r['name']} {_fmt_int(r['count'])} 条（{r['share_percent']:.1f}%）"
+                    for r in top
+                ) + "。", False),
+            ])
+            _paragraph(doc, [
+                ("地理位置数据：", True),
+                (str(spatial_context.get("source") or "已安装 GeoJSON") + "；", False),
+                ("匹配点位 ", True),
+                (_fmt_int(spatial_context.get("matched")) + " / "
+                 + _fmt_int(spatial_context.get("total")) + " 条。", False),
+            ], after=6)
+        elif spatial_context.get("has_geographic_background"):
+            _paragraph(doc, [("本次火点不在已安装底图面要素的有效覆盖内。", False)])
+        else:
+            _paragraph(doc, [("当前位置图依据 FIRMS 观测经纬度绘制。", False)])
+        map_bytes = spatial_context.get("map_png")
+        if map_bytes:
+            picture = doc.add_paragraph()
+            picture.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            picture.add_run().add_picture(BytesIO(map_bytes), width=Cm(16.5))
+            _paragraph(doc, [
+                ("图1 本次火点空间分布。", True),
+                ("红色点为 FIRMS 观测坐标，蓝色线为已安装地图轮廓；"
+                 "坐标采用 WGS84。", False),
+            ], size=9.5, after=6)
+            if spatial_context.get("plotted_points", 0) < spatial_context.get("total", 0):
+                _paragraph(doc, [
+                    (f"图中展示 {_fmt_int(spatial_context['plotted_points'])} 个抽样点；"
+                     "地区统计包含全部有效坐标观测。", False),
+                ], size=9.5, after=5)
+        focus = spatial_context.get("focus_grid")
+        if focus:
+            fw, fs, fe, fn = focus["bbox"]
+            _paragraph(doc, [
+                ("最密集 0.25° 网格：", True),
+                (f"东经 {fw:.2f}°～{fe:.2f}°，北纬 {fs:.2f}°～{fn:.2f}°；", False),
+                (f"{_fmt_int(focus['count'])} 条观测，占 {focus['share_percent']:.1f}%。", True),
+            ])
+
 
     _heading(doc, "总体情况")
     _paragraph(doc, _overall_paragraph(analysis_summary, firms_intelligence))
@@ -424,6 +483,7 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
     if (
         analysis_summary.get("area_mode") == "coordinates_only"
         and grid_summary.get("cell_count", 0) > 1
+        and not (spatial_context and spatial_context.get("available"))
     ):
         _heading(doc, "观测位置分组")
         _paragraph(doc, [(grid_summary.get("note") or "", False)])
