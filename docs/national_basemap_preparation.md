@@ -39,7 +39,7 @@ python scripts/prepare_official_basemap.py --input "D:\数据下载\全国1比10
 
 ## 3. EXE 中使用
 
-- 使用 `--install` 后将底图写入 Windows 当前用户的 `%LOCALAPPDATA%\AgriculturalFirmsAnalysis\map_background\reference_basemap.json`，与软件既有离线地图路径相同，重新打包不会丢失。
+- 使用 `--install` 后将底图写入 Windows 当前用户的 `%LOCALAPPDATA%\HeilongjiangFireMonitor\runtime\map_background\reference_basemap.json`，与软件既有离线地图路径相同，重新打包不会丢失。
 - 也可以只指定 `--output` 生成 `firms_reference.geojson`，再在分析结果的“导入离线地图（GeoJSON）”功能中安装。
 - 结果仍按实际 FIRMS 经度、纬度绘制，并能从“观测范围”切换至“轮廓全貌”；未取得数据的区域继续显示坐标网格。
 

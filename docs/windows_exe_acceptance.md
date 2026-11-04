@@ -13,7 +13,9 @@ conda activate fire-monitor
 powershell -ExecutionPolicy Bypass -File ".\scripts\build_and_check_exe.ps1" -CoverSource "D:\实际路径\home_earth_orbit.webp"
 ```
 
-若图片已经在 `static/images` 下，则省略 `-CoverSource`。脚本执行 Python 全量测试、可用时执行 JavaScript 语法检查、运行 PyInstaller 并核对 EXE 及打包后封面资源。最新 CI 记录不代替本机执行结果。
+若图片已经在 `static/images` 下，则省略 `-CoverSource`。脚本执行 Python 全量测试、JavaScript 语法检查（有 Node.js 时）、PyInstaller 打包，并通过 `scripts/verify_windows_bundle.py` 核查首页图片、页面模板、地图静态资源、GDAL/PROJ/GEOS 运行组件。任一必需文件缺失即终止交付。
+
+原有分析记录、CSV 和地图继续使用 Windows 用户数据目录 `%LOCALAPPDATA%\HeilongjiangFireMonitor`。数据库位于 `runtime\fire_monitor.sqlite`，上传文件位于 `uploads`，地图位于 `runtime\map_background\reference_basemap.json`。重新打包只更新项目中的 `dist`；**不要清理用户数据目录**。
 
 ## 本机 EXE 验收记录
 
@@ -27,7 +29,9 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\build_and_check_exe.ps1" -Co
 - [ ] 农事规则/土地覆盖缺失或不匹配时明确显示证据不足，不能认定发生秸秆焚烧
 - [ ] 历史与天气数据只在本次区域适用时显示，不套用旧省份的数据
 - [ ] 结果页与 Word 报告的数量、观测坐标跨度、区域标签、相关性结论一致
+- [ ] 已安装 geoBoundaries 底图能显示完整省级轮廓，能够切换观测范围与底图全貌；无底图时仍能显示坐标火点
 - [ ] 旧分析记录能够重新打开；关闭并再次启动 EXE 后，历史记录仍在
+- [ ] 重新打包 EXE 后，已经安装的离线底图、历史任务和上传文件仍在
 - [ ] 断网后重复打开 EXE、查看本地记录与导出既有 Word 报告；允许实时气象请求失败但不得破坏本地功能
 - [ ] 复制整套 `dist/农业秸秆焚烧区域火点检测与分析平台/` 至另一台兼容 Windows 电脑运行，验证 GDAL、PROJ、GEOS 及桌面窗口依赖
 

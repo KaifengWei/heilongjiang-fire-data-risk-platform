@@ -15,7 +15,8 @@
 - MCD12Q1 2024 土地覆盖背景及耕地相关性证据；
 - 农事时段 JSON 配置、地区/作物/月份匹配、相关性等级与证据说明；
 - NASA POWER 历史气象及 NOAA GFS 近期天气（有对应范围数据时；用户声明区域普通模式暂不借用旧地区气象数据）；
-- 既有任务内火点活动风险关注分析、结果地图和 Word 报告导出。
+- 既有任务内火点活动风险关注分析、结果地图和 Word 报告导出；
+- 支持安装用户提供的真实 GeoJSON 作为离线背景，提供观测范围与底图全貌两种视图。
 
 ## 运行与测试
 
@@ -26,7 +27,7 @@ python -m pytest -q
 python main.py serve --port 5050
 ```
 
-桌面 EXE 的打包配置在 `fire_monitor.spec`，以 Windows 实机重建和验收为准。
+桌面 EXE 的打包配置在 `fire_monitor.spec`，统一通过 `scripts/build_and_check_exe.ps1` 完成测试、构建与包内依赖检查，最终仍以 Windows 实机验收为准。Windows 用户数据与 EXE 分开保存，升级程序不清除原有记录及离线底图。
 
 ## 数据来源、范围与限制
 

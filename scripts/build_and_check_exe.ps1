@@ -84,6 +84,12 @@ try {
     if (-not ($packagedCovers | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })) {
         throw "Build completed without the homepage image. Do not release this EXE."
     }
+    # Check packaged assets and native spatial dependencies before success.
+    Write-Host "[3/3] Verify bundled runtime and map resources"
+    & conda run --no-capture-output -n fire-monitor python scripts/verify_windows_bundle.py --app-dir $outputDir
+    if ($LASTEXITCODE -ne 0) {
+        throw "Windows EXE resource verification failed."
+    }
     Write-Host "Build verified: $exePath"
     Write-Host "Next: run the EXE and check the manual acceptance scenarios in docs/windows_exe_acceptance.md"
 }

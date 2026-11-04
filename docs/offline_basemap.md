@@ -17,7 +17,7 @@
 
 **当前版本不声称已经内置全国底图。** 用户没有安装对应区域的真实数据时继续显示经纬度网格，不自动下载在线地图，不绘制虚构的国界或行政区轮廓。
 
-安装后的离线底图保存至当前 Windows 用户的 `%LOCALAPPDATA%\\AgriculturalFirmsAnalysis\\map_background\\reference_basemap.json`，不放在 `dist` 打包输出目录；重新打包 EXE 不会清除该文件。测试环境使用测试数据库所在目录隔离数据。
+安装后的离线底图与历史记录保存在 Windows 用户数据目录，地图文件为 `%LOCALAPPDATA%\HeilongjiangFireMonitor\runtime\map_background\reference_basemap.json`。重新打包 EXE 不会清除这个文件；原始分析数据库和 CSV 也使用同一个用户数据目录。
 
 ## 省级地名及完整底图视图
 
