@@ -1066,7 +1066,7 @@
           const candidates = features.map(feature => {
             const name = String(feature.properties?.name || '').trim();
             // Old imports may have lost shapeName. Do not show fake labels.
-            if (!name || /^地图区域\\s*\\d+$/.test(name)) return null;
+            if (!name || /^地图区域\s*\d+$/.test(name)) return null;
             const box = featureBounds(feature);
             if (!box) return null;
             const west = Math.max(box.minX, bounds.minX);

@@ -205,3 +205,4 @@ def test_map_label_collision_logic_is_present_in_runtime_script(tmp_path):
     assert "label_point" in js
     assert "查看底图全貌" in js
     assert "地图区域" in js
+    assert r"/^地图区域\\s*\\d+$/" in js
