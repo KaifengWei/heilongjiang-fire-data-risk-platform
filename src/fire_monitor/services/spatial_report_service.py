@@ -87,6 +87,7 @@ def build_spatial_report_context(
     # database's task-independent observation count. Do not infer a
     # continuous fire from observations recorded on different days.
     grid_dates: dict[tuple[int, int], Counter[str]] = {}
+    grid_observations: dict[tuple[int, int], list[tuple[float, float, str]]] = {}
     for row in rows:
         try:
             lon, lat = float(row["longitude"]), float(row["latitude"])
@@ -95,19 +96,45 @@ def build_spatial_report_context(
         if not (math.isfinite(lon) and math.isfinite(lat) and
                 -180 <= lon <= 180 and -90 <= lat <= 90):
             continue
+        cell = (math.floor(lon * 4), math.floor(lat * 4))
         acquired = str(row.get("acquired_date") or "").strip()
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", acquired):
-            continue
-        grid_dates.setdefault((math.floor(lon * 4), math.floor(lat * 4)),
-                              Counter())[acquired] += 1
+            acquired = ""
+        # Keep the original observation coordinate. The cell center is
+        # artificial and must not be presented as a detected fire location.
+        grid_observations.setdefault(cell, []).append((lon, lat, acquired))
+        if acquired:
+            grid_dates.setdefault(cell, Counter())[acquired] += 1
 
     ranked_grids = sorted(grids.items(), key=lambda v: (-v[1], v[0]))
     top_grids = []
     for rank, ((cell_x, cell_y), count) in enumerate(ranked_grids[:5], 1):
-        by_date = grid_dates.get((cell_x, cell_y), Counter())
+        cell = (cell_x, cell_y)
+        by_date = grid_dates.get(cell, Counter())
         peak_date, peak_count = sorted(
             by_date.items(), key=lambda item: (-item[1], item[0])
         )[0] if by_date else (None, 0)
+        observations = grid_observations.get(cell, [])
+        on_peak = (
+            [point for point in observations if point[2] == peak_date]
+            if peak_date else []
+        )
+        candidates = on_peak or observations
+        center_lon = (cell_x + .5) / 4
+        center_lat = (cell_y + .5) / 4
+        sample = min(
+            candidates,
+            key=lambda point: (
+                (point[0] - center_lon) ** 2
+                + (point[1] - center_lat) ** 2,
+                point[0], point[1], point[2],
+            ),
+        )
+        actual_observation = {
+            "longitude": round(sample[0], 5),
+            "latitude": round(sample[1], 5),
+            "date": sample[2] or None,
+        }
         surfaces = (grid_surface_counts or {}).get(f"{cell_x}:{cell_y}") or {}
         cropland_count = int(surfaces.get("cropland", 0)) + int(
             surfaces.get("mosaic", 0)
@@ -122,6 +149,7 @@ def build_spatial_report_context(
             "share_percent": round(count * 100 / len(coords), 1),
             "active_days": len(by_date),
             "cross_date": len(by_date) >= 2,
+            "sample_observation": actual_observation,
             "cropland_background_count": cropland_count,
             "known_surface_count": known_surface_count,
             "agricultural_counts": (

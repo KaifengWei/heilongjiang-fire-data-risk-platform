@@ -83,7 +83,8 @@ def test_upload_frozen_calendar_used_in_html_and_word(tmp_path):
     doc = Document(BytesIO(report_response.data))
     doc_text = "\n".join(p.text for p in doc.paragraphs)
     assert "农业秸秆焚烧区域火点检测与分析平台" in doc_text
-    assert "农业地表核查建议" in doc_text
+    assert "优先核查位置与建议" in doc_text
+    assert "农业地表核查建议" not in doc_text
     assert "核对" in doc_text
     # Preserve the exact four-category statistics in the HTML and service
     # payload, but don't repeat vague counts in the operational Word report.

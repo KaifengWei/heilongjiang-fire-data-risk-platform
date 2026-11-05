@@ -50,8 +50,8 @@ def test_report_contains_real_geojson_matched_province_and_png(tmp_path):
     assert "匹配点位 2 / 3 条" in text
     assert "124.12000°E" in text
     assert "127.00000°E" in text
-    assert "最高观测量网格" in text
     assert "优先核查位置与建议" in text
+    assert "最高观测量网格：" not in text
     assert "表1 优先核查位置和建议" in text
     spatial_cells = "\n".join(
         cell.text for table in document.tables for row in table.rows for cell in row.cells
@@ -63,14 +63,15 @@ def test_report_contains_real_geojson_matched_province_and_png(tmp_path):
     assert "地图序号及核查范围" in spatial_cells
     assert "位置 1" in spatial_cells
     assert "位置 2" in spatial_cells
-    assert "先调阅 2026-04-03 的相应卫星影像" in spatial_cells
-    assert "结合高分辨率底图先确认地表类型" in spatial_cells
+    assert "实测点 124.12000°E，45.12000°N" in spatial_cells
+    assert "先核对 2026-04-03 对应时段的卫星影像" in spatial_cells
+    assert "以实测点坐标定位高分辨率影像" in spatial_cells
     assert "农业线索" not in spatial_cells
     assert "证据不足" not in spatial_cells
     assert "本次重点" in text
-    assert "农业地表核查建议" in text
+    assert "农业地表核查建议" not in text
     assert "图1 本次火点空间分布" in text
-    assert "地图数字 1～5 与下方核查清单对应" in text
+    assert "地图数字 1～5 对应下方统计网格中心" in text
     assert "图2 火点高值日期对比" in text
     assert "geoBoundaries CHN ADM1 test" in text
     assert len(document.inline_shapes) >= 1

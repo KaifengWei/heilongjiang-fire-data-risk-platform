@@ -218,18 +218,22 @@ def _visual_bar_table(doc: Document, rows: list[tuple[str, int]], caption: str) 
 def _hotspot_next_action(item: dict[str, Any]) -> str:
     """Turn observation evidence into a review task, without a risk score."""
     peak_date = str(item.get("peak_date") or "").strip()
-    if peak_date:
-        steps = [f"先调阅 {peak_date} 的相应卫星影像"]
+    active_days = int(item.get("active_days") or 0)
+    if peak_date and active_days >= 2:
+        steps = [
+            f"对照 {peak_date} 的卫星影像，"
+            f"再复核其余 {active_days - 1} 个有记录日期的点位分布"
+        ]
+    elif peak_date:
+        steps = [f"先核对 {peak_date} 对应时段的卫星影像及周边热源"]
     else:
-        steps = ["先按本次火点观测时间调阅相应卫星影像"]
-    if int(item.get("active_days") or 0) >= 2:
-        steps.append("逐日比对本网格内的火点坐标，查明是否重复出现在邻近位置")
+        steps = ["先核对本次 FIRMS 观测时间并查阅对应卫星影像"]
     if int(item.get("cropland_background_count") or 0) > 0:
-        steps.append("对照耕地分布图核实对应田块，并查阅当期田间作业和秸秆处理记录")
+        steps.append("结合耕地分布核实对应田块，并核对当期收获和秸秆处理记录")
     elif int(item.get("known_surface_count") or 0) > 0:
-        steps.append("核对地表类型及附近固定热源，排除非农热异常来源")
+        steps.append("结合已识别地表类型核查非农热源或其他热异常成因")
     else:
-        steps.append("结合高分辨率底图先确认地表类型，再核对邻近田块或固定热源")
+        steps.append("以实测点坐标定位高分辨率影像，先确定地表类型和邻近固定热源")
     return "；".join(steps) + "。"
 
 
@@ -264,9 +268,15 @@ def _spatial_hotspot_table(doc: Document, rows: list[dict[str, Any]]) -> None:
                 f"；高值日 {item['peak_date']}"
                 f"（{_fmt_int(item.get('peak_count'))} 条）"
             )
+        sample = item.get("sample_observation") or {}
+        point_text = (
+            f"\n实测点 {float(sample['longitude']):.5f}°E，"
+            f"{float(sample['latitude']):.5f}°N"
+            if "longitude" in sample and "latitude" in sample else ""
+        )
         values = (
             f"位置 {int(item['rank'])}\n东经 {west:.2f}°～{east:.2f}°\n"
-            f"北纬 {south:.2f}°～{north:.2f}°",
+            f"北纬 {south:.2f}°～{north:.2f}°" + point_text,
             evidence,
             _hotspot_next_action(item),
         )
@@ -575,7 +585,8 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
             if spatial_context.get("has_geographic_background"):
                 caption_detail += "，蓝色线为已安装地图轮廓"
             caption_detail += (
-                "；地图数字 1～5 与下方核查清单对应，"
+                "；地图数字 1～5 对应下方统计网格中心，"
+                "实测观测点的坐标见核查清单；"
                 "橙色框为首位重点网格，其余网格以蓝色框表示；"
                 "经纬度采用 WGS84。"
             )
@@ -591,12 +602,6 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
                 ], size=9.5, after=5)
         focus = spatial_context.get("focus_grid")
         if focus:
-            fw, fs, fe, fn = focus["bbox"]
-            _paragraph(doc, [
-                ("最高观测量网格：", True),
-                (f"东经 {fw:.2f}°～{fe:.2f}°，北纬 {fs:.2f}°～{fn:.2f}°；", False),
-                (f"{_fmt_int(focus['count'])} 条观测，占 {focus['share_percent']:.1f}%。", True),
-            ])
             _heading(doc, "优先核查位置与建议")
             grids = spatial_context.get("top_grids") or []
             if grids:
@@ -612,7 +617,8 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
                 _paragraph(doc, [
                     ("表1 优先核查位置和建议。", True),
                     ("序号与图1地图标记一一对应，按照观测数量排序；"
-                     "所列范围为 0.25° 经纬网格，不是农田地块边界。", False),
+                     "实测点为该网格高值日期的一条真实 FIRMS 观测，"
+                     "用于查找影像，不代表整个网格或农田地块边界。", False),
                 ], size=9.5, after=6)
 
 
@@ -663,9 +669,10 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
         _heading(doc, "地表背景")
         _paragraph(doc, land)
 
-    if agricultural_relevance and agricultural_relevance.get("available"):
-        # Keep all four evidence totals in the analysis result data, but do
-        # not make the exported operational report a list of vague categories.
+    if (agricultural_relevance and agricultural_relevance.get("available")
+            and not (spatial_context or {}).get("top_grids")):
+        # With spatial data, per-grid actions already provide the next step.
+        # Keep this fallback only for reports without a location checklist.
         _heading(doc, "农业地表核查建议")
         hotspot_rows = (
             (spatial_context or {}).get("top_grids") or []

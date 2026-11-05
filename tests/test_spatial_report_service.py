@@ -215,3 +215,34 @@ def test_report_hotspot_numbering_matches_order_and_original_grid_bounds():
     assert cells[0]["bbox"] == [125.0, 45.0, 125.25, 45.25]
     assert cells[1]["bbox"] == [124.0, 45.0, 124.25, 45.25]
     assert report["map_png"][:8] == b"\x89PNG\r\n\x1a\n"
+
+
+
+def test_review_start_point_is_real_csv_observation_from_peak_date():
+    points = [
+        {"longitude": 124.04, "latitude": 45.04, "acquired_date": "2026-04-01"},
+        {"longitude": 124.12, "latitude": 45.12, "acquired_date": "2026-04-02"},
+        {"longitude": 124.14, "latitude": 45.14, "acquired_date": "2026-04-02"},
+        {"longitude": 124.20, "latitude": 45.20, "acquired_date": "2026-04-03"},
+    ]
+    first = build_spatial_report_context(points, [])["top_grids"][0]
+    reverse = build_spatial_report_context(list(reversed(points)), [])["top_grids"][0]
+    assert first["peak_date"] == "2026-04-02"
+    assert first["peak_count"] == 2
+    assert first["sample_observation"] == {
+        "longitude": 124.12,
+        "latitude": 45.12,
+        "date": "2026-04-02",
+    }
+    assert reverse["sample_observation"] == first["sample_observation"]
+    assert [first["sample_observation"]["longitude"],
+            first["sample_observation"]["latitude"]] != first["center"]
+
+
+def test_review_start_point_with_missing_dates_is_still_real():
+    points = [{"longitude": 124.11, "latitude": 45.12}]
+    top = build_spatial_report_context(points, [])["top_grids"][0]
+    assert top["sample_observation"] == {
+        "longitude": 124.11, "latitude": 45.12, "date": None,
+    }
+    assert top["peak_date"] is None
