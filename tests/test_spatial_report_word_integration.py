@@ -149,7 +149,8 @@ def test_month_long_firms_word_has_substantive_task_specific_evidence(tmp_path):
     assert "火点热辐射功率与高值观测" in body
     assert "第 90 百分位" in body
     assert "实际" not in body or "实测点" in tables
-    assert "观测量" in tables
+    assert "观测依据" in tables
+    assert "观测数" in tables
     assert "具体核查事项" in tables
     assert len(document.inline_shapes) >= 1
     # The older report was only a few hundred characters. This gate
