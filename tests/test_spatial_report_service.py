@@ -65,3 +65,39 @@ def test_overlap_is_not_double_counted_and_invalid_rows_are_excluded():
 def test_empty_observations_has_no_map():
     assert build_spatial_report_context([], []).get("available") is False
     assert display_place("Unknown Farm Region") == "Unknown Farm Region"
+
+
+
+def test_spatial_hotspot_rankings_use_task_dates_and_total_counts():
+    sample = [
+        {"longitude": 124.12, "latitude": 45.12, "acquired_date": "2026-04-01"},
+        {"longitude": 124.16, "latitude": 45.16, "acquired_date": "2026-04-01"},
+        {"longitude": 124.13, "latitude": 45.13, "acquired_date": "2026-04-04"},
+        {"longitude": 124.35, "latitude": 45.12, "acquired_date": "2026-04-02"},
+        {"longitude": 124.36, "latitude": 45.14, "acquired_date": "2026-04-05"},
+        {"longitude": 125.35, "latitude": 44.7, "acquired_date": "2026-04-06"},
+    ]
+    data = build_spatial_report_context(sample, [])
+    assert data["total"] == 6
+    assert data["total_grid_cells"] == 3
+    assert data["top_three_count"] == 6
+    top = data["top_grids"][0]
+    assert top["bbox"] == [124.0, 45.0, 124.25, 45.25]
+    assert top["center"] == [124.125, 45.125]
+    assert top["count"] == 3
+    assert top["share_percent"] == 50.0
+    assert top["active_days"] == 2
+    assert top["peak_date"] == "2026-04-01"
+    assert top["peak_count"] == 2
+    assert data["top_grids"][1]["count"] == 2
+    assert sum(x["count"] for x in data["top_grids"]) == data["total"]
+
+
+def test_unknown_date_does_not_infer_active_days():
+    data = build_spatial_report_context([
+        {"longitude": 124.5, "latitude": 45.5},
+        {"longitude": 124.7, "latitude": 45.7, "acquired_date": "not a date"},
+    ], [])
+    assert data["total"] == 2
+    assert all(item["active_days"] == 0 and item["peak_date"] is None
+               for item in data["top_grids"])

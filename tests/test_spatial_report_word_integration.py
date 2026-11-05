@@ -50,7 +50,14 @@ def test_report_contains_real_geojson_matched_province_and_png(tmp_path):
     assert "匹配点位 2 / 3 条" in text
     assert "124.12000°E" in text
     assert "127.00000°E" in text
-    assert "最密集 0.25° 网格" in text
+    assert "最高观测量网格" in text
+    assert "重点观测位置与日期" in text
+    assert "表1 观测数量较高的五个经纬网格" in text
+    assert "124.125°E，45.125°N" in "\n".join(
+        cell.text for table in document.tables for row in table.rows for cell in row.cells
+    )
+    assert "图1 本次火点空间分布" in text
+    assert "图2 火点高值日期对比" in text
     assert "geoBoundaries CHN ADM1 test" in text
     assert len(document.inline_shapes) >= 1
     assert "本次仅按用户声明范围" not in text

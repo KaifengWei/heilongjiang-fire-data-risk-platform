@@ -182,6 +182,39 @@ def _visual_bar_table(doc: Document, rows: list[tuple[str, int]], caption: str) 
     _set_run_font(r, size=9.5)
 
 
+def _spatial_hotspot_table(doc: Document, rows: list[dict[str, Any]]) -> None:
+    """Grounded 0.25° coordinate cells, not village or parcel locations."""
+    if not rows:
+        return
+    columns = ("网格中心坐标", "观测数", "占比", "有观测日期", "高值日期")
+    table = doc.add_table(rows=1, cols=len(columns))
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for cell, title in zip(table.rows[0].cells, columns):
+        _shade(cell, SHADE)
+        _set_cell_border(cell)
+        cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+        run = cell.paragraphs[0].add_run(title)
+        _set_run_font(run, size=9, bold=True)
+
+    for item in rows:
+        lon, lat = item["center"]
+        cells = table.add_row().cells
+        values = (
+            f"{lon:.3f}°E，{lat:.3f}°N",
+            _fmt_int(item["count"]),
+            f"{item['share_percent']:.1f}%",
+            str(item["active_days"]) if item["active_days"] else "—",
+            (str(item["peak_date"]) + f"（{_fmt_int(item['peak_count'])} 条）")
+            if item["peak_date"] else "—",
+        )
+        for cell, value in zip(cells, values):
+            _set_cell_border(cell)
+            cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+            p = cell.paragraphs[0]
+            p.paragraph_format.space_after = Pt(0)
+            _set_run_font(p.add_run(value), size=9.25)
+
+
 def _overall_paragraph(analysis_summary: dict[str, Any], firms_intelligence: dict[str, Any]) -> list[tuple[str, bool]]:
     total = int(analysis_summary.get("active_fire_count") or 0)
     top = _top_regions(firms_intelligence.get("regions") or [], 3)
@@ -417,6 +450,7 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
             ])
 
     _summary_table(doc, analysis_summary, historical_baseline, firms_intelligence)
+    figure_number = 1
 
     if spatial_context and spatial_context.get("available"):
         _heading(doc, "空间位置与火点分布")
@@ -454,10 +488,11 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
             picture.alignment = WD_ALIGN_PARAGRAPH.CENTER
             picture.add_run().add_picture(BytesIO(map_bytes), width=Cm(16.5))
             _paragraph(doc, [
-                ("图1 本次火点空间分布。", True),
-                ("红色点为 FIRMS 观测坐标，蓝色线为已安装地图轮廓；"
-                 "坐标采用 WGS84。", False),
+                (f"图{figure_number} 本次火点空间分布。", True),
+                ("红色点为 FIRMS 观测坐标，蓝色线为已安装地图轮廓，"
+                 "橙色框标注观测量最多的 0.25° 网格；经纬度采用 WGS84。", False),
             ], size=9.5, after=6)
+            figure_number += 1
             if spatial_context.get("plotted_points", 0) < spatial_context.get("total", 0):
                 _paragraph(doc, [
                     (f"图中展示 {_fmt_int(spatial_context['plotted_points'])} 个抽样点；"
@@ -467,17 +502,35 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
         if focus:
             fw, fs, fe, fn = focus["bbox"]
             _paragraph(doc, [
-                ("最密集 0.25° 网格：", True),
+                ("最高观测量网格：", True),
                 (f"东经 {fw:.2f}°～{fe:.2f}°，北纬 {fs:.2f}°～{fn:.2f}°；", False),
                 (f"{_fmt_int(focus['count'])} 条观测，占 {focus['share_percent']:.1f}%。", True),
             ])
+            _heading(doc, "重点观测位置与日期")
+            grids = spatial_context.get("top_grids") or []
+            if grids:
+                top_three = sum(int(item["count"]) for item in grids[:3])
+                total = int(spatial_context.get("total") or 0)
+                _paragraph(doc, [
+                    (f"共涉及 {_fmt_int(spatial_context.get('total_grid_cells'))} 个 0.25° 经纬网格，", False),
+                    ("观测最多的前三个网格共 ", False),
+                    (_fmt_int(top_three), True),
+                    (f" 条，占有效观测的 {100 * top_three / total if total else 0:.1f}%。", False),
+                ], after=5)
+                _spatial_hotspot_table(doc, grids)
+                _paragraph(doc, [
+                    ("表1 观测数量较高的五个经纬网格。", True),
+                    ("坐标为网格中心；有观测日期是记录日期数，不代表连续燃烧；"
+                     "网格不等同于实际农田地块。", False),
+                ], size=9.5, after=6)
 
 
     _heading(doc, "总体情况")
     _paragraph(doc, _overall_paragraph(analysis_summary, firms_intelligence))
     top_region_rows = [(str(row.get("region_name") or "—"), int(row.get("observation_count") or 0)) for row in _top_regions(firms_intelligence.get("regions") or [], 5)]
-    if analysis_summary.get("area_mode") != "coordinates_only":
-        _visual_bar_table(doc, top_region_rows, "图1 重点地区火点观测数量对比")
+    if analysis_summary.get("area_mode") != "coordinates_only" and top_region_rows:
+        _visual_bar_table(doc, top_region_rows, f"图{figure_number} 重点地区火点观测数量对比")
+        figure_number += 1
 
     grid_summary = analysis_summary.get("location_groups") or {}
     if (
@@ -502,11 +555,11 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
     _paragraph(doc, _time_paragraph(firms_intelligence))
     top_dates = sorted(daily_series, key=lambda row: int(row.get("active_fire_observation_count") or 0), reverse=True)[:5]
     top_date_rows = [(str(row.get("date") or "—"), int(row.get("active_fire_observation_count") or 0)) for row in top_dates]
-    _visual_bar_table(
-        doc, top_date_rows,
-        "图1 火点高值日期对比" if analysis_summary.get("area_mode") == "coordinates_only"
-        else "图2 火点高值日期对比",
-    )
+    if top_date_rows:
+        _visual_bar_table(
+            doc, top_date_rows, f"图{figure_number} 火点高值日期对比",
+        )
+        figure_number += 1
 
     _heading(doc, "当前评估与重点核查")
     _paragraph(doc, _assessment_paragraph(historical_baseline, firms_intelligence, priority_land_cover))
