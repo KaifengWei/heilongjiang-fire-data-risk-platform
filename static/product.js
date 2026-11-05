@@ -1663,7 +1663,7 @@
 
     // The decision panel points to a measured 0.25-degree observation cell.
     // Zoom to those true coordinate bounds instead of merely resetting the map.
-    $('[data-map-focus-bbox]').forEach(button => {
+    document.querySelectorAll('[data-map-focus-bbox]').forEach(button => {
       button.addEventListener('click', () => {
         if (!coordinateMode || !loaded) return;
         const bounds = String(button.getAttribute('data-map-focus-bbox') || '')

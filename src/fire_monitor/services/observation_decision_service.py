@@ -132,6 +132,31 @@ def build_observation_decisions(
     typical_count = float(median(others)) if others else None
     ratio = round(peak_count / typical_count, 1) if typical_count and typical_count > 0 else None
     peak_share = round(peak_count / total * 100, 1) if total else 0
+    overlap_count = cell_day_counts.get(peak_date, 0) if peak_date else 0
+    overlap_share = round(100 * overlap_count / peak_count, 1) if peak_count else 0.0
+    if peak_date and overlap_count == peak_count:
+        spatial_overlap = (
+            f"高值日的 {peak_count:,} 条观测全部落在累计首位的 0.25° 网格，"
+            "日期高值与空间集中位置重合。"
+        )
+    elif peak_date and overlap_count * 2 >= peak_count:
+        spatial_overlap = (
+            f"高值日的 {peak_count:,} 条中有 {overlap_count:,} 条"
+            f"（{overlap_share:.1f}%）落在累计首位网格，至少一半集中于这一片。"
+        )
+    elif peak_date and overlap_count:
+        spatial_overlap = (
+            f"高值日的 {peak_count:,} 条中仅 {overlap_count:,} 条"
+            f"（{overlap_share:.1f}%）落在累计首位网格，"
+            "当天主要观测位置不在累计首位网格。"
+        )
+    elif peak_date:
+        spatial_overlap = (
+            "高值日没有观测落入累计首位网格；"
+            "累计最多的空间网格与单日高值位置不同。"
+        )
+    else:
+        spatial_overlap = ""
     if peak_date and ratio is not None:
         temporal_conclusion = (
             f"{peak_date} 共记录 {peak_count:,} 条，占有效坐标观测的 {peak_share:.1f}%；"
@@ -152,6 +177,9 @@ def build_observation_decisions(
         "active_days": active_days,
         "other_median": typical_count,
         "multiple": ratio,
+        "spatial_overlap_count": overlap_count,
+        "spatial_overlap_share": overlap_share,
+        "spatial_overlap": spatial_overlap,
         "headline": (
             f"{peak_date} 有 {peak_count:,} 条，占 {peak_share:.1f}%"
             if peak_date else "无可比日期"
@@ -217,6 +245,10 @@ def build_observation_decisions(
         )
     if real_repeat:
         lead += f"另外有 {len(real_repeat)} 处约 5 km 网格在不同日期重复出现观测。"
+    if peak_date and overlap_count and overlap_share >= 50:
+        lead += f"高值日有 {overlap_share:.1f}% 的观测落入累计首位网格。"
+    elif peak_date and overlap_count == 0:
+        lead += "单日高值位置与累计首位网格并未重合。"
 
     return {
         "available": True,

@@ -543,6 +543,9 @@
               <h3>时间：哪一天最突出</h3>
               <strong class="action-step-finding">{{ observation_decisions.temporal.headline }}</strong>
               <p>{{ observation_decisions.temporal.conclusion }}</p>
+              {% if observation_decisions.temporal.spatial_overlap %}
+              <p class="action-step-evidence">{{ observation_decisions.temporal.spatial_overlap }}</p>
+              {% endif %}
               {% if observation_decisions.temporal.multiple %}
               <p class="action-step-evidence">比较基准为其余有火点观测日期的中位数，不使用无观测日填零。</p>
               {% endif %}

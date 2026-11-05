@@ -50,6 +50,9 @@ def test_real_counts_compare_spatial_temporal_and_repeated_cells():
     assert temporal["peak_count"] == 3
     assert temporal["other_median"] == 1.5
     assert temporal["multiple"] == 2.0
+    assert temporal["spatial_overlap_count"] == 3
+    assert temporal["spatial_overlap_share"] == 100.0
+    assert "全部落在累计首位" in temporal["spatial_overlap"]
     assert "2.0 倍" in temporal["conclusion"]
     assert result["persistence"]["count"] == 1
     assert "最长连续出现 2 天" in result["persistence"]["conclusion"]
@@ -120,14 +123,30 @@ def test_decision_panel_uses_real_task_counts_and_matches_word(tmp_path):
     text = "\n".join(p.text for p in doc.paragraphs)
     assert "本次观测形成的主要结论" in text
     assert "首位网格记录 4 条" in text
-    assert "其他有观测日的单日中位数" in text
+    assert "个有观测日的单日中位数" in text
+    assert "日期与空间集中位置的重合" in text
     assert "实测样本点为东经" in text
 
 
 def test_map_focus_event_is_not_just_a_reset_button():
     root = Path(__file__).resolve().parents[1]
     js = (root / "static" / "product.js").read_text(encoding="utf-8")
-    assert "$$('[data-map-focus-bbox]')" in js
+    assert "document.querySelectorAll('[data-map-focus-bbox]')" in js
     assert "manualViewport = {" in js
     assert "showFullOutline = false" in js
     assert "setSelectedDateIndex(null)" in js
+
+
+def test_peak_location_can_differ_from_cumulative_top_grid():
+    rows = [
+        {"longitude": 124.10, "latitude": 45.10, "acquired_date": "2026-04-01"},
+        {"longitude": 124.12, "latitude": 45.12, "acquired_date": "2026-04-02"},
+        {"longitude": 124.13, "latitude": 45.13, "acquired_date": "2026-04-03"},
+        {"longitude": 125.10, "latitude": 45.10, "acquired_date": "2026-04-04"},
+        {"longitude": 125.11, "latitude": 45.11, "acquired_date": "2026-04-04"},
+    ]
+    result = build_observation_decisions(rows, {"repeated_cells": []})
+    assert result["spatial"]["count"] == 3
+    assert result["temporal"]["peak_date"] == "2026-04-04"
+    assert result["temporal"]["spatial_overlap_count"] == 0
+    assert "累计最多的空间网格与单日高值位置不同" in result["temporal"]["spatial_overlap"]

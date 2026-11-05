@@ -677,6 +677,11 @@ def _observation_decision_report(doc: Document, decisions: dict[str, Any] | None
         ("日期变化：", True),
         (str(temporal["conclusion"]), False),
     ])
+    if temporal.get("spatial_overlap"):
+        _paragraph(doc, [
+            ("日期与空间集中位置的重合：", True),
+            (str(temporal["spatial_overlap"]), False),
+        ])
     _paragraph(doc, [
         ("跨日重复位置：", True),
         (str(persistence["conclusion"]), False),
