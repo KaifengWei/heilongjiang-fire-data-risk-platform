@@ -108,3 +108,7 @@ CI 的 pytest / JavaScript 成功仅证明代码层回归检查通过；Windows 
 第一次完成这一版打包时，应在用户真实任务上另行检查：旧记录及用户安装
 底图是否保留、1591 条 FIRMS 任务的地图数值与 Word 表格是否匹配、下载保存
 是否成功、连续缩放时火点与省界是否对齐。
+
+自检失败会输出具体失败阶段，`Build verified:` 只有在资源检查与 EXE
+核心流程检查**均通过**后才出现。GitHub CI 另外检查地图缩放脚本
+`static/map_viewport.js` 的 JavaScript 语法。

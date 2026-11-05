@@ -29,6 +29,7 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check static/product.js
+          node --check static/map_viewport.js
           node --check static/county_drilldown.js
           node --check static/home.js
 
