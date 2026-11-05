@@ -30,7 +30,12 @@ def test_no_polygon_still_analyzes_all_csv_points(tmp_path):
     assert len(rows) == 2
     assert {x["region_name"] for x in rows} == {"用户关注区域"}
     html = client.get(f"/tasks/{task}").get_data(as_text=True)
-    assert "暂无足够地表分类依据" in html
+    assert "地表数据尚未覆盖该范围" in html
+    assert 'id="mapZoomIn"' in html
+    assert 'id="mapZoomOut"' in html
+    assert "map_viewport.js?v=release20261105b" in html
+    assert "当前情况与建议" in html
+    assert "地表核查" in html
     assert "通用农业区域概念示意" not in html
     assert "110.5" in html
     assert client.get(f"/api/tasks/{task}/map-data").get_json()["point_count"] == 2

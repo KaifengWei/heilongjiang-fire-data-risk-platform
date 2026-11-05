@@ -75,6 +75,13 @@ def test_report_contains_real_geojson_matched_province_and_png(tmp_path):
     assert "图1 本次火点空间分布" in text
     assert "地图数字 1～5 对应下方统计网格中心" in text
     assert "图2 火点高值日期对比" in text
+    assert "任务期分段观测变化" in text
+    assert "火点热辐射功率与高值观测" in text
+    assert "中位数" in text
+    assert "第 90 百分位" in text
+    assert "2026-04-03 至 2026-04-05" in "\n".join(
+        cell.text for table in document.tables for row in table.rows for cell in row.cells
+    )
     assert "geoBoundaries CHN ADM1 test" in text
     assert len(document.inline_shapes) >= 1
     assert "本次仅按用户声明范围" not in text

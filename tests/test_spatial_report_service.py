@@ -246,3 +246,41 @@ def test_review_start_point_with_missing_dates_is_still_real():
         "longitude": 124.11, "latitude": 45.12, "date": None,
     }
     assert top["peak_date"] is None
+
+
+
+def test_diagnostics_split_actual_dates_and_never_invent_missing_frp():
+    from fire_monitor.services.spatial_report_service import (
+        summarize_observation_diagnostics,
+    )
+    samples = [
+        {"acquired_date": "2026-04-01", "frp": 2.0, "longitude": 124, "latitude": 45},
+        {"acquired_date": "2026-04-02", "frp": 5.0, "longitude": 124.2, "latitude": 45.2},
+        {"acquired_date": "2026-04-15", "frp": None, "longitude": 125, "latitude": 44.5},
+        {"acquired_date": "2026-04-30", "frp": 12.0, "longitude": 125, "latitude": 44.6},
+    ]
+    evidence = summarize_observation_diagnostics(samples)
+    assert evidence["dated_observations"] == 4
+    assert evidence["calendar_days"] == 30
+    assert evidence["active_days"] == 4
+    assert sum(window["count"] for window in evidence["weekly_windows"]) == 4
+    assert len(evidence["weekly_windows"]) == 5
+    assert evidence["weekly_windows"][1]["count"] == 0
+    assert evidence["peak_day"]["date"] == "2026-04-01"
+    assert evidence["frp"]["count"] == 3
+    assert evidence["frp"]["median"] == 5.0
+    assert evidence["frp"]["p90"] == 12.0
+    assert evidence["frp"]["maximum"] == 12.0
+    assert evidence["frp"]["top_observations"][0]["longitude"] == 125
+
+
+def test_diagnostics_empty_rows_report_no_made_up_measurements():
+    from fire_monitor.services.spatial_report_service import (
+        summarize_observation_diagnostics,
+    )
+    evidence = summarize_observation_diagnostics([
+        {"acquired_date": "", "frp": None, "longitude": 124, "latitude": 45},
+    ])
+    assert evidence["weekly_windows"] == []
+    assert evidence["frp"] is None
+    assert evidence["peak_day"] is None
