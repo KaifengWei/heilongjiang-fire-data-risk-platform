@@ -963,9 +963,10 @@
       const maxSpan = Math.max(spanX, spanY);
       // Keep the graticule useful at both country and observation scales.
       // The old constant 2-degree grid crowded the national overview.
-      const tickSteps = [.25, .5, 1, 2, 5, 10, 20];
+      const tickSteps = [.005, .01, .02, .05, .1, .25, .5, 1, 2, 5, 10, 20, 30];
       const desired = maxSpan / 9;
-      const step = tickSteps.find(value => value >= desired) || 30;
+      const step = tickSteps.find(value => value >= desired) || 50;
+      const precision = step < .01 ? 3 : step < .1 ? 2 : step < 1 ? 1 : 0;
 
       ctx.save();
       ctx.strokeStyle = 'rgba(103,145,160,.10)';
@@ -985,7 +986,7 @@
         ctx.lineTo(x2, y2);
         ctx.stroke();
 
-        ctx.fillText(`${lon.toFixed(step < 1 ? 1 : 0)}°E`, x1 + 3, context.height - 8);
+        ctx.fillText(`${lon.toFixed(precision)}°E`, x1 + 3, context.height - 8);
       }
 
       for (let lat = firstLat; lat <= bounds.maxY; lat += step) {
@@ -997,7 +998,7 @@
         ctx.lineTo(x2, y2);
         ctx.stroke();
 
-        ctx.fillText(`${lat.toFixed(step < 1 ? 1 : 0)}°N`, 7, y1 - 3);
+        ctx.fillText(`${lat.toFixed(precision)}°N`, 7, y1 - 3);
       }
 
       ctx.restore();
@@ -1385,7 +1386,8 @@
       const [lon, lat] = transform.unproject(...pixel);
       if (!Number.isFinite(lon) || !Number.isFinite(lat)) return;
       pointerCoordinate.textContent =
-        `${lon.toFixed(4)}°E · ${lat.toFixed(4)}°N`;
+        `${Math.abs(lon).toFixed(4)}°${lon < 0 ? 'W' : 'E'} · ` +
+        `${Math.abs(lat).toFixed(4)}°${lat < 0 ? 'S' : 'N'}`;
       pointerCoordinate.hidden = false;
     }
 
@@ -1435,7 +1437,7 @@
           scale: transform.scale,
           moved: false,
         };
-        canvas.setPointerCapture(event.pointerId);
+        canvas.setPointerCapture?.(event.pointerId);
       });
 
       canvas.addEventListener('pointermove', event => {
@@ -1458,8 +1460,8 @@
 
       function endMapDrag(event) {
         if (!dragStart || event.pointerId !== dragStart.id) return;
-        if (canvas.hasPointerCapture(event.pointerId)) {
-          canvas.releasePointerCapture(event.pointerId);
+        if (canvas.hasPointerCapture?.(event.pointerId)) {
+          canvas.releasePointerCapture?.(event.pointerId);
         }
         dragStart = null;
         canvas.classList.remove('is-map-dragging');

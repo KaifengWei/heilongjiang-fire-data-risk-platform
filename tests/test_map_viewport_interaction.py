@@ -96,3 +96,14 @@ def test_coordinate_free_zoom_clips_only_canvas_drawing_not_analysis():
     assert "extent.maxX < bounds.minX" in script
     # Filtering is used only for rendering; the task payload is still intact.
     assert "points = Array.isArray(payload.points) ? payload.points : []" in script
+
+
+
+def test_grid_precision_increases_when_zoomed_to_a_small_area():
+    js = (Path(__file__).resolve().parents[1] / "static" / "product.js").read_text(
+        encoding="utf-8"
+    )
+    assert "const tickSteps = [.005, .01, .02, .05, .1, .25" in js
+    assert "lon.toFixed(precision)" in js
+    assert "lat.toFixed(precision)" in js
+    assert "Math.abs(lon).toFixed(4)" in js
