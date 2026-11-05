@@ -31,7 +31,10 @@ def run_self_test(report_path: Path) -> int:
                 Path(sandbox) / "user_data" / "HeilongjiangFireMonitor" / "runtime"
             )
             from fire_monitor.desktop import DesktopServer
-            import webview  # noqa: F401 -- verify bundled desktop dependency
+            # Linux CI tests the Python/Flask core without a window manager.
+            # Only frozen release self-tests need the actual GUI import.
+            if getattr(__import__("sys"), "frozen", False):
+                import webview  # noqa: F401
             from osgeo import osr
             from shapely.geometry import Point
 
