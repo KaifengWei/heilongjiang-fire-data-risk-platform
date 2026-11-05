@@ -197,3 +197,21 @@ def test_grid_surface_evidence_is_separate_from_relevance_categories():
     assert second["cropland_background_count"] == 0
     assert second["known_surface_count"] == 1
     assert top["agricultural_counts"] == {"证据不足": 2}
+
+
+
+def test_report_hotspot_numbering_matches_order_and_original_grid_bounds():
+    points = [
+        {"longitude": 124.12, "latitude": 45.12, "acquired_date": "2026-04-01"},
+        {"longitude": 124.13, "latitude": 45.13, "acquired_date": "2026-04-02"},
+        {"longitude": 125.12, "latitude": 45.12, "acquired_date": "2026-04-03"},
+        {"longitude": 125.13, "latitude": 45.13, "acquired_date": "2026-04-03"},
+        {"longitude": 125.14, "latitude": 45.14, "acquired_date": "2026-04-04"},
+    ]
+    report = build_spatial_report_context(points, [])
+    cells = report["top_grids"]
+    assert [row["rank"] for row in cells] == [1, 2]
+    assert [row["count"] for row in cells] == [3, 2]
+    assert cells[0]["bbox"] == [125.0, 45.0, 125.25, 45.25]
+    assert cells[1]["bbox"] == [124.0, 45.0, 124.25, 45.25]
+    assert report["map_png"][:8] == b"\x89PNG\r\n\x1a\n"

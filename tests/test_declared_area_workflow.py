@@ -91,7 +91,7 @@ def test_one_csv_multiple_coordinate_groups_are_shown_and_exported(tmp_path):
     assert "最高观测量网格" in report_text
     assert "优先核查位置与建议" in report_text
     assert "表1 优先核查位置和建议" in report_text
-    assert "本次建议" in report_text
+    assert "本次重点" in report_text
     assert len(doc.inline_shapes) >= 1
 
 

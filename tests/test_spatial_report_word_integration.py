@@ -60,13 +60,17 @@ def test_report_contains_real_geojson_matched_province_and_png(tmp_path):
     assert "北纬 45.00°～45.25°" in spatial_cells
     assert "高值日 2026-04-03（1 条）" in spatial_cells
     assert "具体核查事项" in spatial_cells
+    assert "地图序号及核查范围" in spatial_cells
+    assert "位置 1" in spatial_cells
+    assert "位置 2" in spatial_cells
     assert "先调阅 2026-04-03 的相应卫星影像" in spatial_cells
     assert "结合高分辨率底图先确认地表类型" in spatial_cells
     assert "农业线索" not in spatial_cells
     assert "证据不足" not in spatial_cells
-    assert "本次建议" in text
+    assert "本次重点" in text
     assert "农业地表核查建议" in text
     assert "图1 本次火点空间分布" in text
+    assert "地图数字 1～5 与下方核查清单对应" in text
     assert "图2 火点高值日期对比" in text
     assert "geoBoundaries CHN ADM1 test" in text
     assert len(document.inline_shapes) >= 1

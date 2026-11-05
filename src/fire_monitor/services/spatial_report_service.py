@@ -183,7 +183,7 @@ def build_spatial_report_context(
         "total_grid_cells": len(grids),
         "top_three_count": sum(item["count"] for item in top_grids[:3]),
         "map_png": render_spatial_map_png(
-            coords, polygons, bbox, focus_bbox=focus["bbox"],
+            coords, polygons, bbox, hotspot_grids=top_grids,
         ),
         "plotted_points": min(len(coords), 5000),
         "has_geographic_background": bool(polygons),
@@ -198,6 +198,7 @@ def render_spatial_map_png(
     width: int = 900,
     height: int = 500,
     focus_bbox: list[float] | None = None,
+    hotspot_grids: list[dict[str, Any]] | None = None,
 ) -> bytes:
     """PNG map, using standard-library rasterization (no EXE dependencies).
 
@@ -330,13 +331,34 @@ def render_spatial_map_png(
             pixel(x - 1, y, (233, 118, 91))
             pixel(x + 1, y, (233, 118, 91))
 
-    # Highlight the highest-count angular grid, never a supposed field
-    # boundary. The Word table carries its exact coordinates and date counts.
-    if focus_bbox is not None:
-        fw, fs, fe, fn = focus_bbox
+    # The labels 1–5 match the Word review table exactly. Draw real
+    # quarter-degree cell edges in WGS84, not parcel or village boundaries.
+    # The first cell remains amber; subsequent cells have a thinner blue
+    # outline. For overlapping labels, use a fixed short badge above the
+    # corresponding center point rather than writing long place names.
+    selected_grids = (hotspot_grids or [])[:5]
+    if not selected_grids and focus_bbox is not None:
+        selected_grids = [{"rank": 1, "bbox": focus_bbox}]
+    for index, item in enumerate(selected_grids, 1):
+        bounds = item["bbox"]
+        fw, fs, fe, fn = bounds
         corners = [(fw, fs), (fe, fs), (fe, fn), (fw, fn), (fw, fs)]
+        color = (215, 135, 19) if index == 1 else (77, 142, 174)
         for start, finish in zip(corners[:-1], corners[1:]):
-            segment(start, finish, (215, 135, 19))
+            segment(start, finish, color)
+
+    for index, item in enumerate(selected_grids, 1):
+        fw, fs, fe, fn = item["bbox"]
+        x, y = xy(((fw + fe) / 2, (fs + fn) / 2))
+        if not (48 <= x <= width - 48 and 34 <= y <= height - 40):
+            continue
+        # White numeric badges remain readable on densely populated dots.
+        for dy in range(-7, 8):
+            for dx in range(-7, 8):
+                if dx * dx + dy * dy <= 49:
+                    pixel(x + dx, y + dy, (255, 255, 255))
+        number = str(index)
+        label(number, x - 2, y - 3)
 
     # PNG encoder: RGB, eight-bit, no interlace.
     def chunk(kind, content):

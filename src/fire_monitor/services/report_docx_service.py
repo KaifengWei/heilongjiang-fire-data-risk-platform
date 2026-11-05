@@ -237,7 +237,7 @@ def _spatial_hotspot_table(doc: Document, rows: list[dict[str, Any]]) -> None:
     """A short review plan: where to look, why, and what to check."""
     if not rows:
         return
-    columns = ("建议核查范围", "观测依据", "具体核查事项")
+    columns = ("地图序号及核查范围", "观测依据", "具体核查事项")
     table = doc.add_table(rows=1, cols=len(columns))
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
@@ -265,7 +265,8 @@ def _spatial_hotspot_table(doc: Document, rows: list[dict[str, Any]]) -> None:
                 f"（{_fmt_int(item.get('peak_count'))} 条）"
             )
         values = (
-            f"东经 {west:.2f}°～{east:.2f}°\n北纬 {south:.2f}°～{north:.2f}°",
+            f"位置 {int(item['rank'])}\n东经 {west:.2f}°～{east:.2f}°\n"
+            f"北纬 {south:.2f}°～{north:.2f}°",
             evidence,
             _hotspot_next_action(item),
         )
@@ -574,7 +575,8 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
             if spatial_context.get("has_geographic_background"):
                 caption_detail += "，蓝色线为已安装地图轮廓"
             caption_detail += (
-                "，橙色框标注观测量最多的 0.25° 网格；"
+                "；地图数字 1～5 与下方核查清单对应，"
+                "橙色框为首位重点网格，其余网格以蓝色框表示；"
                 "经纬度采用 WGS84。"
             )
             _paragraph(doc, [
@@ -609,8 +611,8 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
                 _spatial_hotspot_table(doc, grids)
                 _paragraph(doc, [
                     ("表1 优先核查位置和建议。", True),
-                    ("按照观测数量排序；所列范围为 0.25° 经纬网格，"
-                     "不是农田地块边界。", False),
+                    ("序号与图1地图标记一一对应，按照观测数量排序；"
+                     "所列范围为 0.25° 经纬网格，不是农田地块边界。", False),
                 ], size=9.5, after=6)
 
 
