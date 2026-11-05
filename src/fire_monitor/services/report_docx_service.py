@@ -649,7 +649,41 @@ def _observation_detail_tables(
             ], after=3)
 
 
-def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[str, Any], firms_intelligence: dict[str, Any], historical_baseline: dict[str, Any], land_cover_context: dict[str, Any], priority_land_cover: dict[str, Any] | None, weather_context: dict[str, Any] | None, daily_series: list[dict[str, Any]], agricultural_relevance: dict[str, Any] | None = None, spatial_context: dict[str, Any] | None = None) -> bytes:
+def _observation_decision_report(doc: Document, decisions: dict[str, Any] | None) -> None:
+    """Use exactly the same computed conclusions as the results page."""
+    if not decisions or not decisions.get("available"):
+        return
+
+    spatial = decisions["spatial"]
+    temporal = decisions["temporal"]
+    persistence = decisions["persistence"]
+    _heading(doc, "本次观测形成的主要结论")
+    _paragraph(doc, [(str(decisions["lead"]), True)])
+    _paragraph(doc, [
+        ("空间集中位置：", True),
+        (str(spatial["conclusion"]), False),
+        (str(spatial["evidence"]), False),
+    ])
+    sample = spatial.get("sample_point") or {}
+    if sample.get("longitude") is not None and sample.get("latitude") is not None:
+        text = (
+            f"该网格的实测样本点为东经 {float(sample['longitude']):.5f}°、"
+            f"北纬 {float(sample['latitude']):.5f}°"
+        )
+        if sample.get("date"):
+            text += f"（{sample['date']}）"
+        _paragraph(doc, [(text + "。", False)], after=5)
+    _paragraph(doc, [
+        ("日期变化：", True),
+        (str(temporal["conclusion"]), False),
+    ])
+    _paragraph(doc, [
+        ("跨日重复位置：", True),
+        (str(persistence["conclusion"]), False),
+    ])
+
+
+def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[str, Any], firms_intelligence: dict[str, Any], historical_baseline: dict[str, Any], land_cover_context: dict[str, Any], priority_land_cover: dict[str, Any] | None, weather_context: dict[str, Any] | None, daily_series: list[dict[str, Any]], agricultural_relevance: dict[str, Any] | None = None, spatial_context: dict[str, Any] | None = None, observation_decisions: dict[str, Any] | None = None) -> bytes:
     doc = Document()
     section = doc.sections[0]
     section.page_width = Cm(21.0)
@@ -705,6 +739,8 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
             ])
 
     _summary_table(doc, analysis_summary, historical_baseline, firms_intelligence)
+    if analysis_summary.get("area_mode") == "coordinates_only":
+        _observation_decision_report(doc, observation_decisions)
     if analysis_summary.get("area_mode") == "coordinates_only" and (
         spatial_context or {}
     ).get("top_grids"):

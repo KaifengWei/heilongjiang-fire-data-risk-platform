@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ task.name }} - 分析结果</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='product.css', v='release20261105-guidance3') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='product.css', v='release20261105-evidence4') }}">
 </head>
 
 <body class="app-body">
@@ -499,6 +499,72 @@
         </aside>
       </section>
       <section class="action-guidance reveal-item">
+        {% if coordinate_mode and observation_decisions.available %}
+        <div class="action-guidance-summary">
+          <div class="action-guidance-kicker">
+            <span class="app-eyebrow">基于实际 FIRMS 观测</span>
+            <span class="action-guidance-method-tag">0.25° 空间分组 · 按日统计 · 跨日重复网格</span>
+          </div>
+          <h2>当前情况与建议</h2>
+          <p class="action-guidance-lead action-guidance-insight">{{ observation_decisions.lead }}</p>
+          <div class="action-guidance-facts" aria-label="从本次观测得出的三个结论">
+            <div class="action-guidance-fact">
+              <span>观测最密集的 0.25° 网格</span>
+              <strong>{{ '{:,}'.format(observation_decisions.spatial.count) }} <small>条，{{ '%.1f'|format(observation_decisions.spatial.share) }}%</small></strong>
+              <small>该网格在 {{ observation_decisions.spatial.active_days }} 个日期有观测</small>
+            </div>
+            <div class="action-guidance-fact">
+              <span>火点最多的日期</span>
+              <strong>{{ observation_decisions.temporal.peak_date or '—' }}</strong>
+              <small>{{ '{:,}'.format(observation_decisions.temporal.peak_count) }} 条，占本次 {{ '%.1f'|format(observation_decisions.temporal.peak_share) }}%</small>
+            </div>
+            <div class="action-guidance-fact">
+              <span>跨日重复观测的局部网格</span>
+              <strong>{{ observation_decisions.persistence.count }} <small>处</small></strong>
+              <small>按已有约 5 km 网格和实际观测日期统计</small>
+            </div>
+          </div>
+        </div>
+        <div class="action-guidance-steps action-guidance-evidence">
+          <article class="action-step">
+            <span class="action-step-index">01</span>
+            <div class="action-step-copy">
+              <h3>空间：哪一片最集中</h3>
+              <strong class="action-step-finding">{{ observation_decisions.spatial.headline }}</strong>
+              <p>{{ observation_decisions.spatial.conclusion }}</p>
+              <p class="action-step-evidence">{{ observation_decisions.spatial.evidence }}</p>
+              <p class="action-step-evidence">实际样本点：东经 {{ '%.5f'|format(observation_decisions.spatial.sample_point.longitude) }}°，北纬 {{ '%.5f'|format(observation_decisions.spatial.sample_point.latitude) }}°{% if observation_decisions.spatial.sample_point.date %}（{{ observation_decisions.spatial.sample_point.date }}）{% endif %}。</p>
+              <button type="button" class="action-link" data-map-focus-bbox="{{ observation_decisions.spatial.bbox|join(',') }}">在地图定位这片集中区域 →</button>
+            </div>
+          </article>
+          <article class="action-step">
+            <span class="action-step-index">02</span>
+            <div class="action-step-copy">
+              <h3>时间：哪一天最突出</h3>
+              <strong class="action-step-finding">{{ observation_decisions.temporal.headline }}</strong>
+              <p>{{ observation_decisions.temporal.conclusion }}</p>
+              {% if observation_decisions.temporal.multiple %}
+              <p class="action-step-evidence">比较基准为其余有火点观测日期的中位数，不使用无观测日填零。</p>
+              {% endif %}
+              {% if observation_decisions.temporal.peak_date %}
+              <button type="button" class="action-link" data-map-date="{{ observation_decisions.temporal.peak_date }}">只看这一天的点位 →</button>
+              {% endif %}
+            </div>
+          </article>
+          <article class="action-step">
+            <span class="action-step-index">03</span>
+            <div class="action-step-copy">
+              <h3>跨日：哪些位置反复出现</h3>
+              <strong class="action-step-finding">{{ observation_decisions.persistence.headline }}</strong>
+              <p>{{ observation_decisions.persistence.conclusion }}</p>
+              {% if observation_decisions.persistence.count %}
+              <p class="action-step-evidence">跨日重复表示观测落在同一局部网格，不等同于同一火源连续燃烧。</p>
+              <button type="button" class="action-link" data-map-theme="persistent">显示跨日重复网格 →</button>
+              {% endif %}
+            </div>
+          </article>
+        </div>
+        {% else %}
         <div class="action-guidance-summary">
           <div class="action-guidance-kicker">
             <span class="app-eyebrow">当前情况</span>
@@ -677,6 +743,7 @@
             </div>
           </article>
         </div>
+        {% endif %}
       </section>
 
       <section id="weatherContextPanel" class="weather-context-panel reveal-item" hidden>
@@ -736,7 +803,7 @@
 {% include '_record_manage_modal.html' %}
 {% include '_help_modal.html' %}
 <script src="{{ url_for('static', filename='map_viewport.js', v='release20261105b') }}"></script>
-<script src="{{ url_for('static', filename='product.js', v='release20261105b') }}"></script>
+<script src="{{ url_for('static', filename='product.js', v='release20261105-evidence4') }}"></script>
 {% if not coordinate_mode and (not task.parameters.selected_regions or not (task.parameters.selected_regions|rejectattr('source','equalto','builtin')|list)) %}
 <script src="{{ url_for('static', filename='county_drilldown.js') }}"></script>
 {% endif %}

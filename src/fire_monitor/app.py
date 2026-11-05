@@ -44,6 +44,9 @@ from fire_monitor.services.statistics_service import (
 from fire_monitor.services.firms_intelligence_service import (
     FirmsIntelligenceService,
 )
+from fire_monitor.services.observation_decision_service import (
+    build_observation_decisions,
+)
 from fire_monitor.services.historical_baseline_service import (
     HistoricalFirmsBaselineService,
 )
@@ -749,6 +752,11 @@ def create_app(
             .as_dict()
         )
 
+        observation_decisions = (
+            build_observation_decisions(task_firms_observations, firms_intelligence)
+            if is_declared_area else {"available": False}
+        )
+
         # The existing historical baseline was built for the original fixed
         # regional dataset. It must not be used as a comparison for a new
         # task-scoped polygon until an equivalent scoped baseline is installed.
@@ -892,6 +900,7 @@ def create_app(
                 firms_intelligence=(
                     firms_intelligence
                 ),
+                observation_decisions=observation_decisions,
                 historical_baseline=(
                     historical_baseline
                 ),
@@ -2011,6 +2020,12 @@ def create_app(
             .as_dict()
         )
 
+        observation_decisions = (
+            build_observation_decisions(observations, firms_intelligence)
+            if (task.get("parameters") or {}).get("area_mode") == "coordinates_only"
+            else {"available": False}
+        )
+
         export_boundaries = database.list_task_regions(task_id)
         if (task.get("parameters") or {}).get("area_mode") == "coordinates_only" or (
             export_boundaries and any(
@@ -2133,6 +2148,7 @@ def create_app(
                 ),
                 agricultural_relevance=agricultural_relevance,
                 spatial_context=spatial_report,
+                observation_decisions=observation_decisions,
                 priority_land_cover=(
                     priority_land_cover
                 ),

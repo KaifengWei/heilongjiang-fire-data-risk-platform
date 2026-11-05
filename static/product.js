@@ -1661,7 +1661,40 @@
       });
     });
 
-    $$('[data-map-date]').forEach(button => {
+    // The decision panel points to a measured 0.25-degree observation cell.
+    // Zoom to those true coordinate bounds instead of merely resetting the map.
+    $('[data-map-focus-bbox]').forEach(button => {
+      button.addEventListener('click', () => {
+        if (!coordinateMode || !loaded) return;
+        const bounds = String(button.getAttribute('data-map-focus-bbox') || '')
+          .split(',').map(Number);
+        if (bounds.length !== 4 || bounds.some(value => !Number.isFinite(value))) return;
+        const [west, south, east, north] = bounds;
+        if (!(west < east && south < north)) return;
+        stopPlayback();
+        setSelectedDateIndex(null);
+        if (layerAllFires) {
+          layerAllFires.checked = true;
+          layerAllFires.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        const marginX = Math.max(.0125, (east - west) * .12);
+        const marginY = Math.max(.0125, (north - south) * .12);
+        manualViewport = {
+          minX: west - marginX, minY: south - marginY,
+          maxX: east + marginX, maxY: north + marginY,
+        };
+        showFullOutline = false;
+        zoomLevel = 1;
+        if (zoomModeButton) {
+          zoomModeButton.setAttribute('aria-pressed', 'false');
+          zoomModeButton.textContent = hasBasemap ? '查看底图全貌' : '查看轮廓全貌';
+        }
+        redrawMap();
+        canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+
+    $('[data-map-date]').forEach(button => {
       button.addEventListener('click', () => {
         stopPlayback();
 

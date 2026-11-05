@@ -5690,3 +5690,77 @@ body.home-body .home-orbit-visual .home-orbit-image-frame::after {
   .action-guidance-summary h2 { font-size: 24px; }
   .action-land-context.is-text-only { padding: 15px 16px; }
 }
+
+
+/* DATA-DRIVEN OBSERVATION CONCLUSIONS V4
+   Keep long evidence readable without inventing another decorative card. */
+.action-guidance-method-tag {
+  color: #557989;
+  font-size: 12px;
+  line-height: 1.6;
+  font-weight: 500;
+}
+.action-guidance-insight {
+  max-width: none;
+  color: #224b60;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.8;
+  margin-bottom: 17px;
+}
+.action-guidance-fact > small {
+  display: block;
+  margin-top: 6px;
+  color: #607c8a;
+  line-height: 1.5;
+  font-size: 12px;
+}
+.action-guidance-evidence {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%,340px), 1fr));
+  align-items: stretch;
+}
+.action-guidance-evidence .action-step:nth-child(n) {
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: start;
+  padding: 20px 22px;
+}
+.action-guidance-evidence .action-step-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 8px;
+}
+.action-guidance-evidence .action-step-copy h3 {
+  margin: 0;
+  color: #23586d;
+  font-size: 13px;
+  letter-spacing: .02em;
+}
+.action-guidance-evidence .action-step-finding {
+  display: block;
+  color: #113c53;
+  font-size: 19px;
+  line-height: 1.5;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+.action-guidance-evidence .action-step-copy p {
+  margin: 0;
+  color: #415e6b;
+  font-size: 14px;
+  line-height: 1.75;
+}
+.action-guidance-evidence .action-step-copy .action-step-evidence {
+  color: #637e8a;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.action-guidance-evidence .action-link {
+  align-self: flex-start;
+  margin-top: auto;
+  padding-top: 12px;
+  font-size: 13px;
+}
+@media (max-width: 850px) {
+  .action-guidance-evidence { grid-template-columns: 1fr; }
+}
