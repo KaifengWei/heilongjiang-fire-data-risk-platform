@@ -42,6 +42,7 @@ def _paragraph(doc: Document, pieces: list[tuple[str, bool]], *, size: float = 1
     p = doc.add_paragraph()
     p.paragraph_format.line_spacing = 1.5
     p.paragraph_format.space_after = Pt(after)
+    p.paragraph_format.widow_control = True
     if align is not None:
         p.alignment = align
     for text, bold in pieces:
@@ -53,6 +54,8 @@ def _heading(doc: Document, text: str) -> None:
     p = doc.add_paragraph()
     p.paragraph_format.space_before = Pt(12)
     p.paragraph_format.space_after = Pt(7)
+    p.paragraph_format.keep_with_next = True
+    p.paragraph_format.keep_together = True
     run = p.add_run(text)
     _set_run_font(run, size=13.5, bold=True)
 
@@ -98,23 +101,49 @@ def _set_cell_border(cell, color: str = BORDER) -> None:
         element.set(qn("w:color"), color)
 
 
+def _keep_row_intact(row, *, repeat_header: bool = False) -> None:
+    """Repeat column headers and keep each action row on one Word page."""
+    props = row._tr.get_or_add_trPr()
+    if props.find(qn("w:cantSplit")) is None:
+        props.append(OxmlElement("w:cantSplit"))
+    if repeat_header and props.find(qn("w:tblHeader")) is None:
+        props.append(OxmlElement("w:tblHeader"))
+
+
 def _summary_table(doc: Document, analysis_summary: dict[str, Any], historical_baseline: dict[str, Any], firms_intelligence: dict[str, Any]) -> None:
     summary = firms_intelligence.get("summary") or {}
-    priority = historical_baseline.get("priority_regions", []) if historical_baseline else []
-    priority_names = "、".join(str(x.get("region_name")) for x in priority[:3] if x.get("region_name")) or str(analysis_summary.get("main_region") or "—")
-    history_status = str(historical_baseline.get("province_status") or "暂无历史同期判断") if historical_baseline and historical_baseline.get("available") else "暂无历史同期判断"
-    rows = [
-        ("历史同期判断", history_status),
-        ("有效火点观测", _fmt_int(analysis_summary.get("active_fire_count"))),
-        ("用户声明区域" if analysis_summary.get("area_mode") == "coordinates_only" else "火点最集中区域", str(analysis_summary.get("main_region") or "—")),
-        ("峰值日期", f"{summary.get('peak_date') or '—'}（{_fmt_int(summary.get('peak_count'))} 条）" if summary.get("peak_date") else "—"),
-        ("活跃日期", f"{_fmt_int(summary.get('active_days'))} / {_fmt_int(summary.get('span_days'))}"),
-        ("重点核查地区", priority_names),
-    ]
-    table = doc.add_table(rows=3, cols=4)
+    if analysis_summary.get("area_mode") == "coordinates_only":
+        # Use the front-page space for decision-relevant facts. A declared
+        # region has no validated historical comparator or city ranking.
+        rows = [
+            ("有效火点观测", _fmt_int(analysis_summary.get("active_fire_count"))),
+            ("观测日期范围", str(analysis_summary.get("period") or "—")),
+            ("峰值日期", (
+                f"{summary['peak_date']}（{_fmt_int(summary.get('peak_count'))} 条）"
+                if summary.get("peak_date") else "—"
+            )),
+            ("有火点日期", f"{_fmt_int(summary.get('active_days'))} 天"),
+        ]
+    else:
+        priority = historical_baseline.get("priority_regions", []) if historical_baseline else []
+        priority_names = "、".join(str(x.get("region_name")) for x in priority[:3] if x.get("region_name")) or str(analysis_summary.get("main_region") or "—")
+        history_status = str(historical_baseline.get("province_status") or "暂无历史同期判断") if historical_baseline and historical_baseline.get("available") else "暂无历史同期判断"
+        rows = [
+            ("历史同期判断", history_status),
+            ("有效火点观测", _fmt_int(analysis_summary.get("active_fire_count"))),
+            ("火点最集中区域", str(analysis_summary.get("main_region") or "—")),
+            ("峰值日期", (
+                f"{summary['peak_date']}（{_fmt_int(summary.get('peak_count'))} 条）"
+                if summary.get("peak_date") else "—"
+            )),
+            ("活跃日期", f"{_fmt_int(summary.get('active_days'))} / {_fmt_int(summary.get('span_days'))}"),
+            ("重点核查地区", priority_names),
+        ]
+    table = doc.add_table(rows=len(rows) // 2, cols=4)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     index = 0
     for row in table.rows:
+        _keep_row_intact(row)
         for col in (0, 2):
             label, value = rows[index]
             c1, c2 = row.cells[col], row.cells[col + 1]
@@ -124,12 +153,13 @@ def _summary_table(doc: Document, analysis_summary: dict[str, Any], historical_b
             _shade(c1, SHADE)
             p = c1.paragraphs[0]
             p.paragraph_format.space_after = Pt(0)
-            r = p.add_run(label)
-            _set_run_font(r, size=10, bold=True)
+            _set_run_font(p.add_run(label), size=9.75, bold=True)
             p = c2.paragraphs[0]
             p.paragraph_format.space_after = Pt(0)
-            r = p.add_run(value)
-            _set_run_font(r, size=10.5, bold=label in {"历史同期判断", "火点最集中区域", "峰值日期", "重点核查地区"})
+            _set_run_font(p.add_run(value), size=10.25, bold=label in {
+                "历史同期判断", "火点最集中区域", "有效火点观测",
+                "峰值日期", "重点核查地区",
+            })
             index += 1
 
 
@@ -158,6 +188,7 @@ def _visual_bar_table(doc: Document, rows: list[tuple[str, int]], caption: str) 
     max_value = max(value for _, value in rows) or 1
     table = doc.add_table(rows=1, cols=3)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    _keep_row_intact(table.rows[0], repeat_header=True)
     for cell, header in zip(table.rows[0].cells, ("项目", "数量", "相对强度")):
         _shade(cell, SHADE)
         _set_cell_border(cell)
@@ -165,7 +196,9 @@ def _visual_bar_table(doc: Document, rows: list[tuple[str, int]], caption: str) 
         r = p.add_run(header)
         _set_run_font(r, size=10, bold=True)
     for label, value in rows:
-        cells = table.add_row().cells
+        row = table.add_row()
+        _keep_row_intact(row)
+        cells = row.cells
         for c in cells:
             _set_cell_border(c)
         p = cells[0].paragraphs[0]
@@ -207,6 +240,12 @@ def _spatial_hotspot_table(doc: Document, rows: list[dict[str, Any]]) -> None:
     columns = ("建议核查范围", "观测依据", "具体核查事项")
     table = doc.add_table(rows=1, cols=len(columns))
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    table.autofit = False
+    # The A4 body is 17 cm wide: give the actionable third column
+    # roughly half the usable width, instead of equal narrow columns.
+    for col, width in zip(table.columns, (Cm(4.3), Cm(4.4), Cm(8.3))):
+        col.width = width
+    _keep_row_intact(table.rows[0], repeat_header=True)
     for cell, title in zip(table.rows[0].cells, columns):
         _shade(cell, SHADE)
         _set_cell_border(cell)
@@ -230,7 +269,9 @@ def _spatial_hotspot_table(doc: Document, rows: list[dict[str, Any]]) -> None:
             evidence,
             _hotspot_next_action(item),
         )
-        for cell, value in zip(table.add_row().cells, values):
+        row = table.add_row()
+        _keep_row_intact(row)
+        for cell, value in zip(row.cells, values):
             _set_cell_border(cell)
             cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
             paragraph = cell.paragraphs[0]
@@ -422,6 +463,8 @@ def _final_paragraph(analysis_summary: dict[str, Any], firms_intelligence: dict[
 def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[str, Any], firms_intelligence: dict[str, Any], historical_baseline: dict[str, Any], land_cover_context: dict[str, Any], priority_land_cover: dict[str, Any] | None, weather_context: dict[str, Any] | None, daily_series: list[dict[str, Any]], agricultural_relevance: dict[str, Any] | None = None, spatial_context: dict[str, Any] | None = None) -> bytes:
     doc = Document()
     section = doc.sections[0]
+    section.page_width = Cm(21.0)
+    section.page_height = Cm(29.7)
     section.top_margin = Cm(1.8)
     section.bottom_margin = Cm(1.8)
     section.left_margin = Cm(2.0)
@@ -473,6 +516,21 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
             ])
 
     _summary_table(doc, analysis_summary, historical_baseline, firms_intelligence)
+    if analysis_summary.get("area_mode") == "coordinates_only" and (
+        spatial_context or {}
+    ).get("top_grids"):
+        top = spatial_context["top_grids"][0]
+        fw, fs, fe, fn = top["bbox"]
+        _heading(doc, "本次重点")
+        _paragraph(doc, [
+            ("优先查看：", True),
+            (f"东经 {fw:.2f}°～{fe:.2f}°、北纬 {fs:.2f}°～{fn:.2f}°", True),
+            ("；本次共记录 ", False),
+            (_fmt_int(top.get("count")), True),
+            (" 条观测。", False),
+            ((f"其中 {top['peak_date']} 为该网格观测高值日。")
+             if top.get("peak_date") else "", False),
+        ], after=9)
     figure_number = 1
 
     if spatial_context and spatial_context.get("available"):
@@ -509,11 +567,19 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
         if map_bytes:
             picture = doc.add_paragraph()
             picture.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            picture.paragraph_format.keep_with_next = True
+            picture.paragraph_format.keep_together = True
             picture.add_run().add_picture(BytesIO(map_bytes), width=Cm(16.5))
+            caption_detail = "红色点为 FIRMS 观测坐标"
+            if spatial_context.get("has_geographic_background"):
+                caption_detail += "，蓝色线为已安装地图轮廓"
+            caption_detail += (
+                "，橙色框标注观测量最多的 0.25° 网格；"
+                "经纬度采用 WGS84。"
+            )
             _paragraph(doc, [
                 (f"图{figure_number} 本次火点空间分布。", True),
-                ("红色点为 FIRMS 观测坐标，蓝色线为已安装地图轮廓，"
-                 "橙色框标注观测量最多的 0.25° 网格；经纬度采用 WGS84。", False),
+                (caption_detail, False),
             ], size=9.5, after=6)
             figure_number += 1
             if spatial_context.get("plotted_points", 0) < spatial_context.get("total", 0):
@@ -636,19 +702,10 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
         for block in weather_blocks:
             _paragraph(doc, block)
 
-    if analysis_summary.get("area_mode") == "coordinates_only" and (
-        spatial_context or {}
-    ).get("top_grids"):
-        top = spatial_context["top_grids"][0]
-        fw, fs, fe, fn = top["bbox"]
-        _heading(doc, "本次建议")
-        _paragraph(doc, [
-            ("优先复核 ", True),
-            (f"东经 {fw:.2f}°～{fe:.2f}°、北纬 {fs:.2f}°～{fn:.2f}°"
-             " 范围，", False),
-            (_hotspot_next_action(top), False),
-        ])
-    else:
+    # Coordinate-task next steps are now present in the three-column
+    # location table; repeating the same advice at the end adds no value.
+    if not (analysis_summary.get("area_mode") == "coordinates_only"
+            and (spatial_context or {}).get("top_grids")):
         _heading(doc, "综合分析")
         _paragraph(doc, _final_paragraph(
             analysis_summary, firms_intelligence, historical_baseline,
