@@ -183,11 +183,16 @@ if (
 from fire_monitor.desktop import run_desktop  # noqa: E402
 
 
-def main() -> None:
-    """启动桌面应用。"""
-
+def main() -> int:
+    """Normal launch opens the desktop; --self-test runs without any GUI."""
+    if len(sys.argv) >= 2 and sys.argv[1] == "--self-test":
+        if len(sys.argv) != 3:
+            return 2
+        from fire_monitor.desktop_self_test import run_self_test
+        return run_self_test(Path(sys.argv[2]))
     run_desktop()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

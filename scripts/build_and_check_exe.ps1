@@ -90,6 +90,12 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Windows EXE resource verification failed."
     }
+    Write-Host "[4/4] Run packaged EXE core workflow without opening the GUI"
+    & conda run --no-capture-output -n fire-monitor python scripts/check_frozen_exe.py --app-dir $outputDir
+    if ($LASTEXITCODE -ne 0) {
+        throw "Packaged Windows EXE failed its isolated smoke test."
+    }
+
     Write-Host "Build verified: $exePath"
     Write-Host "Next: run the EXE and check the manual acceptance scenarios in docs/windows_exe_acceptance.md"
 }
