@@ -258,5 +258,5 @@ def test_canvas_uses_short_chinese_labels_and_draws_them_above_points(tmp_path):
     assert "const tickSteps = [.005, .01, .02, .05, .1, .25, .5, 1, 2, 5, 10, 20, 30]" in script
     assert script.count("drawMapLabels(context);") == 2
     assert script.rindex("drawMapLabels(context);") > script.index(
-        "visible.forEach(point =>", script.index("function redrawMap()")
+        "drawable.forEach(point =>", script.index("function redrawMap()")
     )
