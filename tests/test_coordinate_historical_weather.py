@@ -10,7 +10,7 @@ from fire_monitor.services.historical_weather_context_service import (
 )
 
 
-def _mock_power(*, latitude, longitude, start, end):
+def _mock_power(self, *, latitude, longitude, start, end):
     # Check coordinate sampling: the highest density quarter-degree grid.
     assert 124.0 < longitude < 124.25
     assert 45.0 < latitude < 45.25

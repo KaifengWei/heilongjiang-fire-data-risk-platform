@@ -18,7 +18,15 @@ def tid(r):
     assert r.status_code == 302, r.get_data(as_text=True)[:900]
     return r.headers["Location"].rstrip("/").split("/")[-1]
 
-def test_no_polygon_still_analyzes_all_csv_points(tmp_path):
+def test_no_polygon_still_analyzes_all_csv_points(tmp_path, monkeypatch):
+    # Offline case is deterministic and must not request NASA data.
+    from fire_monitor.services.historical_weather_context_service import (
+        HistoricalWeatherContextService,
+    )
+    monkeypatch.setattr(
+        HistoricalWeatherContextService, "_fetch_power",
+        lambda self, **kwargs: None,
+    )
     app = make(tmp_path)
     db = app.extensions["fire_database"]
     assert db.list_regions() == []
