@@ -114,7 +114,9 @@ def test_map_image_has_numeric_coordinate_ticks_and_highlighted_focus_grid():
     # Test an actual line that crosses this tightly zoomed map, instead
     # of asserting that a far-away province edge remains visible.
     report = build_spatial_report_context(points, [
-        _poly("Jilin Province", 124.0, 45.0, 124.25, 45.25)
+        # A separate, visible boundary: it must not exactly coincide with
+        # the highlighted 0.25-degree grid outline drawn above it.
+        _poly("Jilin Province", 124.04, 45.03, 124.22, 45.21)
     ])
     image = report["map_png"]
     # Decode the true PNG RGB scanlines; no OCR or artificial map content.
