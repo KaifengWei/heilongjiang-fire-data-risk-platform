@@ -16,9 +16,10 @@ def test_desktop_release_self_test_round_trip_and_does_not_touch_user_data(
     monkeypatch.setenv("FIRE_MONITOR_RUNTIME_DIR", str(tmp_path / "existing_runtime"))
 
     report = tmp_path / "out" / "release.json"
-    assert run_self_test(report) == 0
+    exit_code = run_self_test(report)
     result = json.loads(report.read_text(encoding="utf-8"))
-    assert result["ok"] is True
+    assert exit_code == 0, result
+    assert result["ok"] is True, result
     assert result["sample_observations"] == 3
     assert "DOCX report, real point, GeoJSON join and embedded map" in result["checks"]
     assert sentinel.read_text(encoding="utf-8") == "original user data"
