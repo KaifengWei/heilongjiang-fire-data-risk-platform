@@ -8,6 +8,7 @@ nothing here changes task records, risk assessment or area filtering.
 from __future__ import annotations
 
 from collections import Counter
+from datetime import date, timedelta
 from io import BytesIO
 import math
 import re
@@ -54,6 +55,101 @@ def _valid_points(rows: list[dict[str, Any]]) -> list[tuple[float, float]]:
             continue
         if math.isfinite(lon) and math.isfinite(lat) and -180 <= lon <= 180 and -90 <= lat <= 90:
             result.append((lon, lat))
+    return result
+
+
+def summarize_observation_diagnostics(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Describe temporal concentration and radiative values actually recorded.
+
+    This is not an affected-area calculation or an independent fire count.
+    Missing dates and FRP are not filled with fabricated values.
+    """
+    daily: Counter[date] = Counter()
+    frp_rows = []
+    for row in rows:
+        raw = str(row.get("acquired_date") or "")[:10]
+        try:
+            day = date.fromisoformat(raw)
+        except ValueError:
+            day = None
+        if day:
+            daily[day] += 1
+        try:
+            frp = float(row.get("frp"))
+            lon = float(row.get("longitude"))
+            lat = float(row.get("latitude"))
+        except (TypeError, ValueError, KeyError):
+            continue
+        if all(map(math.isfinite, (frp, lon, lat))) and frp >= 0:
+            frp_rows.append({"frp": frp, "longitude": lon, "latitude": lat,
+                             "date": day.isoformat() if day else None})
+    result: dict[str, Any] = {
+        "dated_observations": sum(daily.values()),
+        "active_days": len(daily),
+        "weekly_windows": [],
+        "top_three_days_share": None,
+        "peak_day": None,
+        "frp": None,
+    }
+    if daily:
+        start, end = min(daily), max(daily)
+        overall = sum(daily.values())
+        peak_day, peak_total = sorted(
+            daily.items(), key=lambda p: (-p[1], p[0])
+        )[0]
+        result["peak_day"] = {
+            "date": peak_day.isoformat(), "count": peak_total,
+            "share_percent": round(peak_total / overall * 100, 1),
+        }
+        result["top_three_days_share"] = round(
+            100 * sum(count for _, count in sorted(
+                daily.items(), key=lambda p: (-p[1], p[0])
+            )[:3]) / overall, 1,
+        )
+        result["calendar_days"] = (end - start).days + 1
+        result["active_day_share"] = round(
+            100 * len(daily) / result["calendar_days"], 1,
+        )
+        # For normal monthly FIRMS extracts: 7-day windows starting at the
+        # first observed date. Long histories use larger windows to bound
+        # DOCX output without discarding any observations.
+        span = result["calendar_days"]
+        step = max(7, math.ceil(span / 8))
+        date_cursor = start
+        while date_cursor <= end:
+            limit = min(end, date_cursor + timedelta(days=step - 1))
+            group = {
+                day: count for day, count in daily.items()
+                if date_cursor <= day <= limit
+            }
+            result["weekly_windows"].append({
+                "start": date_cursor.isoformat(),
+                "end": limit.isoformat(),
+                "count": sum(group.values()),
+                "active_days": len(group),
+                "share_percent": round(
+                    100 * sum(group.values()) / overall, 1,
+                ),
+            })
+            date_cursor = limit + timedelta(days=1)
+    if frp_rows:
+        values = sorted(row["frp"] for row in frp_rows)
+        def quantile(percent):
+            # Nearest-rank order statistic is reproducible for small samples.
+            return round(values[math.ceil(percent * len(values)) - 1], 2)
+        best = sorted(frp_rows, key=lambda row: (
+            -row["frp"], row["date"] or "",
+            row["longitude"], row["latitude"],
+        ))[:3]
+        result["frp"] = {
+            "count": len(values),
+            "median": quantile(.5),
+            "p90": quantile(.9),
+            "maximum": round(values[-1], 2),
+            "top_observations": [
+                {**row, "frp": round(row["frp"], 2)} for row in best
+            ],
+        }
     return result
 
 
@@ -210,6 +306,7 @@ def build_spatial_report_context(
         "top_grids": top_grids,
         "total_grid_cells": len(grids),
         "top_three_count": sum(item["count"] for item in top_grids[:3]),
+        "diagnostics": summarize_observation_diagnostics(rows),
         "map_png": render_spatial_map_png(
             coords, polygons, bbox, hotspot_grids=top_grids,
         ),

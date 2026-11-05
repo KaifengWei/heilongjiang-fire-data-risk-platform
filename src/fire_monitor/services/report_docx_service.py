@@ -471,6 +471,89 @@ def _final_paragraph(analysis_summary: dict[str, Any], firms_intelligence: dict[
     return pieces
 
 
+def _observation_detail_tables(
+    doc: Document, spatial_context: dict[str, Any],
+) -> None:
+    """Add independently informative day-window and FRP evidence."""
+    diagnostics = spatial_context.get("diagnostics") or {}
+    windows = diagnostics.get("weekly_windows") or []
+    if windows:
+        _heading(doc, "任务期分段观测变化")
+        _paragraph(doc, [
+            ("有效观测日期覆盖 ", True),
+            (f"{diagnostics['active_days']} / {diagnostics['calendar_days']} 天，", False),
+            ("有记录日期占比 ", False),
+            (f"{diagnostics['active_day_share']:.1f}%。", True),
+            ("将日期分段统计，可以区分火点集中出现的时间段，"
+             "并据此回看各段卫星影像与区域分布。", False),
+        ])
+        table = doc.add_table(rows=1, cols=4)
+        table.alignment = WD_TABLE_ALIGNMENT.CENTER
+        for cell, title in zip(table.rows[0].cells, (
+            "日期区间", "观测数", "占任务观测", "有观测日期"
+        )):
+            _shade(cell, SHADE)
+            _set_cell_border(cell)
+            _set_run_font(cell.paragraphs[0].add_run(title), size=9, bold=True)
+        for period in windows:
+            cells = table.add_row().cells
+            entries = (
+                f"{period['start']} 至 {period['end']}",
+                f"{_fmt_int(period['count'])} 条",
+                f"{period['share_percent']:.1f}%",
+                f"{period['active_days']} 天",
+            )
+            for cell, value in zip(cells, entries):
+                _set_cell_border(cell)
+                cell.paragraphs[0].paragraph_format.space_after = Pt(0)
+                _set_run_font(cell.paragraphs[0].add_run(value), size=9)
+        busiest = sorted(windows, key=lambda row: (
+            -row["count"], row["start"],
+        ))[0]
+        peak = diagnostics.get("peak_day") or {}
+        _paragraph(doc, [
+            ("任务期间观测最集中的时间段为 ", False),
+            (f"{busiest['start']} 至 {busiest['end']}", True),
+            (f"，包含 {_fmt_int(busiest['count'])} 条观测，"
+             f"占有效日期观测总数的 {busiest['share_percent']:.1f}%。", False),
+            ("单日观测最多的是 ", False),
+            (str(peak.get("date") or "—"), True),
+            (f"（{_fmt_int(peak.get('count'))} 条，"
+             f"占 {float(peak.get('share_percent') or 0):.1f}%）；", False),
+            (f"观测量最高的三个日期合计占 "
+             f"{diagnostics.get('top_three_days_share'):.1f}%。"
+             "这有助于优先选择需要复核的影像日期。", False),
+        ])
+    frp = diagnostics.get("frp")
+    if frp:
+        _heading(doc, "火点热辐射功率与高值观测")
+        _paragraph(doc, [
+            ("本次具有有效 FRP 数值的观测共 ", False),
+            (_fmt_int(frp["count"]), True),
+            (" 条；中位数 ", False),
+            (f"{frp['median']:.2f} MW", True),
+            ("、第 90 百分位 ", False),
+            (f"{frp['p90']:.2f} MW", True),
+            ("、最大记录值 ", False),
+            (f"{frp['maximum']:.2f} MW。", True),
+            ("这些数值是单次卫星观测的辐射量指标，"
+             "不能直接换算焚烧面积或累计燃烧规模。", False),
+        ])
+        _paragraph(doc, [
+            ("建议复核下列 FRP 较高观测的具体位置与时间，"
+             "对照同日影像及附近其他火点，"
+             "检查是否由固定热源、不同地表背景或集中热异常造成。", False),
+        ])
+        for index, item in enumerate(frp["top_observations"], 1):
+            day = item["date"] or "日期未记录"
+            _paragraph(doc, [
+                (f"第 {index} 处：", True),
+                (f"{day}，东经 {item['longitude']:.5f}°、"
+                 f"北纬 {item['latitude']:.5f}°，"
+                 f"FRP {item['frp']:.2f} MW。", False),
+            ], after=3)
+
+
 def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[str, Any], firms_intelligence: dict[str, Any], historical_baseline: dict[str, Any], land_cover_context: dict[str, Any], priority_land_cover: dict[str, Any] | None, weather_context: dict[str, Any] | None, daily_series: list[dict[str, Any]], agricultural_relevance: dict[str, Any] | None = None, spatial_context: dict[str, Any] | None = None) -> bytes:
     doc = Document()
     section = doc.sections[0]
@@ -657,6 +740,9 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
             doc, top_date_rows, f"图{figure_number} 火点高值日期对比",
         )
         figure_number += 1
+
+    if spatial_context and spatial_context.get("diagnostics"):
+        _observation_detail_tables(doc, spatial_context)
 
     if analysis_summary.get("area_mode") != "coordinates_only":
         _heading(doc, "当前评估与重点核查")

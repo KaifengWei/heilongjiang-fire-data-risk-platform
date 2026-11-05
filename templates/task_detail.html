@@ -532,6 +532,10 @@
               相对自身往年同期更活跃，建议重点核查这些区域的火点分布和持续情况。
             {% elif historical_baseline and historical_baseline.available %}
               当前没有发现明显偏离历史同期的重点地区，建议按常规方式查看本次分析区域的火点分布和日期变化。
+            {% elif coordinate_mode %}
+              本次共记录 <b>{{ '{:,}'.format(analysis_summary.active_fire_count) }}</b> 条观测，
+              以 <b>{{ peak.date if peak else '观测高值日' }}</b> 的点位为首批复核对象；
+              先检查火点集中区域、跨日重复位置，再核对实际地表和当地作业记录。
             {% else %}
               当前暂无历史同期参照，建议重点查看火点集中区域、明显增多日期和跨日重复活跃位置。
             {% endif %}
@@ -555,6 +559,15 @@
                 <span class="water"><i></i>湿地/水体</span>
                 <span class="other"><i></i>其他</span>
               </div>
+            </div>
+          </div>
+          {% elif coordinate_mode %}
+          <div class="action-land-context">
+            <div class="land-context-copy">
+              <span>地表核查</span>
+              <strong>先确认真实地表，再核对热异常来源</strong>
+              <p>当前任务的土地覆盖栅格尚未匹配到观测位置。可使用结果地图的实测经纬度查看对应日期的高分辨率影像，
+              分辨农田、建设用地及固定热源；如需农业背景定量统计，应补充覆盖该范围、来源可核验的土地覆盖栅格。</p>
             </div>
           </div>
           {% endif %}
@@ -599,8 +612,13 @@
                   {% endfor %}
                 </div>
                 {% endif %}
+              {% elif coordinate_mode and location_groups and location_groups.groups %}
+              {% set main_grid = location_groups.groups[0] %}
+              <p>优先复核 <b>{{ main_grid.label }}</b>，本次记录 {{ '{:,}'.format(main_grid.count) }} 条观测。
+              进入地图缩放到这片区域，再结合 Word 导出的重点 0.25° 网格和实测点坐标核对影像。</p>
+              <button type="button" class="action-link" data-map-reset>返回观测范围 →</button>
               {% else %}
-              <p>当前没有特别突出的重点地区，可从本次分析区域的火点集中位置开始查看。</p>
+              <p>从本次分析区域的火点集中位置开始查看。</p>
               <button type="button" class="action-link" data-map-reset>查看当前分析区域 →</button>
               {% endif %}
             </div>
