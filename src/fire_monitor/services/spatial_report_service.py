@@ -63,6 +63,7 @@ def build_spatial_report_context(
     *,
     source: str = "",
     agricultural_grid_counts: dict[str, dict[str, int]] | None = None,
+    grid_surface_counts: dict[str, dict[str, int]] | None = None,
 ) -> dict[str, Any]:
     """Count real observations covered by installed boundary polygons.
 
@@ -107,6 +108,11 @@ def build_spatial_report_context(
         peak_date, peak_count = sorted(
             by_date.items(), key=lambda item: (-item[1], item[0])
         )[0] if by_date else (None, 0)
+        surfaces = (grid_surface_counts or {}).get(f"{cell_x}:{cell_y}") or {}
+        cropland_count = int(surfaces.get("cropland", 0)) + int(
+            surfaces.get("mosaic", 0)
+        )
+        known_surface_count = cropland_count + int(surfaces.get("other", 0))
         top_grids.append({
             "rank": rank,
             "bbox": [cell_x / 4, cell_y / 4, (cell_x + 1) / 4, (cell_y + 1) / 4],
@@ -116,6 +122,8 @@ def build_spatial_report_context(
             "share_percent": round(count * 100 / len(coords), 1),
             "active_days": len(by_date),
             "cross_date": len(by_date) >= 2,
+            "cropland_background_count": cropland_count,
+            "known_surface_count": known_surface_count,
             "agricultural_counts": (
                 (agricultural_grid_counts or {}).get(f"{cell_x}:{cell_y}") or {}
             ),

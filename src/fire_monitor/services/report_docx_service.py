@@ -182,45 +182,52 @@ def _visual_bar_table(doc: Document, rows: list[tuple[str, int]], caption: str) 
     _set_run_font(r, size=9.5)
 
 
+def _hotspot_next_action(item: dict[str, Any]) -> str:
+    """Turn observation evidence into a review task, without a risk score."""
+    peak_date = str(item.get("peak_date") or "").strip()
+    if peak_date:
+        steps = [f"先调阅 {peak_date} 的相应卫星影像"]
+    else:
+        steps = ["先按本次火点观测时间调阅相应卫星影像"]
+    if int(item.get("active_days") or 0) >= 2:
+        steps.append("逐日比对本网格内的火点坐标，查明是否重复出现在邻近位置")
+    if int(item.get("cropland_background_count") or 0) > 0:
+        steps.append("对照耕地分布图核实对应田块，并查阅当期田间作业和秸秆处理记录")
+    elif int(item.get("known_surface_count") or 0) > 0:
+        steps.append("核对地表类型及附近固定热源，排除非农热异常来源")
+    else:
+        steps.append("结合高分辨率底图先确认地表类型，再核对邻近田块或固定热源")
+    return "；".join(steps) + "。"
+
+
 def _spatial_hotspot_table(doc: Document, rows: list[dict[str, Any]]) -> None:
-    """Compact, coordinate-grounded report grid; no parcel claims."""
+    """A short review plan: where to look, why, and what to check."""
     if not rows:
         return
-    has_evidence = any(item.get("agricultural_counts") for item in rows)
-    columns = ("网格中心坐标", "观测量及占比", "观测日期与高值日")
-    if has_evidence:
-        columns += ("农业线索",)
+    columns = ("建议核查范围", "观测依据", "具体核查事项")
     table = doc.add_table(rows=1, cols=len(columns))
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     for cell, title in zip(table.rows[0].cells, columns):
         _shade(cell, SHADE)
         _set_cell_border(cell)
         cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-        _set_run_font(cell.paragraphs[0].add_run(title), size=9, bold=True)
+        _set_run_font(cell.paragraphs[0].add_run(title), size=9.5, bold=True)
 
     for item in rows:
-        lon, lat = item["center"]
-        cells = table.add_row().cells
-        date_text = (
-            f"{item['active_days']} 日；"
-            + str(item["peak_date"])
-            + f"（{_fmt_int(item['peak_count'])} 条）"
-        ) if item["peak_date"] else "—"
-        values = (
-            f"{lon:.3f}°E，{lat:.3f}°N",
-            f"{_fmt_int(item['count'])} 条（{item['share_percent']:.1f}%）",
-            date_text,
+        west, south, east, north = item["bbox"]
+        active_days = int(item.get("active_days") or 0)
+        evidence = (
+            f"{_fmt_int(item['count'])} 条观测，占 {item['share_percent']:.1f}%；"
+            + (f"分布于 {active_days} 个日期" if active_days else "日期待核对")
         )
-        if has_evidence:
-            evidence = item.get("agricultural_counts") or {}
-            values += (
-                "；".join(
-                    f"{level} {_fmt_int(evidence[level])}"
-                    for level in ("较高相关", "可能相关", "较低相关", "证据不足")
-                    if int(evidence.get(level) or 0) > 0
-                ) or "—",
-            )
-        for cell, value in zip(cells, values):
+        if item.get("peak_date"):
+            evidence += f"；高值日 {item['peak_date']}"
+        values = (
+            f"东经 {west:.2f}°～{east:.2f}°\n北纬 {south:.2f}°～{north:.2f}°",
+            evidence,
+            _hotspot_next_action(item),
+        )
+        for cell, value in zip(table.add_row().cells, values):
             _set_cell_border(cell)
             cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
             paragraph = cell.paragraphs[0]
@@ -519,7 +526,7 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
                 (f"东经 {fw:.2f}°～{fe:.2f}°，北纬 {fs:.2f}°～{fn:.2f}°；", False),
                 (f"{_fmt_int(focus['count'])} 条观测，占 {focus['share_percent']:.1f}%。", True),
             ])
-            _heading(doc, "重点观测位置与日期")
+            _heading(doc, "优先核查位置与建议")
             grids = spatial_context.get("top_grids") or []
             if grids:
                 top_three = sum(int(item["count"]) for item in grids[:3])
@@ -531,28 +538,10 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
                     (f" 条，占有效观测的 {100 * top_three / total if total else 0:.1f}%。", False),
                 ], after=5)
                 _spatial_hotspot_table(doc, grids)
-                cross_date = [row for row in grids if row.get("cross_date")]
-                if cross_date:
-                    names = "、".join(
-                        f"东经 {row['center'][0]:.3f}°／北纬 {row['center'][1]:.3f}°"
-                        for row in cross_date[:3]
-                    )
-                    _paragraph(doc, [
-                        ("跨日期重复观测：", True),
-                        (f"前五个重点网格中有 {len(cross_date)} 个在至少两个日期出现观测。"
-                         f"例如 {names}。这反映同一区域多日观测，不代表同一地点持续燃烧。", False),
-                    ], after=5)
-                if any(row.get("agricultural_counts") for row in grids):
-                    _paragraph(doc, [
-                        ("核查顺序：", True),
-                        ("优先结合网格观测次数、出现日期及农业相关性证据，"
-                         "在地图上定位并核对耕地背景和农事资料；"
-                         "相关性等级不代表秸秆燃烧事实。", False),
-                    ], after=5)
                 _paragraph(doc, [
-                    ("表1 观测数量较高的五个经纬网格。", True),
-                    ("坐标为网格中心；有观测日期是记录日期数，不代表连续燃烧；"
-                     "农业线索按同网格观测逐条汇总，网格不等同于实际农田地块。", False),
+                    ("表1 优先核查位置和建议。", True),
+                    ("按照观测数量排序；所列范围为 0.25° 经纬网格，"
+                     "不是农田地块边界。", False),
                 ], size=9.5, after=6)
 
 
@@ -592,8 +581,11 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
         )
         figure_number += 1
 
-    _heading(doc, "当前评估与重点核查")
-    _paragraph(doc, _assessment_paragraph(historical_baseline, firms_intelligence, priority_land_cover))
+    if analysis_summary.get("area_mode") != "coordinates_only":
+        _heading(doc, "当前评估与重点核查")
+        _paragraph(doc, _assessment_paragraph(
+            historical_baseline, firms_intelligence, priority_land_cover,
+        ))
 
     land = _land_paragraph(land_cover_context)
     if land:
@@ -601,40 +593,38 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
         _paragraph(doc, land)
 
     if agricultural_relevance and agricultural_relevance.get("available"):
-        _heading(doc, "农业秸秆焚烧相关性分析")
-        relevant_counts = agricultural_relevance.get("counts") or {}
-        _paragraph(doc, [
-            ("较高相关 ", True), (_fmt_int(relevant_counts.get("较高相关")), False),
-            (" 条；可能相关 ", True), (_fmt_int(relevant_counts.get("可能相关")), False),
-            (" 条；较低相关 ", True), (_fmt_int(relevant_counts.get("较低相关")), False),
-            (" 条；证据不足 ", True), (_fmt_int(relevant_counts.get("证据不足")), False),
-            (" 条。", False),
-        ])
-        _paragraph(doc, [
-            ("地表匹配 ", True),
-            (_fmt_int(agricultural_relevance.get("land_cover_matched")), False),
-            (" / " + _fmt_int(agricultural_relevance.get("total_observations")) + " 条；", False),
-            ("土地覆盖 ", True),
-            (str(agricultural_relevance.get("land_cover_product") or "MCD12Q1"), False),
-            (" " + str(agricultural_relevance.get("land_cover_year") or "") + "；", False),
-            ("农事规则 ", True),
-            (_fmt_int(agricultural_relevance.get("calendar_rules_count")) + " 条。", False),
-        ])
-        # Follow the result page: rank regions by observed volume, rather
-        # than repeating the same four categories up to twenty times.
-        regions = agricultural_relevance.get("regions") or {}
-        ranked = sorted(
-            regions.items(),
-            key=lambda pair: (-int((pair[1] or {}).get("total") or 0), str(pair[0])),
+        # Keep all four evidence totals in the analysis result data, but do
+        # not make the exported operational report a list of vague categories.
+        _heading(doc, "农业地表核查建议")
+        hotspot_rows = (
+            (spatial_context or {}).get("top_grids") or []
         )
-        if len(ranked) > 1:
-            parts = [
-                str(name) + " " + _fmt_int((row or {}).get("total")) + " 条"
-                for name, row in ranked[:5]
-            ]
+        farmland_rows = [
+            row for row in hotspot_rows
+            if int(row.get("cropland_background_count") or 0) > 0
+        ]
+        if farmland_rows:
+            first = farmland_rows[0]
+            fw, fs, fe, fn = first["bbox"]
             _paragraph(doc, [
-                ("观测量较多的地区：", True),
-                ("；".join(parts) + "。", False),
+                ("建议重点核对：", True),
+                (f"东经 {fw:.2f}°～{fe:.2f}°、北纬 {fs:.2f}°～{fn:.2f}°"
+                 " 网格内的耕地背景位置；", False),
+                ("查阅该位置对应日期的卫星影像及当地田间作业记录，"
+                 "确认具体地块和热异常来源。", False),
+            ])
+        elif hotspot_rows:
+            first = hotspot_rows[0]
+            fw, fs, fe, fn = first["bbox"]
+            _paragraph(doc, [
+                ("建议首先核对：", True),
+                (f"东经 {fw:.2f}°～{fe:.2f}°、北纬 {fs:.2f}°～{fn:.2f}°"
+                 " 网格的实际地表类型，", False),
+                ("再比对火点日期的卫星影像及当地农事活动记录。", False),
+            ])
+        else:
+            _paragraph(doc, [
+                ("核查时将火点坐标与耕地分布、同期影像及农事作业记录叠加对照。", False),
             ])
 
     weather_blocks = _weather_paragraphs(weather_context)
@@ -643,8 +633,23 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
         for block in weather_blocks:
             _paragraph(doc, block)
 
-    _heading(doc, "综合分析")
-    _paragraph(doc, _final_paragraph(analysis_summary, firms_intelligence, historical_baseline))
+    if analysis_summary.get("area_mode") == "coordinates_only" and (
+        spatial_context or {}
+    ).get("top_grids"):
+        top = spatial_context["top_grids"][0]
+        fw, fs, fe, fn = top["bbox"]
+        _heading(doc, "本次建议")
+        _paragraph(doc, [
+            ("优先复核 ", True),
+            (f"东经 {fw:.2f}°～{fe:.2f}°、北纬 {fs:.2f}°～{fn:.2f}°"
+             " 范围，", False),
+            (_hotspot_next_action(top), False),
+        ])
+    else:
+        _heading(doc, "综合分析")
+        _paragraph(doc, _final_paragraph(
+            analysis_summary, firms_intelligence, historical_baseline,
+        ))
 
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.RIGHT

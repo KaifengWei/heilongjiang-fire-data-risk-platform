@@ -99,6 +99,7 @@ class AgriculturalRelevanceService:
         counts: Counter[str] = Counter()
         by_region: dict[str, Counter[str]] = {}
         by_grid: dict[str, Counter[str]] = {}
+        grid_surfaces: dict[str, Counter[str]] = {}
         agriculture_classes: Counter[str] = Counter()
         calendar_states: Counter[str] = Counter()
         examples: list[dict[str, Any]] = []
@@ -170,6 +171,13 @@ class AgriculturalRelevanceService:
             ):
                 key = f"{floor(longitude * 4)}:{floor(latitude * 4)}"
                 by_grid.setdefault(key, Counter())[level] += 1
+                surface_key = (
+                    "cropland" if class_id == 12
+                    else "mosaic" if class_id == 14
+                    else "unknown" if class_id is None
+                    else "other"
+                )
+                grid_surfaces.setdefault(key, Counter())[surface_key] += 1
             if region:
                 by_region.setdefault(region, Counter())[level] += 1
 
@@ -211,6 +219,13 @@ class AgriculturalRelevanceService:
             "grid_counts": {
                 key: {level: int(counter[level]) for level in LEVELS}
                 for key, counter in sorted(by_grid.items())
+            },
+            "grid_surface_counts": {
+                key: {
+                    surface: int(counter[surface])
+                    for surface in ("cropland", "mosaic", "other", "unknown")
+                }
+                for key, counter in sorted(grid_surfaces.items())
             },
             "regions": {
                 name: {

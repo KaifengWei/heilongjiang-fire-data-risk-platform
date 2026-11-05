@@ -2102,6 +2102,7 @@ def create_app(
         spatial_report = build_spatial_report_context(
             observations, map_features, source=map_source,
             agricultural_grid_counts=agricultural_relevance.get("grid_counts"),
+            grid_surface_counts=agricultural_relevance.get("grid_surface_counts"),
         )
 
         report_bytes = (
