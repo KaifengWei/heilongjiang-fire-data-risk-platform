@@ -64,7 +64,9 @@ def test_report_contains_real_geojson_matched_province_and_png(tmp_path):
     assert "位置 1" in spatial_cells
     assert "位置 2" in spatial_cells
     assert "实测点 124.12000°E，45.12000°N" in spatial_cells
-    assert "先核对 2026-04-03 对应时段的卫星影像" in spatial_cells
+    assert "对照 2026-04-03 的卫星影像" in spatial_cells
+    assert "再复核其余 1 个有记录日期的点位分布" in spatial_cells
+    assert "先核对 2026-04-05 对应时段的卫星影像" in spatial_cells
     assert "以实测点坐标定位高分辨率影像" in spatial_cells
     assert "农业线索" not in spatial_cells
     assert "证据不足" not in spatial_cells

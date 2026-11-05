@@ -65,3 +65,31 @@ def test_no_agricultural_section_when_there_are_no_valid_observations():
     report = _render({"available": False, "counts": {}, "regions": {}})
     text = "\n".join(p.text for p in report.paragraphs)
     assert "农业地表核查建议" not in text
+
+
+
+def test_hotspot_actions_depend_on_recorded_days_and_real_surface_evidence():
+    from fire_monitor.services.report_docx_service import _hotspot_next_action
+
+    crop_multiday = _hotspot_next_action({
+        "peak_date": "2026-04-03", "active_days": 3,
+        "cropland_background_count": 2, "known_surface_count": 2,
+    })
+    other_single_day = _hotspot_next_action({
+        "peak_date": "2026-04-05", "active_days": 1,
+        "cropland_background_count": 0, "known_surface_count": 4,
+    })
+    unknown_date = _hotspot_next_action({
+        "peak_date": None, "active_days": 0,
+        "cropland_background_count": 0, "known_surface_count": 0,
+    })
+    assert "其余 2 个有记录日期" in crop_multiday
+    assert "当期收获和秸秆处理记录" in crop_multiday
+    assert "先核对 2026-04-05 对应时段" in other_single_day
+    assert "非农热源或其他热异常成因" in other_single_day
+    assert "本次 FIRMS 观测时间" in unknown_date
+    assert "先确定地表类型" in unknown_date
+    assert len({crop_multiday, other_single_day, unknown_date}) == 3
+    for statement in (crop_multiday, other_single_day, unknown_date):
+        assert "可能相关" not in statement
+        assert "证据不足" not in statement
