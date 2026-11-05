@@ -35,7 +35,7 @@ def test_coordinate_task_has_map_navigation_controls_and_correct_script_order(tm
     assert "viewportMath.panBounds(" in js
     assert "viewportMath.visibleBounds(" in js
     assert "manualViewport = null;" in js
-    assert "canvas.setPointerCapture(" in js
+    assert "canvas.setPointerCapture?.(" in js
     assert client.get("/static/map_viewport.js").status_code == 200
 
 
