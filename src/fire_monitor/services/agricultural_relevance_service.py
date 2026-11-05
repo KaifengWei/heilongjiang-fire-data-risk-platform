@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import date
+from math import floor, isfinite
 from typing import Any, Iterable
 
 from fire_monitor.services.land_cover_context_service import (
@@ -97,6 +98,7 @@ class AgriculturalRelevanceService:
         land_installed = self.land_cover._open()
         counts: Counter[str] = Counter()
         by_region: dict[str, Counter[str]] = {}
+        by_grid: dict[str, Counter[str]] = {}
         agriculture_classes: Counter[str] = Counter()
         calendar_states: Counter[str] = Counter()
         examples: list[dict[str, Any]] = []
@@ -106,9 +108,14 @@ class AgriculturalRelevanceService:
                 longitude = float(observation["longitude"])
                 latitude = float(observation["latitude"])
             except (ValueError, TypeError, KeyError):
+                longitude = latitude = None
                 class_id = None
             else:
-                class_id = self.land_cover._sample(longitude, latitude) if land_installed else None
+                class_id = (
+                    self.land_cover._sample(longitude, latitude)
+                    if land_installed and isfinite(longitude) and isfinite(latitude)
+                    else None
+                )
 
             if class_id == 12:
                 surface = "耕地"
@@ -153,6 +160,16 @@ class AgriculturalRelevanceService:
                 reason = "未匹配到耕地或耕地混合背景，需注意栅格尺度局限"
 
             counts[level] += 1
+            # The spatial report groups the *same observations* into fixed
+            # quarter-degree cells; keep the evidence on this exact grid.
+            if (
+                longitude is not None
+                and latitude is not None
+                and isfinite(longitude) and isfinite(latitude)
+                and -180 <= longitude <= 180 and -90 <= latitude <= 90
+            ):
+                key = f"{floor(longitude * 4)}:{floor(latitude * 4)}"
+                by_grid.setdefault(key, Counter())[level] += 1
             if region:
                 by_region.setdefault(region, Counter())[level] += 1
 
@@ -191,6 +208,10 @@ class AgriculturalRelevanceService:
             "counts": {name: int(counts[name]) for name in LEVELS},
             "land_cover_counts": dict(agriculture_classes),
             "calendar_states": dict(calendar_states),
+            "grid_counts": {
+                key: {level: int(counter[level]) for level in LEVELS}
+                for key, counter in sorted(by_grid.items())
+            },
             "regions": {
                 name: {
                     "total": sum(counter.values()),

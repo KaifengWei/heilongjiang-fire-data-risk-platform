@@ -186,7 +186,10 @@ def _spatial_hotspot_table(doc: Document, rows: list[dict[str, Any]]) -> None:
     """Grounded 0.25° coordinate cells, not village or parcel locations."""
     if not rows:
         return
+    has_evidence = any(item.get("agricultural_counts") for item in rows)
     columns = ("网格中心坐标", "观测数", "占比", "有观测日期", "高值日期")
+    if has_evidence:
+        columns += ("农业线索",)
     table = doc.add_table(rows=1, cols=len(columns))
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     for cell, title in zip(table.rows[0].cells, columns):
@@ -207,6 +210,15 @@ def _spatial_hotspot_table(doc: Document, rows: list[dict[str, Any]]) -> None:
             (str(item["peak_date"]) + f"（{_fmt_int(item['peak_count'])} 条）")
             if item["peak_date"] else "—",
         )
+        if has_evidence:
+            evidence = item.get("agricultural_counts") or {}
+            values += (
+                "；".join(
+                    f"{level} {_fmt_int(evidence[level])}"
+                    for level in ("较高相关", "可能相关", "较低相关", "证据不足")
+                    if int(evidence.get(level) or 0) > 0
+                ) or "—",
+            )
         for cell, value in zip(cells, values):
             _set_cell_border(cell)
             cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
@@ -518,10 +530,28 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
                     (f" 条，占有效观测的 {100 * top_three / total if total else 0:.1f}%。", False),
                 ], after=5)
                 _spatial_hotspot_table(doc, grids)
+                cross_date = [row for row in grids if row.get("cross_date")]
+                if cross_date:
+                    names = "、".join(
+                        f"东经 {row['center'][0]:.3f}°／北纬 {row['center'][1]:.3f}°"
+                        for row in cross_date[:3]
+                    )
+                    _paragraph(doc, [
+                        ("跨日期重复观测：", True),
+                        (f"前五个重点网格中有 {len(cross_date)} 个在至少两个日期出现观测。"
+                         f"例如 {names}。这反映同一区域多日观测，不代表同一地点持续燃烧。", False),
+                    ], after=5)
+                if any(row.get("agricultural_counts") for row in grids):
+                    _paragraph(doc, [
+                        ("核查顺序：", True),
+                        ("优先结合网格观测次数、出现日期及农业相关性证据，"
+                         "在地图上定位并核对耕地背景和农事资料；"
+                         "相关性等级不代表秸秆燃烧事实。", False),
+                    ], after=5)
                 _paragraph(doc, [
                     ("表1 观测数量较高的五个经纬网格。", True),
                     ("坐标为网格中心；有观测日期是记录日期数，不代表连续燃烧；"
-                     "网格不等同于实际农田地块。", False),
+                     "农业线索按同网格观测逐条汇总，网格不等同于实际农田地块。", False),
                 ], size=9.5, after=6)
 
 

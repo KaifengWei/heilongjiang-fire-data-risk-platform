@@ -62,6 +62,7 @@ def build_spatial_report_context(
     geojson_features: list[dict[str, Any]] | None,
     *,
     source: str = "",
+    agricultural_grid_counts: dict[str, dict[str, int]] | None = None,
 ) -> dict[str, Any]:
     """Count real observations covered by installed boundary polygons.
 
@@ -114,6 +115,10 @@ def build_spatial_report_context(
             "count": count,
             "share_percent": round(count * 100 / len(coords), 1),
             "active_days": len(by_date),
+            "cross_date": len(by_date) >= 2,
+            "agricultural_counts": (
+                (agricultural_grid_counts or {}).get(f"{cell_x}:{cell_y}") or {}
+            ),
             "peak_date": peak_date,
             "peak_count": peak_count,
         })

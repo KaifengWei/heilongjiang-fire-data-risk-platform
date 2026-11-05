@@ -58,6 +58,8 @@ def test_report_contains_real_geojson_matched_province_and_png(tmp_path):
     )
     assert "124.125°E，45.125°N" in spatial_cells
     assert "2026-04-03（1 条）" in spatial_cells
+    assert "农业线索" in spatial_cells
+    assert "证据不足" in spatial_cells
     assert "图1 本次火点空间分布" in text
     assert "图2 火点高值日期对比" in text
     assert "geoBoundaries CHN ADM1 test" in text

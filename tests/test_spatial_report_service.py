@@ -139,3 +139,32 @@ def test_map_image_has_numeric_coordinate_ticks_and_highlighted_focus_grid():
     assert bytes([224, 75, 60]) in pixels
     assert bytes([82, 140, 164]) in pixels
     assert bytes([70, 103, 117]) in pixels
+
+
+
+def test_top_grid_agricultural_evidence_joins_identical_quarter_degree_cell():
+    data = build_spatial_report_context(
+        [
+            {"longitude": 124.12, "latitude": 45.12, "acquired_date": "2026-04-01"},
+            {"longitude": 124.14, "latitude": 45.14, "acquired_date": "2026-04-02"},
+            {"longitude": 125.12, "latitude": 45.12, "acquired_date": "2026-04-02"},
+        ], [],
+        agricultural_grid_counts={
+            "496:180": {"可能相关": 1, "证据不足": 1},
+            "500:180": {"较低相关": 1},
+        },
+    )
+    top = data["top_grids"][0]
+    assert top["count"] == 2
+    assert top["cross_date"] is True
+    assert top["agricultural_counts"] == {"可能相关": 1, "证据不足": 1}
+    assert data["top_grids"][1]["agricultural_counts"] == {"较低相关": 1}
+
+
+def test_cross_date_is_not_claimed_for_same_day_multiple_observations():
+    data = build_spatial_report_context([
+        {"longitude": 124.12, "latitude": 45.12, "acquired_date": "2026-04-01"},
+        {"longitude": 124.14, "latitude": 45.14, "acquired_date": "2026-04-01"},
+    ], [])
+    assert data["top_grids"][0]["count"] == 2
+    assert data["top_grids"][0]["cross_date"] is False

@@ -2101,6 +2101,7 @@ def create_app(
             map_source = "任务保存的区域边界" if map_features else ""
         spatial_report = build_spatial_report_context(
             observations, map_features, source=map_source,
+            agricultural_grid_counts=agricultural_relevance.get("grid_counts"),
         )
 
         report_bytes = (
