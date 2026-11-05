@@ -643,9 +643,13 @@
     const taskId = workspace.getAttribute('data-task-id') || '';
     const coordinateMode = workspace.getAttribute('data-coordinate-mode') === 'true';
     const zoomModeButton = $('#mapZoomModeButton');
+    const zoomInButton = $('#mapZoomIn');
+    const zoomOutButton = $('#mapZoomOut');
+    const pointerCoordinate = $('#mapPointerCoordinate');
+    const viewportMath = window.FireMapViewport;
     const backgroundForm = $('#mapBackgroundForm');
     const backgroundFeedback = $('#mapBackgroundFeedback');
-    if (!taskId) return;
+    if (!taskId || !viewportMath) return;
 
     const loadingChip = $('#mapLoadingChip');
     const mapEmpty = $('#taskMapEmpty');
@@ -733,8 +737,15 @@
     }
 
     let showFullOutline = false;
+    let manualViewport = null;
+    let zoomLevel = 1;
+    let renderedContext = null;
+    let redrawFrame = null;
+    let dragStart = null;
+
     function activeBounds() {
       if (coordinateMode) {
+        if (manualViewport) return manualViewport;
         return (showFullOutline ? provinceBounds : coordinateBounds)
           || coordinateBounds || provinceBounds;
       }
@@ -935,24 +946,8 @@
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
 
-      const pad = 26;
-      const spanX = Math.max(.001, bounds.maxX - bounds.minX);
-      const spanY = Math.max(.001, bounds.maxY - bounds.minY);
-
-      const scale = Math.min(
-        (width - pad * 2) / spanX,
-        (height - pad * 2) / spanY
-      );
-
-      const xOffset = (width - spanX * scale) / 2;
-      const yOffset = (height - spanY * scale) / 2;
-
-      const project = point => [
-        xOffset + (Number(point[0]) - bounds.minX) * scale,
-        height - (yOffset + (Number(point[1]) - bounds.minY) * scale),
-      ];
-
-      return { ctx, width, height, project };
+      const transform = viewportMath.fitBounds(bounds, width, height, 26);
+      return { ctx, ...transform };
     }
 
     function drawBoundaries(context) {
@@ -1178,6 +1173,7 @@
 
     function redrawMap() {
       const context = geometryContext();
+      renderedContext = context;
 
       if (!context) {
         if (mapEmpty) {
@@ -1335,9 +1331,143 @@
       }
     }
 
+    // Interactive navigation is deliberately scoped to declared-area maps.
+    // The archived precise-region view keeps its existing drilldown behavior.
+    function scheduleMapRedraw() {
+      if (redrawFrame !== null) return;
+      redrawFrame = requestAnimationFrame(() => {
+        redrawFrame = null;
+        redrawMap();
+      });
+    }
+
+    function screenPoint(event) {
+      if (!renderedContext) return null;
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return null;
+      return [
+        (event.clientX - rect.left) * renderedContext.width / rect.width,
+        (event.clientY - rect.top) * renderedContext.height / rect.height,
+      ];
+    }
+
+    function currentMapTransform() {
+      if (!renderedContext || !activeBounds()) return null;
+      return viewportMath.fitBounds(
+        activeBounds(), renderedContext.width,
+        renderedContext.height, renderedContext.pad
+      );
+    }
+
+    function updatePointerCoordinate(event) {
+      if (!pointerCoordinate || !coordinateMode) return;
+      const pixel = screenPoint(event);
+      const transform = currentMapTransform();
+      if (!pixel || !transform) return;
+      if (pixel[0] < 0 || pixel[0] > transform.width ||
+          pixel[1] < 0 || pixel[1] > transform.height) {
+        pointerCoordinate.hidden = true;
+        return;
+      }
+      const [lon, lat] = transform.unproject(...pixel);
+      if (!Number.isFinite(lon) || !Number.isFinite(lat)) return;
+      pointerCoordinate.textContent =
+        `${lon.toFixed(4)}°E · ${lat.toFixed(4)}°N`;
+      pointerCoordinate.hidden = false;
+    }
+
+    function zoomMap(factor, x, y) {
+      if (!coordinateMode) return;
+      const transform = currentMapTransform();
+      if (!transform) return;
+      const nextZoom = Math.max(.5, Math.min(64, zoomLevel * factor));
+      if (Math.abs(nextZoom - zoomLevel) < 1e-9) return;
+      manualViewport = viewportMath.zoomAt(
+        transform, zoomLevel, nextZoom, x, y
+      );
+      zoomLevel = nextZoom;
+      scheduleMapRedraw();
+    }
+
+    if (coordinateMode) {
+      canvas.addEventListener('wheel', event => {
+        // Ctrl is necessary so ordinary wheel scrolling still moves the page.
+        if (!event.ctrlKey) return;
+        event.preventDefault();
+        const pos = screenPoint(event);
+        if (!pos) return;
+        const delta = event.deltaY *
+          (event.deltaMode === 1 ? 18 : event.deltaMode === 2 ? 250 : 1);
+        const bounded = Math.max(-150, Math.min(150, delta));
+        zoomMap(Math.exp(-bounded * .0026), pos[0], pos[1]);
+      }, { passive: false });
+
+      function centerZoom(factor) {
+        const transform = currentMapTransform();
+        if (!transform) return;
+        zoomMap(factor, transform.width / 2, transform.height / 2);
+      }
+      zoomInButton?.addEventListener('click', () => centerZoom(1.35));
+      zoomOutButton?.addEventListener('click', () => centerZoom(1 / 1.35));
+
+      canvas.addEventListener('pointerdown', event => {
+        if (event.button !== 0 || !event.isPrimary) return;
+        const transform = currentMapTransform();
+        if (!transform) return;
+        dragStart = {
+          id: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+          bounds: viewportMath.visibleBounds(transform),
+          scale: transform.scale,
+          moved: false,
+        };
+        canvas.setPointerCapture(event.pointerId);
+      });
+
+      canvas.addEventListener('pointermove', event => {
+        updatePointerCoordinate(event);
+        if (!dragStart || event.pointerId !== dragStart.id) return;
+        const rect = canvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const dx = (event.clientX - dragStart.x) *
+          renderedContext.width / rect.width;
+        const dy = (event.clientY - dragStart.y) *
+          renderedContext.height / rect.height;
+        if (!dragStart.moved && Math.hypot(dx, dy) < 4) return;
+        dragStart.moved = true;
+        canvas.classList.add('is-map-dragging');
+        manualViewport = viewportMath.panBounds(
+          dragStart.bounds, dx, dy, dragStart.scale
+        );
+        scheduleMapRedraw();
+      });
+
+      function endMapDrag(event) {
+        if (!dragStart || event.pointerId !== dragStart.id) return;
+        if (canvas.hasPointerCapture(event.pointerId)) {
+          canvas.releasePointerCapture(event.pointerId);
+        }
+        dragStart = null;
+        canvas.classList.remove('is-map-dragging');
+      }
+      canvas.addEventListener('pointerup', endMapDrag);
+      canvas.addEventListener('pointercancel', endMapDrag);
+      canvas.addEventListener('lostpointercapture', event => {
+        if (dragStart?.id !== event.pointerId) return;
+        dragStart = null;
+        canvas.classList.remove('is-map-dragging');
+      });
+      canvas.addEventListener('pointerleave', () => {
+        if (pointerCoordinate && !dragStart) pointerCoordinate.hidden = true;
+      });
+    }
+
     zoomModeButton?.addEventListener('click', () => {
       if (!coordinateBounds || !provinceBounds) return;
       showFullOutline = !showFullOutline;
+      manualViewport = null;
+      zoomLevel = 1;
       zoomModeButton.setAttribute('aria-pressed', String(showFullOutline));
       zoomModeButton.textContent = showFullOutline
         ? '返回观测范围'

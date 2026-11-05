@@ -9,6 +9,7 @@ from pathlib import Path
 
 REQUIRED_FILES = (
     "static/product.js",
+    "static/map_viewport.js",
     "static/product.css",
     "templates/index.html",
     "templates/analyze.html",

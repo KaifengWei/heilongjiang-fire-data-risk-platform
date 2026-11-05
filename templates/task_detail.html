@@ -376,6 +376,11 @@
 
           {% if coordinate_mode %}
           <div class="map-viewport-toolbar">
+            <span class="map-navigation-hint">Ctrl + 滚轮缩放 · 拖动平移</span>
+            <div class="map-zoom-controls" role="group" aria-label="地图缩放">
+              <button type="button" id="mapZoomIn" aria-label="放大地图" title="放大">+</button>
+              <button type="button" id="mapZoomOut" aria-label="缩小地图" title="缩小">−</button>
+            </div>
             {% if map_context_count or map_basemap_count %}
             <button type="button" id="mapZoomModeButton" class="app-button app-button-ghost" aria-pressed="false">{{ '查看底图全貌' if map_basemap_count else '查看轮廓全貌' }}</button>
             {% endif %}
@@ -400,6 +405,9 @@
           {% endif %}
           <div class="interactive-map-shell">
             <canvas id="taskMapCanvas" width="1100" height="650"></canvas>
+            {% if coordinate_mode %}
+            <div class="map-pointer-coordinate" id="mapPointerCoordinate" hidden aria-live="off"></div>
+            {% endif %}
             <div class="map-loading-chip" id="mapLoadingChip">正在加载火点…</div>
             <div class="map-empty-note" id="taskMapEmpty" hidden>当前筛选条件下没有可显示的火点。</div>
 
@@ -696,6 +704,7 @@
 
 {% include '_record_manage_modal.html' %}
 {% include '_help_modal.html' %}
+<script src="{{ url_for('static', filename='map_viewport.js') }}"></script>
 <script src="{{ url_for('static', filename='product.js') }}"></script>
 {% if not coordinate_mode and (not task.parameters.selected_regions or not (task.parameters.selected_regions|rejectattr('source','equalto','builtin')|list)) %}
 <script src="{{ url_for('static', filename='county_drilldown.js') }}"></script>

@@ -5349,3 +5349,63 @@ body.home-body .home-orbit-visual .home-orbit-image-frame::after {
 }
 .map-background-installer small { color: #708894; line-height: 1.6; }
 #mapBackgroundFeedback { margin: 0; font-size: 12px; color: #315f73; }
+
+/* Coordinate-task map navigation: preserve page scroll unless Ctrl is held.
+   Wheel, +/- and drag change only the Canvas WGS84 viewport. */
+.map-navigation-hint {
+  color: #708a98;
+  font-size: 12px;
+  line-height: 1.4;
+  margin-right: auto;
+}
+.map-zoom-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid #d4e3e9;
+  border-radius: 10px;
+  background: #f7fafc;
+}
+.map-zoom-controls button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #22536b;
+  font-size: 21px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.map-zoom-controls button:hover,
+.map-zoom-controls button:focus-visible {
+  background: #e3eff3;
+  outline-offset: 2px;
+}
+#taskWorkspace[data-coordinate-mode="true"] #taskMapCanvas {
+  cursor: grab;
+  touch-action: none;
+}
+#taskWorkspace[data-coordinate-mode="true"] #taskMapCanvas.is-map-dragging {
+  cursor: grabbing;
+  transition: none;
+}
+.map-pointer-coordinate {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 3;
+  padding: 5px 9px;
+  border: 1px solid rgba(205,225,234,.95);
+  border-radius: 7px;
+  background: rgba(255,255,255,.93);
+  color: #315b6e;
+  font: 11px/1.5 'Microsoft YaHei', sans-serif;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.map-pointer-coordinate[hidden] { display: none; }
+@media (max-width: 680px) {
+  .map-navigation-hint { width: 100%; }
+}
