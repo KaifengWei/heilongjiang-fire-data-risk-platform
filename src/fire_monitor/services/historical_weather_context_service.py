@@ -521,8 +521,15 @@ class HistoricalWeatherContextService:
         key, points = sorted(
             cells.items(), key=lambda pair: (-len(pair[1]), pair[0])
         )[0]
-        lon = self._median([x for x, _ in points])
-        lat = self._median([y for _, y in points])
+        median_lon = self._median([x for x, _ in points])
+        median_lat = self._median([y for _, y in points])
+        # Anchor the API lookup to an actual FIRMS observation, not an
+        # interpolated median that might not exist in the task's CSV.
+        lon, lat = min(
+            points,
+            key=lambda p: ((p[0] - median_lon) ** 2
+                           + (p[1] - median_lat) ** 2, p[0], p[1]),
+        )
         cache_path = self._point_cache_path(
             latitude=lat, longitude=lon, start=start, end=end,
         )

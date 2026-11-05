@@ -1,6 +1,7 @@
 """Historical NASA POWER weather for declared coordinate tasks."""
 
 from io import BytesIO
+import json
 
 from docx import Document
 
@@ -16,12 +17,17 @@ def _mock_power(self, *, latitude, longitude, start, end):
     assert 45.0 < latitude < 45.25
     assert start.isoformat() == "2026-04-03"
     assert end.isoformat() == "2026-04-05"
-    return {"properties": {"parameter": {
+    payload = {"properties": {"parameter": {
         "T2M": {"20260403": 4.0, "20260404": 8.0, "20260405": 6.0},
         "RH2M": {"20260403": 72.0, "20260404": 55.0, "20260405": 61.0},
         "WS10M": {"20260403": 2.5, "20260404": 4.1, "20260405": 3.0},
         "PRECTOTCORR": {"20260403": 1.0, "20260404": 0.0, "20260405": 0.5},
     }}}
+    cache = self._point_cache_path(
+        latitude=latitude, longitude=longitude, start=start, end=end,
+    )
+    cache.write_text(json.dumps(payload), encoding="utf-8")
+    return payload
 
 
 def test_coordinate_historical_weather_uses_real_csv_location_and_export(tmp_path, monkeypatch):
@@ -56,7 +62,12 @@ def test_coordinate_historical_weather_uses_real_csv_location_and_export(tmp_pat
     # _fetch_power itself writes the local cache. Test that through cache:
     # production report is intentionally cache-only.
     document = Document(BytesIO(client.get(f"/tasks/{tid}/report.docx").data))
-    assert "空间位置与火点分布" in "\n".join(p.text for p in document.paragraphs)
+    report_text = "\n".join(p.text for p in document.paragraphs)
+    assert "空间位置与火点分布" in report_text
+    assert "天气情况" in report_text
+    assert "NASA POWER Daily" in report_text
+    assert "任务期平均气温" in report_text
+    assert "任务期分段观测变化" in report_text
 
 
 def test_coordinate_weather_rejects_non_historical_data_without_network(tmp_path, monkeypatch):

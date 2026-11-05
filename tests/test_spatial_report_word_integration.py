@@ -102,3 +102,56 @@ def test_report_works_without_installed_geojson_and_preserves_history(tmp_path):
     assert "空间位置与火点分布" in text
     assert "依据 FIRMS 观测经纬度绘制" in text
     assert len(document.inline_shapes) >= 1
+
+
+
+def test_month_long_firms_word_has_substantive_task_specific_evidence(tmp_path):
+    """A 30-day CSV cannot silently collapse to a sparse summary report.
+
+    This creates reproducible synthetic observations; no external data or
+    made-up land-cover/risk claims are used.
+    """
+    app = create_app(
+        database_path=tmp_path / "month.sqlite",
+        uploads_root=tmp_path / "uploads", testing=True,
+    )
+    client = app.test_client()
+    lines = [
+        "latitude,longitude,acq_date,acq_time,satellite,instrument,confidence,version,frp",
+    ]
+    for i in range(1591):
+        day = i % 30 + 1
+        lon = 123.75 + i * .00072
+        lat = 44.45 + (i % 120) * .011
+        frp = 3.2 + (i % 43) * .37
+        lines.append(
+            f"{lat:.5f},{lon:.5f},2026-04-{day:02d},0320,N,VIIRS,n,2.0NRT,{frp:.2f}"
+        )
+    response = client.post(
+        "/analyze",
+        data={"files": (BytesIO(("\n".join(lines) + "\n").encode()), "month.csv")},
+        content_type="multipart/form-data",
+    )
+    assert response.status_code == 302
+    task_id = response.headers["Location"].rstrip("/").split("/")[-1]
+    word = client.get(f"/tasks/{task_id}/report.docx")
+    assert word.status_code == 200
+    document = Document(BytesIO(word.data))
+    body = "\n".join(paragraph.text for paragraph in document.paragraphs)
+    tables = "\n".join(
+        cell.text for table in document.tables for row in table.rows for cell in row.cells
+    )
+    combined = body + "\n" + tables
+    assert "1,591 条有效主动火点观测" in body
+    assert "2026-04-01" in body and "2026-04-30" in body
+    assert "优先核查位置与建议" in body
+    assert "任务期分段观测变化" in body
+    assert "火点热辐射功率与高值观测" in body
+    assert "第 90 百分位" in body
+    assert "实际" not in body or "实测点" in tables
+    assert "观测量" in tables
+    assert "具体核查事项" in tables
+    assert len(document.inline_shapes) >= 1
+    # The older report was only a few hundred characters. This gate
+    # measures actual structured evidence, not generated filler text.
+    assert len(combined.strip()) >= 1200, len(combined.strip())
