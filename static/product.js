@@ -1007,6 +1007,10 @@
         : features;
 
       drawFeatures.forEach(feature => {
+        // During free zoom, do not rasterize far-away provinces.
+        const extent = featureBounds(feature);
+        if (extent && (extent.maxX < bounds.minX || extent.minX > bounds.maxX ||
+                       extent.maxY < bounds.minY || extent.minY > bounds.maxY)) return;
         const name = feature.properties?.name || '';
         const active = selectedRegion && name === selectedRegion;
         const basemap = feature.properties?.reference_layer === 'basemap';
@@ -1196,6 +1200,15 @@
       }
 
       const visible = filteredPoints();
+      // Viewport clipping is display-only: task observations and statistics
+      // remain untouched when the operator zooms or drags the map.
+      const drawable = coordinateMode
+        ? visible.filter(point => {
+          const [x, y] = project([point[0], point[1]]);
+          return x >= -5 && x <= context.width + 5 &&
+                 y >= -5 && y <= context.height + 5;
+        })
+        : visible;
 
       if (mapEmpty) {
         mapEmpty.textContent = '当前筛选条件下没有火点。';
@@ -1205,7 +1218,7 @@
       if (layerAllFires?.checked !== false) {
         ctx.fillStyle = 'rgba(218,72,55,.38)';
 
-        visible.forEach(point => {
+        drawable.forEach(point => {
           const [x, y] = project([point[0], point[1]]);
 
           ctx.beginPath();
@@ -1221,7 +1234,7 @@
       }
 
       if (layerHighFrp?.checked && frpP90 !== null) {
-        visible.forEach(point => {
+        drawable.forEach(point => {
           const value = point[4];
 
           if (value === null || !Number.isFinite(value) || value < frpP90) {
@@ -1285,11 +1298,11 @@
       }
 
       if (mapVisibleCount && mapVisibleMetricLabel) {
-        let displayCount = visible.length;
-        let displayLabel = '当前显示火点';
+        let displayCount = drawable.length;
+        let displayLabel = coordinateMode ? '当前视野火点' : '当前显示火点';
 
         if (layerHighFrp?.checked && frpP90 !== null) {
-          displayCount = visible.filter(point => {
+          displayCount = drawable.filter(point => {
             const value = point[4];
             return value !== null && Number.isFinite(value) && value >= frpP90;
           }).length;
