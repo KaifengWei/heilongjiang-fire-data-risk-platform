@@ -1419,9 +1419,14 @@ def create_app(
         )
 
         if (task.get("parameters") or {}).get("area_mode") == "coordinates_only":
-            result = historical_weather_context_service.analyze_coordinate_task(
-                task_id=task_id, rows=rows,
-            )
+            if weather_context_service.task_is_recent(task, rows):
+                result = weather_context_service.analyze(
+                    task=task, rows=rows,
+                )
+            else:
+                result = historical_weather_context_service.analyze_coordinate_task(
+                    task_id=task_id, rows=rows,
+                )
             return jsonify(result)
         result = (
             weather_context_service
@@ -2055,15 +2060,21 @@ def create_app(
 
         if (task.get("parameters") or {}).get("area_mode") == "coordinates_only":
             # Report export never makes an unexpected slow remote request.
-            # Opening the weather panel first caches the POWER response.
-            weather_context = historical_weather_context_service.analyze_coordinate_task(
-                task_id=task_id, rows=observations, cached_only=True,
-            )
+            # The weather panel populates the POWER or GFS cache first.
+            if weather_context_service.task_is_recent(task, observations):
+                weather_context = weather_context_service.analyze(
+                    task=task, rows=observations, cached_only=True,
+                )
+            else:
+                weather_context = historical_weather_context_service.analyze_coordinate_task(
+                    task_id=task_id, rows=observations, cached_only=True,
+                )
         else:
             weather_context = weather_context_service.analyze(
                 task=task,
                 rows=observations,
                 county_context_service=county_context_service,
+                cached_only=True,
             )
 
         if (

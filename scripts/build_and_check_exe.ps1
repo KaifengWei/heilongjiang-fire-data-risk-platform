@@ -58,7 +58,7 @@ try {
 
     Write-Host "[2/5] Check JavaScript syntax (when Node.js is installed)"
     if (Get-Command node -ErrorAction SilentlyContinue) {
-        foreach ($js in @("static/product.js", "static/map_viewport.js", "static/county_drilldown.js", "static/home.js")) {
+        foreach ($js in @("static/product.js", "static/map_viewport.js", "static/county_drilldown.js", "static/home.js", "static/weather_context.js")) {
             & node --check $js
             if ($LASTEXITCODE -ne 0) { throw "JavaScript syntax failed: $js" }
         }

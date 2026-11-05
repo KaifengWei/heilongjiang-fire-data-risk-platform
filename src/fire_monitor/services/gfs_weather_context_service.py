@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta, timezone
+from math import floor, isfinite
 from pathlib import Path
 from typing import Any
 
@@ -81,8 +82,41 @@ class GfsWeatherContextService:
         return result
 
     @staticmethod
-    def _params(day: str, cycle: str, forecast_hour: int) -> dict[str, str]:
-        left, bottom, right, top = BBOX
+    def observation_bounds(rows: list[dict[str, Any]]) -> tuple[float, float, float, float] | None:
+        """A small window around the actual densest 0.25 degree FIRMS cell.
+
+        Never request an arbitrary full-country bbox for a scattered CSV.
+        """
+        counts: Counter[tuple[int, int]] = Counter()
+        for row in rows:
+            try:
+                lon = float(row["longitude"])
+                lat = float(row["latitude"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if isfinite(lon) and isfinite(lat) and -180 <= lon <= 180 and -90 <= lat <= 90:
+                counts[(floor(lon * 4), floor(lat * 4))] += 1
+        if not counts:
+            return None
+        x, y = sorted(counts.items(), key=lambda item: (-item[1], item[0]))[0][0]
+        center_lon = (x + 0.5) / 4
+        center_lat = (y + 0.5) / 4
+        return (
+            round(max(-179.75, center_lon - 1.25), 2),
+            round(max(-89.75, center_lat - 1.25), 2),
+            round(min(179.75, center_lon + 1.25), 2),
+            round(min(89.75, center_lat + 1.25), 2),
+        )
+
+    @staticmethod
+    def _params(
+        day: str, cycle: str, forecast_hour: int,
+        bounds: tuple[float, float, float, float] = BBOX,
+    ) -> dict[str, str]:
+        left, bottom, right, top = bounds
+        # NOAA filters accept 0..360 longitude; preserve a local subset.
+        left = left % 360
+        right = left + (right - bounds[0])
         return {
             "file": f"gfs.t{cycle}z.pgrb2.0p25.f{forecast_hour:03d}",
             "var_TMP": "on",
@@ -101,9 +135,14 @@ class GfsWeatherContextService:
             "dir": f"/gfs.{day}/{cycle}/atmos",
         }
 
-    def _cache_path(self, day: str, cycle: str, forecast_hour: int) -> Path:
+    def _cache_path(
+        self, day: str, cycle: str, forecast_hour: int,
+        bounds: tuple[float, float, float, float] = BBOX,
+    ) -> Path:
+        # A cropped forecast must never be mistaken for another region.
+        region_key = "_".join(f"{value:.2f}" for value in bounds)
         return self.cache_dir / (
-            f"gfs_{day}_{cycle}z_f{forecast_hour:03d}_hlj.grib2"
+            f"gfs_{day}_{cycle}z_f{forecast_hour:03d}_{region_key}.grib2"
         )
 
     def _download(
@@ -112,17 +151,21 @@ class GfsWeatherContextService:
         day: str,
         cycle: str,
         forecast_hour: int,
+        bounds: tuple[float, float, float, float] = BBOX,
+        cached_only: bool = False,
     ) -> Path | None:
-        target = self._cache_path(day, cycle, forecast_hour)
+        target = self._cache_path(day, cycle, forecast_hour, bounds)
 
         if target.is_file() and target.stat().st_size > 1000:
             return target
+        if cached_only:
+            return None
 
         try:
             response = session.get(
                 FILTER_URL,
-                params=self._params(day, cycle, forecast_hour),
-                timeout=90,
+                params=self._params(day, cycle, forecast_hour, bounds),
+                timeout=30,
             )
         except requests.RequestException:
             return None
@@ -141,17 +184,24 @@ class GfsWeatherContextService:
         partial.replace(target)
         return target
 
-    def _load_bundle(self) -> tuple[str, str, dict[int, Path]] | None:
+    def _load_bundle(
+        self,
+        bounds: tuple[float, float, float, float] = BBOX,
+        cached_only: bool = False,
+    ) -> tuple[str, str, dict[int, Path]] | None:
         session = requests.Session()
         session.headers.update(
             {"User-Agent": "heilongjiang-fire-monitor/gfs-weather-context"}
         )
 
-        for day, cycle in self._candidate_cycles():
+        for day, cycle in self._candidate_cycles()[:4]:
             bundle = {}
 
             for forecast_hour in FORECAST_HOURS:
-                path = self._download(session, day, cycle, forecast_hour)
+                path = self._download(
+                    session, day, cycle, forecast_hour, bounds,
+                    cached_only=cached_only,
+                )
                 if path is None:
                     bundle = {}
                     break
@@ -443,6 +493,7 @@ class GfsWeatherContextService:
         task: dict[str, Any],
         rows: list[dict[str, Any]],
         county_context_service: Any = None,
+        cached_only: bool = False,
     ) -> dict[str, Any]:
         if not self.task_is_recent(task, rows):
             return self._unavailable("historical_task")
@@ -450,9 +501,13 @@ class GfsWeatherContextService:
         if not rows:
             return self._unavailable("no_current_observations")
 
-        bundle = self._load_bundle()
+        bounds = self.observation_bounds(rows)
+        if bounds is None:
+            return self._unavailable("no_valid_coordinates")
+
+        bundle = self._load_bundle(bounds, cached_only=cached_only)
         if bundle is None:
-            return self._unavailable("gfs_unavailable")
+            return self._unavailable("not_cached" if cached_only else "gfs_unavailable")
 
         day, cycle, paths = bundle
 
@@ -487,6 +542,9 @@ class GfsWeatherContextService:
                 except (TypeError, ValueError):
                     county = None
 
+            # Present weather only for points inside the downloaded subset.
+            if not (bounds[0] <= lon <= bounds[2] and bounds[1] <= lat <= bounds[3]):
+                continue
             if county:
                 county_counts[county] += 1
 
@@ -561,5 +619,8 @@ class GfsWeatherContextService:
             "source": "NOAA GFS 0.25°",
             "cycle": f"{day} {cycle}Z",
             "overall": overall,
+            "spatial_scope": "densest_observation_area",
+            "sample_bounds": list(bounds),
+            "sample_point_count": len(prepared),
             "horizons": horizons,
         }

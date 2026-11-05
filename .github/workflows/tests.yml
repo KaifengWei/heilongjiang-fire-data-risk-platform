@@ -32,6 +32,7 @@ jobs:
           node --check static/map_viewport.js
           node --check static/county_drilldown.js
           node --check static/home.js
+          node --check static/weather_context.js
 
       - name: Run unit tests
         run: conda run -n fire-monitor python -m pytest -q

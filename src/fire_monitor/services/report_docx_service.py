@@ -418,6 +418,32 @@ def _weather_paragraphs(weather_context: dict[str, Any] | None) -> list[list[tup
         peak = weather_context.get("peak_day") or {}
         if peak.get("date"):
             result.append([("火点增多日 ", False), (str(peak.get("date")), True), (" 的天气表现为：", False), (str(peak.get("summary") or "天气条件接近任务期平均"), True)])
+        daily = weather_context.get("daily_comparison") or []
+        # Select other high-observation dates instead of repeating the peak day.
+        ranked = sorted(
+            [row for row in daily if (row.get("fire_count") or 0) > 0
+             and row.get("date") != peak.get("date")],
+            key=lambda row: (-int(row.get("fire_count") or 0), str(row.get("date") or "")),
+        )[:2]
+        if ranked:
+            pieces: list[tuple[str, bool]] = [
+                ("其他观测较多日期的天气对照：", False),
+            ]
+            for index, row in enumerate(ranked):
+                if index:
+                    pieces.append(("；", False))
+                pieces += [
+                    (str(row.get("date") or ""), True),
+                    (f" 有 {int(row.get('fire_count') or 0)} 条火点观测", False),
+                ]
+                rain_value = _safe_float(row.get("precipitation_mm"))
+                humidity_value = _safe_float(row.get("humidity_percent"))
+                if rain_value is not None:
+                    pieces.append((f"，当日降水 {rain_value:.1f} mm", False))
+                if humidity_value is not None:
+                    pieces.append((f"，相对湿度 {humidity_value:.0f}%", False))
+            pieces.append(("。气象值来自所选取样位置，不代表整个分析区域。", False))
+            result.append(pieces)
         counties = weather_context.get("counties") or []
         if counties:
             pieces: list[tuple[str, bool]] = [("重点县区中，", False)]

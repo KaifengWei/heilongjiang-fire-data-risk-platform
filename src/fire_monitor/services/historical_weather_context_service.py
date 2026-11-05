@@ -155,8 +155,12 @@ class HistoricalWeatherContextService:
 
         if cache.is_file():
             try:
-                return json.loads(cache.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
+                cached_payload = json.loads(cache.read_text(encoding="utf-8"))
+                if isinstance(cached_payload, dict) and any(
+                    self._series(cached_payload).values()
+                ):
+                    return cached_payload
+            except (OSError, json.JSONDecodeError, TypeError, AttributeError):
                 pass
 
         try:
@@ -189,6 +193,10 @@ class HistoricalWeatherContextService:
         try:
             payload = response.json()
         except ValueError:
+            return None
+
+        # Do not persist a 200/JSON error response as usable weather data.
+        if not isinstance(payload, dict) or not any(self._series(payload).values()):
             return None
 
         try:
@@ -288,6 +296,42 @@ class HistoricalWeatherContextService:
                 cls._daily_value(series, "PRECTOTCORR", day)
             ),
         }
+
+    @classmethod
+    def _daily_comparison(
+        cls,
+        series_list: list[dict[str, dict[str, float]]],
+        counts: Counter[date],
+        start: date,
+        end: date,
+    ) -> list[dict[str, Any]]:
+        """Daily FIRMS counts alongside actual NASA POWER values.
+
+        This is a time comparison, not evidence of weather causing a fire.
+        Days with no FIRMS observations remain at zero; missing weather remains null.
+        """
+        daily_keys: set[str] = set()
+        for series in series_list:
+            for parameter in ("T2M", "RH2M", "WS10M", "PRECTOTCORR"):
+                daily_keys.update(series.get(parameter, {}))
+
+        result: list[dict[str, Any]] = []
+        for raw in sorted(daily_keys):
+            try:
+                day = datetime.strptime(raw, "%Y%m%d").date()
+            except (TypeError, ValueError):
+                continue
+            if not start <= day <= end:
+                continue
+            weather = cls._aggregate_metrics([
+                cls._day_summary(series, day) for series in series_list
+            ])
+            result.append({
+                "date": cls._display_day(day),
+                "fire_count": int(counts.get(day, 0)),
+                **weather,
+            })
+        return result
 
     @classmethod
     def _aggregate_metrics(
@@ -533,11 +577,16 @@ class HistoricalWeatherContextService:
         cache_path = self._point_cache_path(
             latitude=lat, longitude=lon, start=start, end=end,
         )
-        if cached_only and not cache_path.is_file():
-            return self._unavailable("not_cached")
-        payload = self._fetch_power(
-            latitude=lat, longitude=lon, start=start, end=end,
-        )
+        if cached_only:
+            # Word export must not trigger a network request.
+            try:
+                payload = json.loads(cache_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                return self._unavailable("not_cached")
+        else:
+            payload = self._fetch_power(
+                latitude=lat, longitude=lon, start=start, end=end,
+            )
         if payload is None:
             return self._unavailable("power_unavailable")
         series = self._series(payload)
@@ -551,6 +600,9 @@ class HistoricalWeatherContextService:
         if all(value is None for value in period_metrics.values()):
             return self._unavailable("power_unavailable")
         return {
+            "daily_comparison": self._daily_comparison(
+                [series], counts, start, end,
+            ),
             "available": True,
             "mode": "historical",
             "source": "NASA POWER Daily",
@@ -608,8 +660,10 @@ class HistoricalWeatherContextService:
 
         if task_cache.is_file():
             try:
-                return json.loads(task_cache.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
+                cached_result = json.loads(task_cache.read_text(encoding="utf-8"))
+                if cached_result.get("available") and "daily_comparison" in cached_result:
+                    return cached_result
+            except (OSError, json.JSONDecodeError, AttributeError):
                 pass
 
         if not getattr(county_context_service, "available", False):
@@ -635,6 +689,7 @@ class HistoricalWeatherContextService:
         county_results = []
         period_metrics = []
         peak_metrics = []
+        weather_series = []
 
         for county in counties:
             payload = self._fetch_power(
@@ -654,6 +709,7 @@ class HistoricalWeatherContextService:
 
             period_metrics.append(period)
             peak_metrics.append(peak)
+            weather_series.append(series)
 
             county_results.append(
                 {
@@ -674,6 +730,9 @@ class HistoricalWeatherContextService:
         peak_average = self._aggregate_metrics(peak_metrics)
 
         result = {
+            "daily_comparison": self._daily_comparison(
+                weather_series, day_counts, start, end,
+            ),
             "available": True,
             "mode": "historical",
             "source": "NASA POWER Daily",

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ task.name }} - 分析结果</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='product.css', v='release20261105b') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='product.css', v='release20261105-weather2') }}">
 </head>
 
 <body class="app-body">
@@ -735,6 +735,6 @@
 {% if not coordinate_mode and (not task.parameters.selected_regions or not (task.parameters.selected_regions|rejectattr('source','equalto','builtin')|list)) %}
 <script src="{{ url_for('static', filename='county_drilldown.js') }}"></script>
 {% endif %}
-<script src="{{ url_for('static', filename='weather_context.js', v='release20261105b') }}"></script>
+<script src="{{ url_for('static', filename='weather_context.js', v='release20261105-weather2') }}"></script>
 </body>
 </html>

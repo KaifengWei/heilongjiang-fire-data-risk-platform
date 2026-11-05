@@ -67,13 +67,19 @@
     });
   }
 
+  function numericOrNull(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
   function metricText(metrics) {
     const rows = [];
 
-    const humidity = Number(metrics?.humidity_percent);
-    const wind = Number(metrics?.wind_mps);
-    const rain = Number(metrics?.precipitation_mm);
-    const temp = Number(metrics?.temperature_c);
+    const humidity = numericOrNull(metrics?.humidity_percent);
+    const wind = numericOrNull(metrics?.wind_mps);
+    const rain = numericOrNull(metrics?.precipitation_mm);
+    const temp = numericOrNull(metrics?.temperature_c);
 
     if (Number.isFinite(humidity)) {
       rows.push(`平均湿度 ${Math.round(humidity)}%`);
@@ -196,9 +202,14 @@
   }
 
   function renderForecast(data) {
+    panel.classList.remove('is-weather-unavailable');
     if (eyebrow) eyebrow.textContent = 'SHORT-RANGE WEATHER';
 
-    setLead('结合当前火点位置，查看未来天气变化和需要继续关注的区域。');
+    if (data.spatial_scope === 'densest_observation_area') {
+      setLead('以本次实际火点最集中的经纬网格为中心，查看附近的未来24/48/72小时天气；仅代表取样范围内的观测位置。');
+    } else {
+      setLead('结合当前火点位置，查看未来天气变化和需要继续关注的区域。');
+    }
 
     if (title) title.textContent = data.overall || '未来天气条件';
 
@@ -259,6 +270,7 @@
   }
 
   function renderHistorical(data) {
+    panel.classList.remove('is-weather-unavailable');
     if (eyebrow) eyebrow.textContent = 'HISTORICAL WEATHER';
 
     if (title) {
@@ -364,34 +376,194 @@
       </article>
     `;
 
+    renderDailyComparison(data);
     revealReady();
   }
 
-  function renderUnavailable(data) {
-    if (eyebrow) eyebrow.textContent = 'WEATHER CONTEXT';
-    if (title) title.textContent = '天气资料暂不可用';
-    if (source) source.textContent = '天气数据服务';
+  function renderDailyComparison(data) {
+    const rows = Array.isArray(data.daily_comparison)
+      ? data.daily_comparison.filter(row => /^\d{4}-\d{2}-\d{2}$/.test(String(row.date || '')))
+      : [];
+    if (!rows.length || !cards) return;
 
-    const reason = data?.reason || '';
-
-    const text = reason === 'outside_power_range'
-      ? `这条任务早于当前历史气象数据覆盖范围（${data.earliest_supported || '1981-01-01'}起）。`
-      : '暂时没有取得与这条任务时间相匹配的天气资料。';
-
-    setLead(text);
-
-    if (cards) {
-      cards.innerHTML = `
-        <article class="weather-unavailable-note">
-          火点分析结果仍可正常查看。
-        </article>
-      `;
+    const box = document.createElement('article');
+    box.className = 'weather-daily-comparison';
+    box.innerHTML = '<div class="weather-daily-heading"><div><strong>火点日期与天气变化</strong><p>按任务日期对照实际火点数量和取样点的每日天气</p></div><label>天气指标 <select aria-label="切换逐日天气指标"><option value="precipitation_mm">日降水量</option><option value="humidity_percent">相对湿度</option><option value="wind_mps">平均风速</option><option value="temperature_c">平均气温</option></select></label></div><div class="weather-daily-chart"></div><div class="weather-daily-legend"><span class="weather-daily-bar-mark">火点数量</span><span class="weather-daily-line-mark">天气指标</span><small>两组数据使用独立刻度，图形仅用于对照日期变化</small></div>';
+    const chartHost = box.querySelector('.weather-daily-chart');
+    const picker = box.querySelector('select');
+    const labels = {
+      precipitation_mm: ['日降水量', 'mm'],
+      humidity_percent: ['相对湿度', '%'],
+      wind_mps: ['平均风速', 'm/s'],
+      temperature_c: ['平均气温', '℃'],
+    };
+    const NS = 'http://www.w3.org/2000/svg';
+    function svgNode(tag, attrs, label) {
+      const node = document.createElementNS(NS, tag);
+      Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, String(value)));
+      if (label !== undefined) node.textContent = label;
+      return node;
     }
+    function draw() {
+      const key = picker.value;
+      const unit = labels[key][1];
+      // Keep every date in the expanded table; sample only the SVG for legibility.
+      const step = Math.max(1, Math.ceil(rows.length / 60));
+      const shown = rows.filter((row, index) => index % step === 0 || index === rows.length - 1);
+      const width = 920;
+      const left = 42;
+      const right = 900;
+      const bottom = 185;
+      const top = 18;
+      const span = bottom - top;
+      const counts = shown.map(row => Math.max(0, numericOrNull(row.fire_count) || 0));
+      const maxCount = Math.max(1, ...counts);
+      const values = shown.map(row => numericOrNull(row[key]));
+      const available = values.filter(value => value !== null);
+      const minWeather = available.length ? Math.min(0, ...available) : 0;
+      const maxWeather = available.length ? Math.max(1, ...available) : 1;
+      const weatherSpan = Math.max(0.001, maxWeather - minWeather);
+      const svg = svgNode('svg', {
+        viewBox: '0 0 920 230', role: 'img',
+        'aria-label': '逐日火点数量柱状图与' + labels[key][0] + '折线图',
+        preserveAspectRatio: 'none'
+      });
+      for (let tick = 0; tick <= 4; tick++) {
+        const y = bottom - tick * span / 4;
+        svg.appendChild(svgNode('line', {x1: left, y1: y, x2: right, y2: y, stroke: '#e2eaee', 'stroke-dasharray': '4 5'}));
+        svg.appendChild(svgNode('text', {x: left - 8, y: y + 4, 'text-anchor': 'end', fill: '#698392', 'font-size': 11}, String(Math.round(maxCount * tick / 4))));
+      }
+      const xAt = index => left + (index + .5) * (right - left) / shown.length;
+      const barWidth = Math.max(2.5, Math.min(18, (right - left) / shown.length * .62));
+      let path = '';
+      let connected = false;
+      shown.forEach((row, index) => {
+        const x = xAt(index);
+        const h = counts[index] / maxCount * span;
+        const bar = svgNode('rect', {x: x - barWidth / 2, y: bottom - h, width: barWidth, height: Math.max(0, h), rx: 2, fill: '#6ca6ba'});
+        bar.appendChild(svgNode('title', {}, row.date + '：' + counts[index] + ' 条观测'));
+        svg.appendChild(bar);
+        const v = values[index];
+        if (v === null) {
+          connected = false;
+        } else {
+          const y = bottom - (v - minWeather) / weatherSpan * span;
+          path += (connected ? ' L ' : ' M ') + x.toFixed(2) + ' ' + y.toFixed(2);
+          connected = true;
+        }
+      });
+      if (available.length) {
+        svg.appendChild(svgNode('path', {d: path, fill: 'none', stroke: '#d38f49', 'stroke-width': 2.5, 'stroke-linejoin': 'round'}));
+        shown.forEach((row, index) => {
+          const v = values[index];
+          if (v === null) return;
+          const x = xAt(index);
+          const y = bottom - (v - minWeather) / weatherSpan * span;
+          const dot = svgNode('circle', {cx: x, cy: y, r: 2.6, fill: '#d38f49'});
+          dot.appendChild(svgNode('title', {}, row.date + '：' + labels[key][0] + ' ' + v + ' ' + unit));
+          svg.appendChild(dot);
+        });
+      }
+      const marks = new Set([0, shown.length - 1]);
+      for (let i = 1; i < 5; i++) marks.add(Math.round((shown.length - 1) * i / 5));
+      [...marks].sort((a, b) => a - b).forEach(index => {
+        svg.appendChild(svgNode('text', {
+          x: xAt(index), y: 210, 'text-anchor': 'middle', 'font-size': 11, fill: '#647f8d'
+        }, String(shown[index].date).slice(5)));
+      });
+      svg.appendChild(svgNode('text', {x: 900, y: 12, 'text-anchor': 'end', 'font-size': 11, fill: '#a56e32'}, labels[key][0] + '（' + unit + '）'));
+      chartHost.replaceChildren(svg);
+      const note = chartHost.parentElement.querySelector('.weather-daily-data-note');
+      if (note) note.textContent = available.length ? '' : '该日期范围暂缺所选天气指标的数据。';
+    }
+    const note = document.createElement('p');
+    note.className = 'weather-daily-data-note';
+    box.appendChild(note);
 
+    const details = document.createElement('details');
+    details.className = 'weather-daily-details';
+    const summary = document.createElement('summary');
+    summary.textContent = '查看每日火点与天气数据（' + rows.length + ' 天）';
+    details.appendChild(summary);
+    const scroller = document.createElement('div');
+    scroller.className = 'weather-daily-table-scroll';
+    const table = document.createElement('table');
+    const head = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    ['日期', '火点观测', '气温 ℃', '相对湿度 %', '风速 m/s', '日降水 mm'].forEach(label => {
+      const cell = document.createElement('th');
+      cell.textContent = label;
+      headerRow.appendChild(cell);
+    });
+    head.appendChild(headerRow);
+    table.appendChild(head);
+    const body = document.createElement('tbody');
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+      const values = [
+        row.date, row.fire_count, row.temperature_c, row.humidity_percent,
+        row.wind_mps, row.precipitation_mm,
+      ];
+      values.forEach((value, index) => {
+        const td = document.createElement('td');
+        td.textContent = index === 0 ? String(value) : (numericOrNull(value) === null ? '—' : String(value));
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+    table.appendChild(body);
+    scroller.appendChild(table);
+    details.appendChild(scroller);
+    box.appendChild(details);
+    cards.appendChild(box);
+    picker.addEventListener('change', draw);
+    draw();
+  }
+
+  function renderUnavailable(data) {
+    panel.classList.add('is-weather-unavailable');
+    if (eyebrow) eyebrow.textContent = 'WEATHER CONTEXT';
+    if (title) title.textContent = '天气数据状态';
+    if (source) source.textContent = 'NASA POWER / NOAA GFS';
+
+    const reason = data && data.reason || 'request_failed';
+    const messages = {
+      outside_power_range: '任务日期早于 NASA POWER 历史日值资料的起始范围。',
+      not_historical: '任务日期尚未结束，历史日值资料暂未形成。',
+      no_task_dates: '当前记录没有可用于匹配气象资料的有效日期。',
+      no_valid_coordinates: '当前记录没有可用于气象取样的有效经纬度。',
+      county_context_unavailable: '历史天气需要真实可定位的观测位置；当前缺少县区定位资料。',
+      no_county_locations: '暂未找到能够匹配的县区观测位置。',
+      power_unavailable: 'NASA POWER 暂未返回可解析的历史日值数据，请检查网络后重新获取。',
+      gfs_unavailable: 'NOAA GFS 当前没有取得完整的 24/48/72 小时预报文件，请稍后重试。',
+      gfs_parse_failed: 'GFS 资料已获取，但气象字段解析失败，需要检查 GRIB 数据。',
+      no_weather_samples: '天气文件不包含当前重点火点位置的有效格点数据。',
+      not_cached: '本地尚未保存这条记录的天气资料，请先联网打开天气模块。',
+      request_failed: '天气服务请求未完成，请检查本地程序和网络连接。',
+    };
+    const message = messages[reason] || '目前没有取得这次任务可用的天气资料。';
+    setLead(message);
+    if (cards) {
+      const article = document.createElement('article');
+      article.className = 'weather-unavailable-note';
+      const hint = document.createElement('span');
+      hint.textContent = '火点观测与空间分析仍可正常使用。';
+      article.appendChild(hint);
+      if (['power_unavailable', 'gfs_unavailable', 'request_failed', 'not_cached'].includes(reason)) {
+        const button = document.createElement('button');
+        button.className = 'app-button app-button-ghost';
+        button.type = 'button';
+        button.textContent = '重新获取天气资料';
+        button.addEventListener('click', requestWeather);
+        article.appendChild(button);
+      }
+      cards.replaceChildren(article);
+    }
     revealReady();
   }
 
   function render(data) {
+    panel.classList.remove('is-weather-unavailable');
     if (!data?.available) {
       renderUnavailable(data);
       return;
@@ -405,18 +577,20 @@
     renderForecast(data);
   }
 
-  showLoading();
+  function requestWeather() {
+    panel.classList.remove('weather-ready', 'is-weather-unavailable');
+    showLoading();
+    fetch(
+      '/api/tasks/' + encodeURIComponent(taskId) + '/weather-context',
+      { headers: { Accept: 'application/json' }, cache: 'no-store' }
+    )
+      .then(response => {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.json();
+      })
+      .then(render)
+      .catch(() => renderUnavailable({ reason: 'request_failed' }));
+  }
 
-  fetch(
-    `/api/tasks/${encodeURIComponent(taskId)}/weather-context`,
-    { headers: { Accept: 'application/json' } }
-  )
-    .then(response => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json();
-    })
-    .then(render)
-    .catch(() => {
-      renderUnavailable({ reason: 'request_failed' });
-    });
+  requestWeather();
 })();
