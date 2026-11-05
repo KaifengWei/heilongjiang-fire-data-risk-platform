@@ -81,15 +81,43 @@ def build_spatial_report_context(
     grids: Counter[tuple[int, int]] = Counter(
         (math.floor(x * 4), math.floor(y * 4)) for x, y in coords
     )
-    (cell_x, cell_y), highest = sorted(
-        grids.items(), key=lambda v: (-v[1], v[0]),
-    )[0]
-    focus = {
-        "bbox": [cell_x / 4, cell_y / 4, (cell_x + 1) / 4, (cell_y + 1) / 4],
-        "center": [round((cell_x + .5) / 4, 4), round((cell_y + .5) / 4, 4)],
-        "count": highest,
-        "share_percent": round(highest * 100 / len(coords), 1),
-    }
+    # Dates are read from the same canonical rows, not from the global
+    # database's task-independent observation count. Do not infer a
+    # continuous fire from observations recorded on different days.
+    grid_dates: dict[tuple[int, int], Counter[str]] = {}
+    for row in rows:
+        try:
+            lon, lat = float(row["longitude"]), float(row["latitude"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not (math.isfinite(lon) and math.isfinite(lat) and
+                -180 <= lon <= 180 and -90 <= lat <= 90):
+            continue
+        acquired = str(row.get("acquired_date") or "").strip()
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", acquired):
+            continue
+        grid_dates.setdefault((math.floor(lon * 4), math.floor(lat * 4)),
+                              Counter())[acquired] += 1
+
+    ranked_grids = sorted(grids.items(), key=lambda v: (-v[1], v[0]))
+    top_grids = []
+    for rank, ((cell_x, cell_y), count) in enumerate(ranked_grids[:5], 1):
+        by_date = grid_dates.get((cell_x, cell_y), Counter())
+        peak_date, peak_count = sorted(
+            by_date.items(), key=lambda item: (-item[1], item[0])
+        )[0] if by_date else (None, 0)
+        top_grids.append({
+            "rank": rank,
+            "bbox": [cell_x / 4, cell_y / 4, (cell_x + 1) / 4, (cell_y + 1) / 4],
+            "center": [round((cell_x + .5) / 4, 4),
+                       round((cell_y + .5) / 4, 4)],
+            "count": count,
+            "share_percent": round(count * 100 / len(coords), 1),
+            "active_days": len(by_date),
+            "peak_date": peak_date,
+            "peak_count": peak_count,
+        })
+    focus = top_grids[0]
     features = []
     polygons = []
     for item in geojson_features or []:
@@ -138,7 +166,12 @@ def build_spatial_report_context(
         "ambiguous": ambiguous,
         "outside": unmatched,
         "focus_grid": focus,
-        "map_png": render_spatial_map_png(coords, polygons, bbox),
+        "top_grids": top_grids,
+        "total_grid_cells": len(grids),
+        "top_three_count": sum(item["count"] for item in top_grids[:3]),
+        "map_png": render_spatial_map_png(
+            coords, polygons, bbox, focus_bbox=focus["bbox"],
+        ),
         "plotted_points": min(len(coords), 5000),
         "has_geographic_background": bool(polygons),
     }
@@ -151,6 +184,7 @@ def render_spatial_map_png(
     *,
     width: int = 900,
     height: int = 500,
+    focus_bbox: list[float] | None = None,
 ) -> bytes:
     """PNG map, using standard-library rasterization (no EXE dependencies).
 
@@ -210,15 +244,54 @@ def render_spatial_map_png(
             pixel(round(ax + (bx - ax) * i / n),
                   round(ay + (by - ay) * i / n), color)
 
+    # Compact built-in ASCII bitmap glyphs keep geographic ticks legible in
+    # the bundled Windows EXE without depending on a system font or Matplotlib.
+    font = {
+        "0": ("01110","10001","10011","10101","11001","10001","01110"),
+        "1": ("00100","01100","00100","00100","00100","00100","01110"),
+        "2": ("01110","10001","00001","00010","00100","01000","11111"),
+        "3": ("11110","00001","00001","01110","00001","00001","11110"),
+        "4": ("00010","00110","01010","10010","11111","00010","00010"),
+        "5": ("11111","10000","10000","11110","00001","00001","11110"),
+        "6": ("00111","01000","10000","11110","10001","10001","01110"),
+        "7": ("11111","00001","00010","00100","01000","01000","01000"),
+        "8": ("01110","10001","10001","01110","10001","10001","01110"),
+        "9": ("01110","10001","10001","01111","00001","00010","11100"),
+        ".": ("00000","00000","00000","00000","00000","00110","00110"),
+        "E": ("11111","10000","10000","11110","10000","10000","11111"),
+        "W": ("10001","10001","10001","10101","10101","11011","10001"),
+        "N": ("10001","11001","10101","10011","10001","10001","10001"),
+        "S": ("01111","10000","10000","01110","00001","00001","11110"),
+    }
+
+    def label(text: str, x: int, y: int):
+        for index, ch in enumerate(text):
+            for row_index, pattern in enumerate(font.get(ch, ())):
+                for col_index, value in enumerate(pattern):
+                    if value == "1":
+                        pixel(x + index * 6 + col_index, y + row_index,
+                              (70, 103, 117))
+
+    def degree(value: float, span: float, positive: str, negative: str):
+        digits = 0 if span > 10 else 1 if span > 2 else 2 if span > .2 else 3
+        return f"{abs(value):.{digits}f}{negative if value < 0 else positive}"
+
     # Light coordinate grid supports easy comparison to the exact bbox in text.
     for i in range(7):
         x = 44 + round(i * (width - 88) / 6)
         for y in range(34, height - 34, 3):
             pixel(x, y, (222, 232, 238))
+        lon = west + (east - west) * i / 6
+        tick = degree(lon, east - west, "E", "W")
+        label(tick, max(0, min(width - len(tick) * 6,
+                            x - len(tick) * 3)), height - 23)
     for i in range(5):
         y = 34 + round(i * (height - 68) / 4)
         for x in range(44, width - 44, 3):
             pixel(x, y, (222, 232, 238))
+        lat = north - (north - south) * i / 4
+        tick = degree(lat, north - south, "N", "S")
+        label(tick, 2, max(0, min(height - 8, y - 4)))
 
     def draw_ring(ring):
         seq = list(ring.coords)
@@ -243,6 +316,14 @@ def render_spatial_map_png(
             pixel(x, y, (224, 75, 60))
             pixel(x - 1, y, (233, 118, 91))
             pixel(x + 1, y, (233, 118, 91))
+
+    # Highlight the highest-count angular grid, never a supposed field
+    # boundary. The Word table carries its exact coordinates and date counts.
+    if focus_bbox is not None:
+        fw, fs, fe, fn = focus_bbox
+        corners = [(fw, fs), (fe, fs), (fe, fn), (fw, fn), (fw, fs)]
+        for start, finish in zip(corners[:-1], corners[1:]):
+            segment(start, finish, (215, 135, 19))
 
     # PNG encoder: RGB, eight-bit, no interlace.
     def chunk(kind, content):
