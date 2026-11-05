@@ -5584,3 +5584,109 @@ body.home-body .home-orbit-visual .home-orbit-image-frame::after {
   .weather-daily-comparison { padding: 17px 14px; }
   .weather-daily-chart svg { min-height: 140px; }
 }
+
+
+/* ACTION GUIDANCE V3 — full-width summary and responsive action cards. */
+.action-guidance {
+  display: grid;
+  grid-template-columns: minmax(0,1fr);
+  gap: 16px;
+  width: 100%;
+}
+.action-guidance-summary, .action-guidance-steps {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.action-guidance-summary { padding: 24px 28px; }
+.action-guidance-kicker { align-items: center; gap: 10px 16px; flex-wrap: wrap; }
+.action-guidance-summary h2 {
+  margin: 10px 0 14px;
+  font-size: clamp(24px,2vw,28px);
+  line-height: 1.3;
+}
+.action-guidance-lead { max-width: 86ch; font-size: 15px; line-height: 1.8; }
+.action-guidance-facts {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 12px;
+  margin: 0 0 17px;
+}
+.action-guidance-fact {
+  min-width: 0;
+  padding: 13px 16px;
+  border-radius: 11px;
+  border: 1px solid #dbe8ed;
+  background: #f4f9fb;
+}
+.action-guidance-fact span {
+  display: block;
+  color: #668191;
+  font-size: 12px;
+}
+.action-guidance-fact strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 21px;
+  color: #144a63;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.action-guidance-fact strong small { font-size: 12px; font-weight: 500; }
+.action-land-context { box-sizing: border-box; min-width: 0; max-width: 100%; }
+.action-land-context.is-text-only {
+  display: block;
+  grid-template-columns: minmax(0,1fr);
+  padding: 17px 21px;
+}
+.action-land-context.is-text-only .land-context-copy {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+}
+.action-land-context .land-context-copy p {
+  max-width: 92ch;
+  overflow-wrap: break-word;
+  white-space: normal;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.action-land-context.is-text-only .land-context-copy>strong {
+  font-size: 18px;
+  line-height: 1.5;
+}
+.action-guidance-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(min(100%,295px),1fr));
+  gap: 12px;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.action-guidance-steps .action-step:nth-child(n) {
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 36px minmax(0,1fr);
+  padding: 19px 20px;
+  gap: 11px;
+  border: 1px solid #d8e4e8;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 7px 19px rgba(30,66,84,.04);
+}
+.action-guidance-steps .action-step-copy h3 { font-size: 16px; line-height: 1.45; }
+.action-guidance-steps .action-step-copy p { font-size: 13px; line-height: 1.75; }
+@media(max-width:850px) {
+  .action-guidance-summary { padding: 20px 19px; }
+  .action-guidance-steps { grid-template-columns: 1fr; }
+}
+@media(max-width:610px) {
+  .action-guidance-facts { grid-template-columns: 1fr; }
+  .action-guidance-summary h2 { font-size: 24px; }
+  .action-land-context.is-text-only { padding: 15px 16px; }
+}

@@ -471,6 +471,75 @@ def _weather_paragraphs(weather_context: dict[str, Any] | None) -> list[list[tup
     return result
 
 
+def _historical_weather_daily_table(doc: Document, weather_context: dict[str, Any]) -> None:
+    """Synchronize the on-screen historical daily values into Word."""
+    if not weather_context.get("available") or weather_context.get("mode") != "historical":
+        return
+    all_rows = [
+        item for item in (weather_context.get("daily_comparison") or [])
+        if isinstance(item, dict) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(item.get("date") or ""))
+    ]
+    if not all_rows:
+        return
+    sampled = len(all_rows) > 45
+    if sampled:
+        # Keep long-span reports readable without inventing daily values.
+        rows = sorted(
+            sorted(all_rows, key=lambda row: (-int(row.get("fire_count") or 0), str(row["date"])))[:30],
+            key=lambda row: str(row["date"]),
+        )
+    else:
+        rows = sorted(all_rows, key=lambda row: str(row["date"]))
+
+    _heading(doc, "火点日期与天气变化对照")
+    if sampled:
+        _paragraph(doc, [
+            ("本次跨度较长，下表选取火点观测较多的30个日期；", False),
+            ("全部逐日数据可在软件的天气模块查看。", False),
+        ], size=9.5, after=6)
+    description = (
+        "气象值来自本次火点最集中网格的实际代表点。"
+        if weather_context.get("spatial_scope") == "representative_point"
+        else "气象值来自本次实际匹配的取样位置。"
+    )
+    _paragraph(doc, [
+        ("火点数量为当日实际 FIRMS 观测条数；", False),
+        (description, False),
+        ("天气变化与火点日期对照，不直接说明热异常成因。", False),
+    ], size=9.5, after=6)
+
+    headers = ("日期", "火点观测", "气温 (℃)", "湿度 (%)", "风速 (m/s)", "日降水 (mm)")
+    table = doc.add_table(rows=1, cols=6)
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    table.autofit = False
+    for col, width in zip(table.columns, (2.7, 2.4, 2.6, 2.6, 3.0, 3.3)):
+        col.width = Cm(width)
+    _keep_row_intact(table.rows[0], repeat_header=True)
+    for cell, header in zip(table.rows[0].cells, headers):
+        _shade(cell, SHADE)
+        _set_cell_border(cell)
+        p = cell.paragraphs[0]
+        p.paragraph_format.space_after = Pt(0)
+        _set_run_font(p.add_run(header), size=9, bold=True)
+    for item in rows:
+        values = [str(item["date"]), _fmt_int(item.get("fire_count"))]
+        for key, digits in (
+            ("temperature_c", 1),
+            ("humidity_percent", 0),
+            ("wind_mps", 1),
+            ("precipitation_mm", 1),
+        ):
+            value = _safe_float(item.get(key))
+            values.append(f"{value:.{digits}f}" if value is not None else "—")
+        row = table.add_row()
+        _keep_row_intact(row)
+        for cell, value in zip(row.cells, values):
+            _set_cell_border(cell)
+            p = cell.paragraphs[0]
+            p.paragraph_format.space_after = Pt(0)
+            _set_run_font(p.add_run(value), size=9)
+
+
 def _final_paragraph(analysis_summary: dict[str, Any], firms_intelligence: dict[str, Any], historical_baseline: dict[str, Any]) -> list[tuple[str, bool]]:
     summary = firms_intelligence.get("summary") or {}
     if analysis_summary.get("area_mode") == "coordinates_only":
@@ -822,6 +891,7 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
         _heading(doc, "天气情况")
         for block in weather_blocks:
             _paragraph(doc, block)
+        _historical_weather_daily_table(doc, weather_context or {})
 
     # Coordinate-task next steps are now present in the three-column
     # location table; repeating the same advice at the end adds no value.

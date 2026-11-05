@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ task.name }} - 分析结果</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='product.css', v='release20261105-weather2') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='product.css', v='release20261105-guidance3') }}">
 </head>
 
 <body class="app-body">
@@ -517,6 +517,12 @@
 
           <h2>当前情况与建议</h2>
 
+          <div class="action-guidance-facts" aria-label="本次火点观测摘要">
+            <div class="action-guidance-fact"><span>有效火点观测</span><strong>{{ '{:,}'.format(analysis_summary.active_fire_count) }} <small>条</small></strong></div>
+            <div class="action-guidance-fact"><span>火点高值日</span><strong>{{ peak.date if peak else '—' }}</strong></div>
+            <div class="action-guidance-fact"><span>有观测的日期</span><strong>{{ firms_intelligence.summary.active_days if firms_intelligence and firms_intelligence.summary else '—' }} <small>天</small></strong></div>
+          </div>
+
           <p class="action-guidance-lead">
             {% if historical_baseline and historical_baseline.available and historical_baseline.priority_regions %}
               {% if historical_baseline.province_status == '接近历史同期' %}
@@ -533,15 +539,14 @@
             {% elif historical_baseline and historical_baseline.available %}
               当前没有发现明显偏离历史同期的重点地区，建议按常规方式查看本次分析区域的火点分布和日期变化。
             {% elif coordinate_mode %}
-              本次共记录 <b>{{ '{:,}'.format(analysis_summary.active_fire_count) }}</b> 条观测，
-              以 <b>{{ peak.date if peak else '观测高值日' }}</b> 的点位为首批复核对象；
-              先检查火点集中区域、跨日重复位置，再核对实际地表和当地作业记录。
+              建议先查看火点集中位置，并以 <b>{{ peak.date if peak else '观测高值日' }}</b> 的点位为首批复核对象；
+              逐日检查重复观测，再通过同期影像和田间作业记录核对热异常来源。
             {% else %}
               当前暂无历史同期参照，建议重点查看火点集中区域、明显增多日期和跨日重复活跃位置。
             {% endif %}
           </p>
           {% if land_cover_context and land_cover_context.available %}
-          <div class="action-land-context">
+          <div class="action-land-context{% if coordinate_mode or task.parameters.selected_region or task.parameters.selected_regions %} is-text-only{% endif %}">
             {% if not coordinate_mode and not task.parameters.selected_region and not task.parameters.selected_regions %}
             <div class="land-context-map">
               <img src="{{ url_for('static', filename='context/mcd12q1_2024_landcover.png') }}" alt="2024年土地覆盖背景图">
@@ -562,12 +567,12 @@
             </div>
           </div>
           {% elif coordinate_mode %}
-          <div class="action-land-context">
+          <div class="action-land-context is-text-only">
             <div class="land-context-copy">
               <span>地表核查</span>
               <strong>先确认真实地表，再核对热异常来源</strong>
-              <p>当前任务的土地覆盖栅格尚未匹配到观测位置。可使用结果地图的实测经纬度查看对应日期的高分辨率影像，
-              分辨农田、建设用地及固定热源；如需农业背景定量统计，应补充覆盖该范围、来源可核验的土地覆盖栅格。</p>
+              <p>按地图中的实测经纬度核对对应日期的影像，先区分农田、道路、建设用地及固定热源。
+              涉及农田的，再比对田间作业记录；需要开展耕地背景统计时，导入来源明确且覆盖该位置的土地覆盖数据。</p>
             </div>
           </div>
           {% endif %}
