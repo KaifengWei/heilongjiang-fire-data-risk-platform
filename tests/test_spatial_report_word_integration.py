@@ -53,9 +53,11 @@ def test_report_contains_real_geojson_matched_province_and_png(tmp_path):
     assert "最高观测量网格" in text
     assert "重点观测位置与日期" in text
     assert "表1 观测数量较高的五个经纬网格" in text
-    assert "124.125°E，45.125°N" in "\n".join(
+    spatial_cells = "\n".join(
         cell.text for table in document.tables for row in table.rows for cell in row.cells
     )
+    assert "124.125°E，45.125°N" in spatial_cells
+    assert "2026-04-03（1 条）" in spatial_cells
     assert "图1 本次火点空间分布" in text
     assert "图2 火点高值日期对比" in text
     assert "geoBoundaries CHN ADM1 test" in text

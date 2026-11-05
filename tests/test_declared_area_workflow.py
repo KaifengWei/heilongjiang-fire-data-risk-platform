@@ -88,7 +88,9 @@ def test_one_csv_multiple_coordinate_groups_are_shown_and_exported(tmp_path):
     report_text = "\n".join(p.text for p in doc.paragraphs)
     assert "空间位置与火点分布" in report_text
     assert "观测经度：110.50000°E ～ 127.50000°E" in report_text
-    assert "最密集 0.25° 网格" in report_text
+    assert "最高观测量网格" in report_text
+    assert "重点观测位置与日期" in report_text
+    assert "表1 观测数量较高的五个经纬网格" in report_text
     assert len(doc.inline_shapes) >= 1
 
 

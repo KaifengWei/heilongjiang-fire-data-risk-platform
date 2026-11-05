@@ -101,3 +101,37 @@ def test_unknown_date_does_not_infer_active_days():
     assert data["total"] == 2
     assert all(item["active_days"] == 0 and item["peak_date"] is None
                for item in data["top_grids"])
+
+
+
+def test_map_image_has_numeric_coordinate_ticks_and_highlighted_focus_grid():
+    import zlib
+
+    points = [
+        {"longitude": 124.12, "latitude": 45.12, "acquired_date": "2026-04-01"},
+        {"longitude": 124.15, "latitude": 45.14, "acquired_date": "2026-04-02"},
+    ]
+    report = build_spatial_report_context(points, [
+        _poly("Jilin Province", 123, 44, 126, 46)
+    ])
+    image = report["map_png"]
+    # Decode the true PNG RGB scanlines; no OCR or artificial map content.
+    chunks = []
+    position = 8
+    while position < len(image):
+        length = struct.unpack(">I", image[position:position+4])[0]
+        kind = image[position+4:position+8]
+        contents = image[position+8:position+8+length]
+        if kind == b"IDAT":
+            chunks.append(contents)
+        position += 12 + length
+        if kind == b"IEND":
+            break
+    pixels = zlib.decompress(b"".join(chunks))
+    assert len(pixels) == 500 * (1 + 900 * 3)
+    # Highlighted hotspot box, real FIRMS points, geographic boundary,
+    # and dark tick-label pixels should all be present.
+    assert bytes([215, 135, 19]) in pixels
+    assert bytes([224, 75, 60]) in pixels
+    assert bytes([82, 140, 164]) in pixels
+    assert bytes([70, 103, 117]) in pixels
