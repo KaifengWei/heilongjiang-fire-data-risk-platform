@@ -314,11 +314,18 @@ class GfsWeatherContextService:
 
     @classmethod
     def _sample_point(cls, fields: dict[str, Any], lon: float, lat: float) -> dict[str, float] | None:
-        temperature = cls._sample(fields, "temperature", lon, lat)
-        humidity = cls._sample(fields, "humidity", lon, lat)
-        u_wind = cls._sample(fields, "u_wind", lon, lat)
-        v_wind = cls._sample(fields, "v_wind", lon, lat)
-        precipitation = cls._sample(fields, "precipitation", lon, lat)
+        def sample(key: str) -> float | None:
+            value = cls._sample(fields, key, lon, lat)
+            if value is None and lon < 0:
+                # NOMADS subregions can be encoded as 0..360 longitude.
+                return cls._sample(fields, key, lon % 360, lat)
+            return value
+
+        temperature = sample("temperature")
+        humidity = sample("humidity")
+        u_wind = sample("u_wind")
+        v_wind = sample("v_wind")
+        precipitation = sample("precipitation")
 
         if any(value is None for value in (temperature, humidity, u_wind, v_wind)):
             return None
@@ -468,7 +475,7 @@ class GfsWeatherContextService:
                 "tone": "alert",
                 "state": "局部需提高关注",
                 "summary": (
-                    "全省总体条件未明显偏强，"
+                    "取样范围总体条件未明显偏强，"
                     f"但{joined}等当前活跃县区空气偏干或风力较明显，"
                     "建议优先查看这些区域。"
                 ),
@@ -479,7 +486,7 @@ class GfsWeatherContextService:
                 "tone": "watch",
                 "state": "局部建议继续关注",
                 "summary": (
-                    "全省总体条件较平稳，"
+                    "取样范围总体条件较平稳，"
                     f"但{joined}等当前活跃县区仍有偏干或风力较明显的情况，"
                     "建议继续关注这些区域。"
                 ),

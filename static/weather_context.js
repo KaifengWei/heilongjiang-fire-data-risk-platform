@@ -301,25 +301,25 @@
     const peakFacts = [
       readableFact(
         '湿度',
-        Number.isFinite(Number(peakMetrics.humidity_percent))
+        numericOrNull(peakMetrics.humidity_percent) !== null
           ? `${Math.round(Number(peakMetrics.humidity_percent))}%`
           : '暂无'
       ),
       readableFact(
         '风速',
-        Number.isFinite(Number(peakMetrics.wind_mps))
+        numericOrNull(peakMetrics.wind_mps) !== null
           ? `${Number(peakMetrics.wind_mps).toFixed(1)} m/s`
           : '暂无'
       ),
       readableFact(
         '降水',
-        Number.isFinite(Number(peakMetrics.precipitation_mm))
+        numericOrNull(peakMetrics.precipitation_mm) !== null
           ? `${Number(peakMetrics.precipitation_mm).toFixed(1)} mm`
           : '暂无'
       ),
       readableFact(
         '气温',
-        Number.isFinite(Number(peakMetrics.temperature_c))
+        numericOrNull(peakMetrics.temperature_c) !== null
           ? `${Number(peakMetrics.temperature_c).toFixed(1)} ℃`
           : '暂无'
       ),
@@ -337,9 +337,9 @@
           </div>
           <p>${item.condition || ''}</p>
           <small>
-            湿度 ${Number.isFinite(Number(weather.humidity_percent)) ? Math.round(Number(weather.humidity_percent)) + '%' : '暂无'} ·
-            风速 ${Number.isFinite(Number(weather.wind_mps)) ? Number(weather.wind_mps).toFixed(1) + ' m/s' : '暂无'} ·
-            降水 ${Number.isFinite(Number(weather.precipitation_mm)) ? Number(weather.precipitation_mm).toFixed(1) + ' mm' : '暂无'}
+            湿度 ${numericOrNull(weather.humidity_percent) !== null ? Math.round(Number(weather.humidity_percent)) + '%' : '暂无'} ·
+            风速 ${numericOrNull(weather.wind_mps) !== null ? Number(weather.wind_mps).toFixed(1) + ' m/s' : '暂无'} ·
+            降水 ${numericOrNull(weather.precipitation_mm) !== null ? Number(weather.precipitation_mm).toFixed(1) + ' mm' : '暂无'}
           </small>
         </div>
       `;

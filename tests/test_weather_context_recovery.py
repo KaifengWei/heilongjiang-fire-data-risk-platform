@@ -167,3 +167,30 @@ def test_weather_ui_has_daily_comparison_and_retry():
     assert "重新获取天气资料" in weather_js
     assert "weather-daily-comparison" in weather_js
     assert ".weather-daily-chart" in css
+
+
+def test_forecast_longitude_sampling_accepts_nomads_360_grid(monkeypatch):
+    seen = []
+    def fake_sample(fields, key, lon, lat):
+        seen.append(lon)
+        if lon < 0:
+            return None
+        return {
+            "temperature": 18.0, "humidity": 45.0,
+            "u_wind": 1.0, "v_wind": 2.0, "precipitation": 0.0,
+        }[key]
+    monkeypatch.setattr(GfsWeatherContextService, "_sample", fake_sample)
+    result = GfsWeatherContextService._sample_point({}, -70.0, 42.0)
+    assert result is not None
+    assert result["temperature"] == 18.0
+    assert 290.0 in seen
+
+
+def test_historical_mode_uses_real_headline_hook():
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    template = (root / "templates" / "task_detail.html").read_text(encoding="utf-8")
+    weather_js = (root / "static" / "weather_context.js").read_text(encoding="utf-8")
+    assert '<span class="app-eyebrow">WEATHER CONTEXT</span>' in template
+    assert "HISTORICAL WEATHER" in weather_js
+    assert "numericOrNull" in weather_js
