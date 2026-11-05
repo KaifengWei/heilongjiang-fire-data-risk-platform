@@ -183,11 +183,11 @@ def _visual_bar_table(doc: Document, rows: list[tuple[str, int]], caption: str) 
 
 
 def _spatial_hotspot_table(doc: Document, rows: list[dict[str, Any]]) -> None:
-    """Grounded 0.25° coordinate cells, not village or parcel locations."""
+    """Compact, coordinate-grounded report grid; no parcel claims."""
     if not rows:
         return
     has_evidence = any(item.get("agricultural_counts") for item in rows)
-    columns = ("网格中心坐标", "观测数", "占比", "有观测日期", "高值日期")
+    columns = ("网格中心坐标", "观测量及占比", "观测日期与高值日")
     if has_evidence:
         columns += ("农业线索",)
     table = doc.add_table(rows=1, cols=len(columns))
@@ -196,19 +196,20 @@ def _spatial_hotspot_table(doc: Document, rows: list[dict[str, Any]]) -> None:
         _shade(cell, SHADE)
         _set_cell_border(cell)
         cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-        run = cell.paragraphs[0].add_run(title)
-        _set_run_font(run, size=9, bold=True)
+        _set_run_font(cell.paragraphs[0].add_run(title), size=9, bold=True)
 
     for item in rows:
         lon, lat = item["center"]
         cells = table.add_row().cells
+        date_text = (
+            f"{item['active_days']} 日；"
+            + str(item["peak_date"])
+            + f"（{_fmt_int(item['peak_count'])} 条）"
+        ) if item["peak_date"] else "—"
         values = (
             f"{lon:.3f}°E，{lat:.3f}°N",
-            _fmt_int(item["count"]),
-            f"{item['share_percent']:.1f}%",
-            str(item["active_days"]) if item["active_days"] else "—",
-            (str(item["peak_date"]) + f"（{_fmt_int(item['peak_count'])} 条）")
-            if item["peak_date"] else "—",
+            f"{_fmt_int(item['count'])} 条（{item['share_percent']:.1f}%）",
+            date_text,
         )
         if has_evidence:
             evidence = item.get("agricultural_counts") or {}
@@ -222,9 +223,9 @@ def _spatial_hotspot_table(doc: Document, rows: list[dict[str, Any]]) -> None:
         for cell, value in zip(cells, values):
             _set_cell_border(cell)
             cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-            p = cell.paragraphs[0]
-            p.paragraph_format.space_after = Pt(0)
-            _set_run_font(p.add_run(value), size=9.25)
+            paragraph = cell.paragraphs[0]
+            paragraph.paragraph_format.space_after = Pt(0)
+            _set_run_font(paragraph.add_run(value), size=9.25)
 
 
 def _overall_paragraph(analysis_summary: dict[str, Any], firms_intelligence: dict[str, Any]) -> list[tuple[str, bool]]:
