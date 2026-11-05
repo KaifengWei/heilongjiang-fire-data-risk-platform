@@ -83,15 +83,13 @@ def test_upload_frozen_calendar_used_in_html_and_word(tmp_path):
     doc = Document(BytesIO(report_response.data))
     doc_text = "\n".join(p.text for p in doc.paragraphs)
     assert "农业秸秆焚烧区域火点检测与分析平台" in doc_text
-    assert "农业秸秆焚烧相关性分析" in doc_text
-    # Word follows the same four-category totals as the results page.
-    assert "较高相关" in doc_text
-    assert "可能相关" in doc_text
-    assert "较低相关" in doc_text
-    assert "证据不足" in doc_text
-    assert "地表匹配" in doc_text
-    assert "农事规则" in doc_text
-    assert "土地覆盖" in doc_text
+    assert "农业地表核查建议" in doc_text
+    assert "核对" in doc_text
+    # Preserve the exact four-category statistics in the HTML and service
+    # payload, but don't repeat vague counts in the operational Word report.
+    assert "可能相关" not in doc_text
+    assert "证据不足" not in doc_text
+    assert "地表匹配" not in doc_text
     assert "测试数据，仅验证界面排列" not in doc_text
 
     # New local calendar must not retroactively change this task's evidence.

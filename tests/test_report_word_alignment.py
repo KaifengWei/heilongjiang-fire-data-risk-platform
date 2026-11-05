@@ -1,4 +1,4 @@
-"""Compact agricultural-relevance report matches the result-page ranking."""
+"""Word stays useful while raw evidence classifications remain on the result page."""
 
 from io import BytesIO
 
@@ -34,15 +34,15 @@ def _render(agriculture):
     return Document(BytesIO(binary))
 
 
-def test_agricultural_summary_contains_four_counts_and_sorted_regions():
+def test_export_replaces_vague_categories_with_a_next_step():
     regions = {
         "少量区域": {"total": 1, "counts": {"较低相关": 1}},
         "最多区域": {"total": 6, "counts": {"可能相关": 5, "较低相关": 1}},
-        "其次区域": {"total": 3, "counts": {"较低相关": 3}},
     }
     report = _render({
         "available": True,
-        "counts": {"较高相关": 0, "可能相关": 5, "较低相关": 5, "证据不足": 0},
+        "counts": {"较高相关": 0, "可能相关": 5,
+                   "较低相关": 5, "证据不足": 0},
         "total_observations": 10,
         "land_cover_product": "MCD12Q1",
         "land_cover_year": 2024,
@@ -52,16 +52,16 @@ def test_agricultural_summary_contains_four_counts_and_sorted_regions():
         "disclaimer": "一整段不适合重复输出的说明文字",
     })
     text = "\n".join(p.text for p in report.paragraphs)
-    for phrase in ("较高相关 0", "可能相关 5", "较低相关 5", "证据不足 0",
-                   "地表匹配 10 / 10 条", "MCD12Q1 2024", "农事规则 0 条"):
-        assert phrase in text
-    assert text.index("最多区域 6 条") < text.index("其次区域 3 条")
-    assert text.index("其次区域 3 条") < text.index("少量区域 1 条")
+    assert "农业地表核查建议" in text
+    assert "核查时将火点坐标与耕地分布" in text
+    assert "同期影像及农事作业记录" in text
+    for label in ("较高相关 0", "可能相关 5", "较低相关 5", "证据不足 0",
+                  "农事规则 0 条", "地表匹配 10 / 10 条"):
+        assert label not in text
     assert "一整段不适合重复输出的说明文字" not in text
-    assert text.count("较高相关") == 1
 
 
 def test_no_agricultural_section_when_there_are_no_valid_observations():
     report = _render({"available": False, "counts": {}, "regions": {}})
     text = "\n".join(p.text for p in report.paragraphs)
-    assert "农业秸秆焚烧相关性分析" not in text
+    assert "农业地表核查建议" not in text

@@ -168,3 +168,32 @@ def test_cross_date_is_not_claimed_for_same_day_multiple_observations():
     ], [])
     assert data["top_grids"][0]["count"] == 2
     assert data["top_grids"][0]["cross_date"] is False
+
+
+
+def test_grid_surface_evidence_is_separate_from_relevance_categories():
+    points = [
+        {"longitude": 124.12, "latitude": 45.12,
+         "acquired_date": "2026-04-01"},
+        {"longitude": 124.14, "latitude": 45.14,
+         "acquired_date": "2026-04-02"},
+        {"longitude": 125.14, "latitude": 45.14,
+         "acquired_date": "2026-04-02"},
+    ]
+    result = build_spatial_report_context(
+        points, [],
+        agricultural_grid_counts={
+            "496:180": {"证据不足": 2},
+            "500:180": {"较低相关": 1},
+        },
+        grid_surface_counts={
+            "496:180": {"cropland": 1, "mosaic": 1},
+            "500:180": {"other": 1},
+        },
+    )
+    top, second = result["top_grids"][:2]
+    assert top["cropland_background_count"] == 2
+    assert top["known_surface_count"] == 2
+    assert second["cropland_background_count"] == 0
+    assert second["known_surface_count"] == 1
+    assert top["agricultural_counts"] == {"证据不足": 2}

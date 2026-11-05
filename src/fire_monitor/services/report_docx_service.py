@@ -221,7 +221,10 @@ def _spatial_hotspot_table(doc: Document, rows: list[dict[str, Any]]) -> None:
             + (f"分布于 {active_days} 个日期" if active_days else "日期待核对")
         )
         if item.get("peak_date"):
-            evidence += f"；高值日 {item['peak_date']}"
+            evidence += (
+                f"；高值日 {item['peak_date']}"
+                f"（{_fmt_int(item.get('peak_count'))} 条）"
+            )
         values = (
             f"东经 {west:.2f}°～{east:.2f}°\n北纬 {south:.2f}°～{north:.2f}°",
             evidence,
