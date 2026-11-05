@@ -1419,11 +1419,10 @@ def create_app(
         )
 
         if (task.get("parameters") or {}).get("area_mode") == "coordinates_only":
-            return jsonify({
-                "available": False,
-                "reason": "no_verified_area_weather_context",
-                "message": "当前尚无与用户声明区域对应的已核验气象资料。",
-            })
+            result = historical_weather_context_service.analyze_coordinate_task(
+                task_id=task_id, rows=rows,
+            )
+            return jsonify(result)
         result = (
             weather_context_service
             .analyze(
@@ -2055,10 +2054,11 @@ def create_app(
         )
 
         if (task.get("parameters") or {}).get("area_mode") == "coordinates_only":
-            weather_context = {
-                "available": False,
-                "reason": "no_verified_area_weather_context",
-            }
+            # Report export never makes an unexpected slow remote request.
+            # Opening the weather panel first caches the POWER response.
+            weather_context = historical_weather_context_service.analyze_coordinate_task(
+                task_id=task_id, rows=observations, cached_only=True,
+            )
         else:
             weather_context = weather_context_service.analyze(
                 task=task,

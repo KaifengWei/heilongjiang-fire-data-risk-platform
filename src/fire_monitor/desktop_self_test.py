@@ -111,8 +111,12 @@ def run_self_test(report_path: Path) -> int:
             task_id = task_url.rstrip("/").rsplit("/", 1)[-1]
             task_page = client.get(task_url)
             assert task_page.status_code == 200
-            assert "EXE 自检观测范围" in task_page.get_data(as_text=True)
-            checks.append("task-scoped FIRMS upload and result page")
+            detail_html = task_page.get_data(as_text=True)
+            assert "EXE 自检观测范围" in detail_html
+            assert 'id="mapZoomIn"' in detail_html
+            assert 'id="mapZoomOut"' in detail_html
+            assert "map_viewport.js" in detail_html
+            checks.append("task-scoped FIRMS upload, map zoom toolbar and result page")
 
             stage = "DOCX export with spatial map"
             exported = client.get(f"/tasks/{task_id}/report.docx")

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ task.name }} - 分析结果</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='product.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='product.css', v='release20261105b') }}">
 </head>
 
 <body class="app-body">
@@ -57,6 +57,14 @@
         <div>
           <span class="app-eyebrow">OBSERVATION-BASED ANALYSIS</span>
           <h2>{{ task.parameters.declared_area_label }}</h2>
+          <div class="declared-scope-facts">
+            <div><strong>{{ '{:,}'.format(analysis_summary.active_fire_count) }}</strong><span>本次有效火点观测</span></div>
+            <div><strong>{{ firms_intelligence.summary.active_days if firms_intelligence else 0 }}</strong><span>有观测的日期数</span></div>
+            <div><strong>{{ location_groups.cell_count if location_groups else 0 }}</strong><span>1° 经纬分组</span></div>
+          </div>
+          {% if peak %}
+          <p class="declared-scope-peak">火点高值日：<b>{{ peak.date }}</b>，当天 {{ '{:,}'.format(peak.active_fire_observation_count) }} 条观测。优先查看当天的位置变化及多日重复观测区域。</p>
+          {% endif %}
         </div>
         <div class="declared-area-evidence" aria-label="基于实际观测的地表背景摘要">
           <span class="app-eyebrow">OBSERVATION LAND COVER</span>
@@ -87,8 +95,8 @@
           {% endif %}
           <small>占比仅针对成功匹配的火点观测，不代表整个区域的地表面积比例。</small>
           {% else %}
-          <h3>暂无足够地表分类依据</h3>
-          <p>本次观测未取得充分匹配的土地覆盖数据。下方仍可查看真实观测点位置，不据此推定农田、平原或其他地貌类型。</p>
+          <h3>地表数据尚未覆盖该范围</h3>
+          <p>本次 CSV 的火点位置已确定。现有 MCD12Q1 栅格未覆盖这些观测点，建议用下方实测坐标定位影像，核对农田、建设用地或其他热源；已安装的 GeoJSON 提供行政轮廓，不替代地表分类。</p>
           <div class="declared-evidence-coordinate">
             <strong>{{ '{:,}'.format(location_groups.total) if location_groups else '—' }}</strong>
             <span>条具有有效坐标的观测</span>
@@ -704,11 +712,11 @@
 
 {% include '_record_manage_modal.html' %}
 {% include '_help_modal.html' %}
-<script src="{{ url_for('static', filename='map_viewport.js') }}"></script>
-<script src="{{ url_for('static', filename='product.js') }}"></script>
+<script src="{{ url_for('static', filename='map_viewport.js', v='release20261105b') }}"></script>
+<script src="{{ url_for('static', filename='product.js', v='release20261105b') }}"></script>
 {% if not coordinate_mode and (not task.parameters.selected_regions or not (task.parameters.selected_regions|rejectattr('source','equalto','builtin')|list)) %}
 <script src="{{ url_for('static', filename='county_drilldown.js') }}"></script>
 {% endif %}
-<script src="{{ url_for('static', filename='weather_context.js') }}"></script>
+<script src="{{ url_for('static', filename='weather_context.js', v='release20261105b') }}"></script>
 </body>
 </html>

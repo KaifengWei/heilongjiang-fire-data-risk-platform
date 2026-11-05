@@ -271,7 +271,9 @@
       source.textContent = `${data.source || 'NASA POWER Daily'} · ${start} 至 ${end}`;
     }
 
-    setLead('结合任务日期和重点县区，查看火点出现时的天气条件。');
+    setLead(data.spatial_scope === 'representative_point'
+      ? '选取本次火点最密集的经纬网格内实际代表点，查看任务日期的历史天气；不套用其他地区的气象资料。'
+      : '结合任务日期和重点县区，查看火点出现时的天气条件。');
 
     if (!cards) return;
 
@@ -311,6 +313,7 @@
       ),
     ].join('');
 
+    const coordinatePoint = data.representative_point || null;
     const countyRows = counties.map(item => {
       const weather = item.peak_day || {};
 
@@ -351,10 +354,13 @@
 
       <article class="historical-weather-card historical-county-card">
         <div class="historical-weather-head">
-          <span>重点区域</span>
-          <b>火点较多的县区</b>
+          <span>${coordinatePoint ? '气象取样坐标' : '重点区域'}</span>
+          <b>${coordinatePoint ? '本次火点代表位置' : '火点较多的县区'}</b>
         </div>
-        <div class="history-county-list">${countyRows}</div>
+        ${coordinatePoint
+          ? `<p>东经 ${Number(coordinatePoint.longitude).toFixed(4)}°，北纬 ${Number(coordinatePoint.latitude).toFixed(4)}°</p>
+             <small>所在网格共 ${Number(coordinatePoint.cell_count)} 条观测；点位天气代表所选坐标，不等同于整个区域平均值。</small>`
+          : `<div class="history-county-list">${countyRows}</div>`}
       </article>
     `;
 

@@ -480,6 +480,96 @@ class HistoricalWeatherContextService:
 
         return result
 
+    def analyze_coordinate_task(
+        self,
+        *,
+        task_id: str,
+        rows: list[dict[str, Any]],
+        cached_only: bool = False,
+    ) -> dict[str, Any]:
+        """Historical NASA POWER at the actual most-observed WGS84 cell.
+
+        A user-declared area has no verified county boundaries. We sample
+        weather at the median real coordinate in the highest-count 0.25-degree
+        grid, not at an invented county and not from the old regional baseline.
+        """
+        from collections import Counter
+        from math import floor, isfinite
+        dates = self._task_dates(rows)
+        if not dates:
+            return self._unavailable("no_task_dates")
+        start, end = dates[0], dates[-1]
+        if end >= datetime.now(timezone.utc).date():
+            return self._unavailable("not_historical")
+        if start < MIN_POWER_DATE:
+            return self._unavailable("outside_power_range")
+
+        cells: dict[tuple[int, int], list[tuple[float, float]]] = {}
+        counts: Counter[date] = Counter()
+        for row in rows:
+            day = self._date_from_row(row)
+            if day:
+                counts[day] += 1
+            try:
+                x, y = float(row["longitude"]), float(row["latitude"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if isfinite(x) and isfinite(y) and -180 <= x <= 180 and -90 <= y <= 90:
+                cells.setdefault((floor(x * 4), floor(y * 4)), []).append((x, y))
+        if not cells:
+            return self._unavailable("no_valid_coordinates")
+        key, points = sorted(
+            cells.items(), key=lambda pair: (-len(pair[1]), pair[0])
+        )[0]
+        lon = self._median([x for x, _ in points])
+        lat = self._median([y for _, y in points])
+        cache_path = self._point_cache_path(
+            latitude=lat, longitude=lon, start=start, end=end,
+        )
+        if cached_only and not cache_path.is_file():
+            return self._unavailable("not_cached")
+        payload = self._fetch_power(
+            latitude=lat, longitude=lon, start=start, end=end,
+        )
+        if payload is None:
+            return self._unavailable("power_unavailable")
+        series = self._series(payload)
+        if not series:
+            return self._unavailable("power_unavailable")
+        period_metrics = self._period_summary(series)
+        peak_day, peak_count = sorted(
+            counts.items(), key=lambda pair: (-pair[1], pair[0])
+        )[0]
+        peak_metrics = self._day_summary(series, peak_day)
+        if all(value is None for value in period_metrics.values()):
+            return self._unavailable("power_unavailable")
+        return {
+            "available": True,
+            "mode": "historical",
+            "source": "NASA POWER Daily",
+            "overall": "任务期间天气背景",
+            "spatial_scope": "representative_point",
+            "representative_point": {
+                "longitude": round(lon, 4),
+                "latitude": round(lat, 4),
+                "cell_count": len(points),
+            },
+            "period": {
+                "start": self._display_day(start),
+                "end": self._display_day(end),
+                "metrics": period_metrics,
+            },
+            "peak_day": {
+                "date": self._display_day(peak_day),
+                "fire_count": int(peak_count),
+                "metrics": peak_metrics,
+                "summary": self._peak_summary_text(
+                    peak_metrics=peak_metrics, period_metrics=period_metrics,
+                ),
+            },
+            "counties": [],
+        }
+
     def analyze(
         self,
         *,

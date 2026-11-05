@@ -5409,3 +5409,32 @@ body.home-body .home-orbit-visual .home-orbit-image-frame::after {
 @media (max-width: 680px) {
   .map-navigation-hint { width: 100%; }
 }
+
+/* Always display business results: a WebView without intersection animation
+   must not leave whole result panels transparent. */
+.result-workspace-main .reveal-item {
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+}
+.declared-scope-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 22px;
+}
+.declared-scope-facts > div {
+  padding: 13px 12px;
+  border: 1px solid #d5e6ed;
+  border-radius: 10px;
+  background: #fff;
+}
+.declared-scope-facts strong {
+  display: block; color: #166080; font-size: 23px;
+  font-variant-numeric: tabular-nums;
+}
+.declared-scope-facts span {color: #5a7685; font-size: 12px;}
+.declared-scope-peak {max-width: 48rem; margin: 16px 0 0; font-size: 13px; color: #3b6578;}
+.map-viewport-toolbar .map-zoom-controls {display: inline-flex !important; visibility: visible !important; flex: 0 0 auto;}
+.map-zoom-controls button {border: 1px solid #c7dce7; background: #fff; font-weight: 700;}
+@media (max-width: 760px) { .declared-scope-facts {grid-template-columns: 1fr 1fr;} }
