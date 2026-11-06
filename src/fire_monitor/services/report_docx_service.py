@@ -682,10 +682,39 @@ def _observation_decision_report(doc: Document, decisions: dict[str, Any] | None
             ("日期与空间集中位置的重合：", True),
             (str(temporal["spatial_overlap"]), False),
         ])
+    if temporal.get("peak_focus"):
+        _paragraph(doc, [
+            ("高值日的主要集中位置：", True),
+            (str(temporal["peak_focus"]["conclusion"]), False),
+        ])
     _paragraph(doc, [
         ("跨日重复位置：", True),
         (str(persistence["conclusion"]), False),
     ])
+    top_grids = decisions.get("top_grid_comparison") or []
+    if top_grids:
+        _heading(doc, "前三个观测网格对照")
+        for grid in top_grids[:3]:
+            _paragraph(doc, [
+                (f"第 {int(grid['rank'])} 位：", True),
+                (str(grid["bounds_label"]), True),
+                (
+                    f"，共 {int(grid['count']):,} 条，占本次有效坐标观测 "
+                    f"{float(grid['share']):.1f}%；"
+                    f"在 {int(grid['active_days'])} 个日期出现观测"
+                    + (
+                        f"，网格高值日 {grid['peak_date']} 记录"
+                        f" {int(grid['peak_count'])} 条。"
+                        if grid.get('peak_date') else "。"
+                    ),
+                    False,
+                ),
+            ], after=3)
+            if grid.get("land_evidence"):
+                _paragraph(doc, [
+                    (str(grid["land_evidence"]), False),
+                    ("上述比例仅涉及匹配观测点，不代表对应网格的土地面积比例。", False),
+                ], size=9.75, after=4)
 
 
 def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[str, Any], firms_intelligence: dict[str, Any], historical_baseline: dict[str, Any], land_cover_context: dict[str, Any], priority_land_cover: dict[str, Any] | None, weather_context: dict[str, Any] | None, daily_series: list[dict[str, Any]], agricultural_relevance: dict[str, Any] | None = None, spatial_context: dict[str, Any] | None = None, observation_decisions: dict[str, Any] | None = None) -> bytes:

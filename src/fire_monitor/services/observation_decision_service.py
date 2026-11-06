@@ -32,6 +32,7 @@ def _observed_date(row: dict[str, Any]) -> str | None:
 def build_observation_decisions(
     rows: list[dict[str, Any]],
     firms_intelligence: dict[str, Any] | None = None,
+    agricultural_relevance: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Pure, deterministic interpretation of the current task's FIRMS rows.
 
@@ -123,10 +124,91 @@ def build_observation_decisions(
         ),
     }
 
+    # Contrast measured high-activity grids, including the actual observation
+    # dates and optional *observed-point* land-cover matches. No grid area
+    # fraction or field boundary is inferred from these samples.
+    grid_surfaces = (
+        (agricultural_relevance or {}).get("grid_surface_counts") or {}
+        if (agricultural_relevance or {}).get("land_cover_available") else {}
+    )
+    top_grid_comparison: list[dict[str, Any]] = []
+    for rank, ((grid_x, grid_y), observations) in enumerate(ranked[:3], 1):
+        by_date = Counter(day for _, _, day in observations if day)
+        local_peak, local_peak_count = (
+            sorted(by_date.items(), key=lambda item: (-item[1], item[0]))[0]
+            if by_date else (None, 0)
+        )
+        center_x, center_y = (grid_x + .5) / 4, (grid_y + .5) / 4
+        candidates = [p for p in observations if p[2] == local_peak] if local_peak else observations
+        observed_point = min(
+            candidates,
+            key=lambda point: (
+                (point[0] - center_x) ** 2 + (point[1] - center_y) ** 2,
+                point[0], point[1], point[2] or "",
+            ),
+        )
+        surfaces = grid_surfaces.get(f"{grid_x}:{grid_y}") or {}
+        farmland = _positive_int(surfaces.get("cropland")) + _positive_int(surfaces.get("mosaic"))
+        other_surface = _positive_int(surfaces.get("other"))
+        matched_surface = min(len(observations), farmland + other_surface)
+        land_evidence = (
+            f"2024年土地覆盖在本网格匹配 {matched_surface}/{len(observations)} 条观测，"
+            f"其中 {farmland} 条为耕地或耕地与自然植被混合背景，"
+            f"{other_surface} 条为其他地表背景。"
+            if matched_surface else None
+        )
+        bounds = [grid_x / 4, grid_y / 4, (grid_x + 1) / 4, (grid_y + 1) / 4]
+        top_grid_comparison.append({
+            "rank": rank,
+            "count": len(observations),
+            "share": round(100 * len(observations) / total, 1),
+            "bbox": bounds,
+            "bounds_label": (
+                f"东经 {bounds[0]:.2f}°～{bounds[2]:.2f}°，"
+                f"北纬 {bounds[1]:.2f}°～{bounds[3]:.2f}°"
+            ),
+            "active_days": len(by_date),
+            "peak_date": local_peak,
+            "peak_count": local_peak_count,
+            "sample_point": {
+                "longitude": round(observed_point[0], 5),
+                "latitude": round(observed_point[1], 5),
+                "date": observed_point[2],
+            },
+            "land_evidence": land_evidence,
+            "surface_matched": matched_surface,
+            "cropland_background_count": farmland if matched_surface else None,
+        })
+
     peak_date, peak_count = (
         sorted(daily.items(), key=lambda item: (-item[1], item[0]))[0]
         if daily else (None, 0)
     )
+    peak_focus = None
+    if peak_date:
+        daily_grid_counts = [
+            (grid, sum(1 for point in positions if point[2] == peak_date))
+            for grid, positions in ranked
+        ]
+        focus_grid, focus_count = sorted(
+            daily_grid_counts, key=lambda item: (-item[1], item[0])
+        )[0]
+        fgx, fgy = focus_grid
+        focus_bounds = [fgx / 4, fgy / 4, (fgx + 1) / 4, (fgy + 1) / 4]
+        same_region = focus_grid == (gx, gy)
+        peak_focus = {
+            "count": focus_count,
+            "share": round(100 * focus_count / peak_count, 1),
+            "bbox": focus_bounds,
+            "same_as_overall": same_region,
+            "conclusion": (
+                f"{peak_date} 的当日首位网格在东经 "
+                f"{focus_bounds[0]:.2f}°～{focus_bounds[2]:.2f}°、"
+                f"北纬 {focus_bounds[1]:.2f}°～{focus_bounds[3]:.2f}°，"
+                f"记录 {focus_count} 条，占当日 {100 * focus_count / peak_count:.1f}%；"
+                + ("与累计首位网格一致。" if same_region else "与累计首位网格不同。")
+            ),
+        }
     active_days = len(daily)
     others = [count for day, count in daily.items() if day != peak_date]
     typical_count = float(median(others)) if others else None
@@ -180,6 +262,7 @@ def build_observation_decisions(
         "spatial_overlap_count": overlap_count,
         "spatial_overlap_share": overlap_share,
         "spatial_overlap": spatial_overlap,
+        "peak_focus": peak_focus,
         "headline": (
             f"{peak_date} 有 {peak_count:,} 条，占 {peak_share:.1f}%"
             if peak_date else "无可比日期"
@@ -255,6 +338,7 @@ def build_observation_decisions(
         "total": total,
         "lead": lead,
         "spatial": spatial,
+        "top_grid_comparison": top_grid_comparison,
         "temporal": temporal,
         "persistence": persistence,
         "priority_order": "按空间集中程度、日期高值和跨日重复记录查看",

@@ -861,45 +861,6 @@
       );
 
   
-    $$('[data-map-theme]').forEach(button => {
-      button.addEventListener('click', () => {
-        const theme = button.getAttribute('data-map-theme') || 'fire';
-
-        const input = {
-          fire: layerAllFires,
-          frp: layerHighFrp,
-          persistent: layerPersistent,
-        }[theme];
-
-        if (input) {
-          input.checked = true;
-          input.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-
-        canvas.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-        });
-      });
-    });
-
-    $$('[data-map-reset]').forEach(button => {
-      button.addEventListener('click', () => {
-        focusPoint = null;
-        selectRegion('');
-
-        if (layerAllFires) {
-          layerAllFires.checked = true;
-          layerAllFires.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-
-        canvas.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-        });
-      });
-    });
-
     $$('.region-filter-row').forEach(button => {
         button.classList.toggle(
           'active',
@@ -929,6 +890,46 @@
         });
       }, 90);
     }
+
+    // Initialize global map actions once, not on each region switch.
+    $('[data-map-theme]').forEach(button => {
+      button.addEventListener('click', () => {
+        const theme = button.getAttribute('data-map-theme') || 'fire';
+
+        const input = {
+          fire: layerAllFires,
+          frp: layerHighFrp,
+          persistent: layerPersistent,
+        }[theme];
+
+        if (input) {
+          input.checked = true;
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        canvas.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      });
+    });
+
+    $('[data-map-reset]').forEach(button => {
+      button.addEventListener('click', () => {
+        focusPoint = null;
+        selectRegion('');
+
+        if (layerAllFires) {
+          layerAllFires.checked = true;
+          layerAllFires.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        canvas.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      });
+    });
 
     function geometryContext() {
       const bounds = activeBounds();
@@ -1672,7 +1673,10 @@
         const [west, south, east, north] = bounds;
         if (!(west < east && south < north)) return;
         stopPlayback();
-        setSelectedDateIndex(null);
+        const date = button.getAttribute('data-map-focus-date') || '';
+        const dayIndex = date ? allDates.indexOf(date) : -1;
+        if (date && dayIndex < 0) return;
+        setSelectedDateIndex(dayIndex >= 0 ? dayIndex : null);
         if (layerAllFires) {
           layerAllFires.checked = true;
           layerAllFires.dispatchEvent(new Event('change', { bubbles: true }));

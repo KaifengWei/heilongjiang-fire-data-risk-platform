@@ -752,11 +752,6 @@ def create_app(
             .as_dict()
         )
 
-        observation_decisions = (
-            build_observation_decisions(task_firms_observations, firms_intelligence)
-            if is_declared_area else {"available": False}
-        )
-
         # The existing historical baseline was built for the original fixed
         # regional dataset. It must not be used as a comparison for a new
         # task-scoped polygon until an equivalent scoped baseline is installed.
@@ -787,6 +782,13 @@ def create_app(
         agricultural_relevance = agricultural_relevance_service.analyze(
             task_firms_observations,
             calendar_rules=(task.get("parameters") or {}).get("agricultural_calendar_rules") or [],
+        )
+
+        observation_decisions = (
+            build_observation_decisions(
+                task_firms_observations, firms_intelligence, agricultural_relevance,
+            )
+            if is_declared_area else {"available": False}
         )
 
         task_observed_bbox = observation_bbox(task_firms_observations)
@@ -2020,12 +2022,6 @@ def create_app(
             .as_dict()
         )
 
-        observation_decisions = (
-            build_observation_decisions(observations, firms_intelligence)
-            if (task.get("parameters") or {}).get("area_mode") == "coordinates_only"
-            else {"available": False}
-        )
-
         export_boundaries = database.list_task_regions(task_id)
         if (task.get("parameters") or {}).get("area_mode") == "coordinates_only" or (
             export_boundaries and any(
@@ -2056,6 +2052,14 @@ def create_app(
         agricultural_relevance = agricultural_relevance_service.analyze(
             observations,
             calendar_rules=(task.get("parameters") or {}).get("agricultural_calendar_rules") or [],
+        )
+
+        observation_decisions = (
+            build_observation_decisions(
+                observations, firms_intelligence, agricultural_relevance,
+            )
+            if (task.get("parameters") or {}).get("area_mode") == "coordinates_only"
+            else {"available": False}
         )
 
         priority_land_cover = (

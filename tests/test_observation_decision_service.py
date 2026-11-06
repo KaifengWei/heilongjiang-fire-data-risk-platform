@@ -39,6 +39,11 @@ def test_real_counts_compare_spatial_temporal_and_repeated_cells():
     assert spatial["share"] == 66.7
     assert spatial["active_days"] == 2
     assert spatial["second_count"] == 2
+    assert len(result["top_grid_comparison"]) == 2
+    assert result["top_grid_comparison"][0]["count"] == 4
+    assert result["top_grid_comparison"][1]["count"] == 2
+    assert result["top_grid_comparison"][0]["bbox"] == [124.0, 45.0, 124.25, 45.25]
+    assert result["top_grid_comparison"][0]["land_evidence"] is None
     assert "比第二位多 2 条" in spatial["conclusion"]
     assert spatial["sample_point"]["date"] == "2026-04-01"
     assert (
@@ -52,6 +57,9 @@ def test_real_counts_compare_spatial_temporal_and_repeated_cells():
     assert temporal["multiple"] == 2.0
     assert temporal["spatial_overlap_count"] == 3
     assert temporal["spatial_overlap_share"] == 100.0
+    assert temporal["peak_focus"]["same_as_overall"]
+    assert temporal["peak_focus"]["count"] == 3
+    assert temporal["peak_focus"]["share"] == 100.0
     assert "全部落在累计首位" in temporal["spatial_overlap"]
     assert "2.0 倍" in temporal["conclusion"]
     assert result["persistence"]["count"] == 1
@@ -116,6 +124,9 @@ def test_decision_panel_uses_real_task_counts_and_matches_word(tmp_path):
     assert 'data-map-focus-bbox="124.0,45.0,124.25,45.25"' in html
     assert 'data-map-date="2026-04-01"' in html
     assert "先确认真实地表，再核对热异常来源" not in html
+    assert "观测最多的三个网格" in html
+    assert "第 2 位" in html
+    assert 'data-map-focus-date="2026-04-01"' in html
     task_id = submitted.headers["Location"].rstrip("/").split("/")[-1]
     response = client.get(f"/tasks/{task_id}/report.docx")
     assert response.status_code == 200
@@ -125,6 +136,9 @@ def test_decision_panel_uses_real_task_counts_and_matches_word(tmp_path):
     assert "首位网格记录 4 条" in text
     assert "个有观测日的单日中位数" in text
     assert "日期与空间集中位置的重合" in text
+    assert "高值日的主要集中位置" in text
+    assert "前三个观测网格对照" in text
+    assert "第 2 位" in text
     assert "实测样本点为东经" in text
 
 
@@ -134,7 +148,13 @@ def test_map_focus_event_is_not_just_a_reset_button():
     assert "document.querySelectorAll('[data-map-focus-bbox]')" in js
     assert "manualViewport = {" in js
     assert "showFullOutline = false" in js
-    assert "setSelectedDateIndex(null)" in js
+    assert "getAttribute('data-map-focus-date')" in js
+    assert "setSelectedDateIndex(dayIndex >= 0 ? dayIndex : null)" in js
+    assert "// Initialize global map actions once" in js
+    select_start = js.index("function selectRegion(region)")
+    init_marker = js.index("// Initialize global map actions once")
+    assert select_start < init_marker
+    assert js[select_start:init_marker].rstrip().endswith("}")
 
 
 def test_peak_location_can_differ_from_cumulative_top_grid():
@@ -149,4 +169,50 @@ def test_peak_location_can_differ_from_cumulative_top_grid():
     assert result["spatial"]["count"] == 3
     assert result["temporal"]["peak_date"] == "2026-04-04"
     assert result["temporal"]["spatial_overlap_count"] == 0
+    assert result["temporal"]["peak_focus"]["same_as_overall"] is False
+    assert result["temporal"]["peak_focus"]["bbox"] == [125.0, 45.0, 125.25, 45.25]
+    assert result["temporal"]["peak_focus"]["count"] == 2
     assert "累计最多的空间网格与单日高值位置不同" in result["temporal"]["spatial_overlap"]
+
+
+def test_each_grid_reports_measured_land_cover_counts_without_area_inference():
+    rows = _rows()
+    source = {
+        "land_cover_available": True,
+        "grid_surface_counts": {
+            "496:180": {"cropland": 2, "mosaic": 1, "other": 1, "unknown": 0},
+            "500:180": {"cropland": 0, "mosaic": 0, "other": 0, "unknown": 2},
+        },
+    }
+    result = build_observation_decisions(rows, {"repeated_cells": []}, source)
+    first, second = result["top_grid_comparison"]
+    assert first["surface_matched"] == 4
+    assert first["cropland_background_count"] == 3
+    assert "匹配 4/4 条观测" in first["land_evidence"]
+    assert "其中 3 条为耕地" in first["land_evidence"]
+    assert second["land_evidence"] is None
+    assert second["surface_matched"] == 0
+    no_raster = build_observation_decisions(rows, {}, {
+        "land_cover_available": False,
+        "grid_surface_counts": source["grid_surface_counts"],
+    })
+    assert no_raster["top_grid_comparison"][0]["land_evidence"] is None
+
+
+def test_high_value_day_top_grid_matches_actual_day_not_cumulative_rank():
+    rows = [
+        {"longitude": 124.10, "latitude": 45.10, "acquired_date": "2026-04-01"},
+        {"longitude": 124.11, "latitude": 45.11, "acquired_date": "2026-04-02"},
+        {"longitude": 124.12, "latitude": 45.12, "acquired_date": "2026-04-03"},
+        {"longitude": 124.13, "latitude": 45.13, "acquired_date": "2026-04-05"},
+        {"longitude": 125.10, "latitude": 45.10, "acquired_date": "2026-04-04"},
+        {"longitude": 125.11, "latitude": 45.11, "acquired_date": "2026-04-04"},
+        {"longitude": 125.13, "latitude": 45.12, "acquired_date": "2026-04-04"},
+    ]
+    result = build_observation_decisions(rows, {"repeated_cells": []})
+    assert result["spatial"]["count"] == 4
+    assert result["temporal"]["peak_date"] == "2026-04-04"
+    assert result["temporal"]["peak_focus"]["count"] == 3
+    assert result["temporal"]["peak_focus"]["share"] == 100.0
+    assert not result["temporal"]["peak_focus"]["same_as_overall"]
+    assert result["temporal"]["peak_focus"]["bbox"] == [125.0, 45.0, 125.25, 45.25]

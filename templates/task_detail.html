@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ task.name }} - 分析结果</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='product.css', v='release20261105-evidence4') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='product.css', v='release20261106-evidence5') }}">
 </head>
 
 <body class="app-body">
@@ -546,11 +546,17 @@
               {% if observation_decisions.temporal.spatial_overlap %}
               <p class="action-step-evidence">{{ observation_decisions.temporal.spatial_overlap }}</p>
               {% endif %}
+              {% if observation_decisions.temporal.peak_focus %}
+              <p class="action-step-evidence">{{ observation_decisions.temporal.peak_focus.conclusion }}</p>
+              {% endif %}
               {% if observation_decisions.temporal.multiple %}
               <p class="action-step-evidence">比较基准为其余有火点观测日期的中位数，不使用无观测日填零。</p>
               {% endif %}
               {% if observation_decisions.temporal.peak_date %}
               <button type="button" class="action-link" data-map-date="{{ observation_decisions.temporal.peak_date }}">只看这一天的点位 →</button>
+              {% if observation_decisions.temporal.peak_focus %}
+              <button type="button" class="action-link" data-map-focus-bbox="{{ observation_decisions.temporal.peak_focus.bbox|join(',') }}" data-map-focus-date="{{ observation_decisions.temporal.peak_date }}">定位当天观测最多的网格 →</button>
+              {% endif %}
               {% endif %}
             </div>
           </article>
@@ -567,6 +573,35 @@
             </div>
           </article>
         </div>
+        {% if observation_decisions.top_grid_comparison %}
+        <section class="action-grid-compare-panel" aria-label="观测最多的三个网格对比">
+          <div class="action-grid-compare-header">
+            <div>
+              <h3>观测最多的三个网格</h3>
+              <p>按实际 FIRMS 观测数量排列；每行对应真实坐标范围和各自的日期分布，不代表农田地块边界。</p>
+            </div>
+          </div>
+          <div class="action-grid-compare-list">
+            {% for item in observation_decisions.top_grid_comparison %}
+            <article class="action-grid-compare-item">
+              <div class="action-grid-compare-position">
+                <span>第 {{ item.rank }} 位</span>
+                <strong>{{ item.bounds_label }}</strong>
+                <small>实测点：东经 {{ '%.5f'|format(item.sample_point.longitude) }}°，北纬 {{ '%.5f'|format(item.sample_point.latitude) }}°</small>
+              </div>
+              <div class="action-grid-compare-evidence">
+                <strong>{{ '{:,}'.format(item.count) }} 条 <small>占本次 {{ '%.1f'|format(item.share) }}%</small></strong>
+                <span>在 {{ item.active_days }} 个日期出现{% if item.peak_date %}，网格高值日 {{ item.peak_date }} 有 {{ item.peak_count }} 条{% endif %}</span>
+                {% if item.land_evidence %}
+                <span class="action-grid-compare-land">{{ item.land_evidence }}</span>
+                {% endif %}
+              </div>
+              <button type="button" class="action-link" data-map-focus-bbox="{{ item.bbox|join(',') }}">定位该网格 →</button>
+            </article>
+            {% endfor %}
+          </div>
+        </section>
+        {% endif %}
         {% else %}
         <div class="action-guidance-summary">
           <div class="action-guidance-kicker">
@@ -806,7 +841,7 @@
 {% include '_record_manage_modal.html' %}
 {% include '_help_modal.html' %}
 <script src="{{ url_for('static', filename='map_viewport.js', v='release20261105b') }}"></script>
-<script src="{{ url_for('static', filename='product.js', v='release20261105-evidence4') }}"></script>
+<script src="{{ url_for('static', filename='product.js', v='release20261106-evidence5') }}"></script>
 {% if not coordinate_mode and (not task.parameters.selected_regions or not (task.parameters.selected_regions|rejectattr('source','equalto','builtin')|list)) %}
 <script src="{{ url_for('static', filename='county_drilldown.js') }}"></script>
 {% endif %}

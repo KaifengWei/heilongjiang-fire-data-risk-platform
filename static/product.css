@@ -5764,3 +5764,99 @@ body.home-body .home-orbit-visual .home-orbit-image-frame::after {
 @media (max-width: 850px) {
   .action-guidance-evidence { grid-template-columns: 1fr; }
 }
+
+
+/* Observation grid comparison V5: actual per-grid dates and surface matches. */
+.action-grid-compare-panel {
+  min-width: 0;
+  padding: 19px 22px 21px;
+  border: 1px solid #d7e5eb;
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 6px 22px rgba(30,66,84,.04);
+}
+.action-grid-compare-header h3 {
+  margin: 0;
+  color: #163f54;
+  font-size: 18px;
+  line-height: 1.45;
+}
+.action-grid-compare-header p {
+  margin: 5px 0 16px;
+  color: #64808c;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.action-grid-compare-list {
+  display: grid;
+  gap: 9px;
+}
+.action-grid-compare-item {
+  display: grid;
+  grid-template-columns: minmax(210px,1.1fr) minmax(235px,1.4fr) auto;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+  padding: 13px 15px;
+  border: 1px solid #dce8ee;
+  border-radius: 10px;
+  background: #f8fbfc;
+}
+.action-grid-compare-position,
+.action-grid-compare-evidence {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 4px;
+}
+.action-grid-compare-position > span {
+  font-size: 12px;
+  color: #63838e;
+  font-weight: 700;
+}
+.action-grid-compare-position strong {
+  font-size: 14px;
+  color: #17465d;
+  line-height: 1.5;
+}
+.action-grid-compare-position small {
+  font-size: 11px;
+  color: #69838e;
+  line-height: 1.55;
+}
+.action-grid-compare-evidence strong {
+  font-size: 19px;
+  line-height: 1.4;
+  color: #15516b;
+}
+.action-grid-compare-evidence strong small {
+  font-size: 12px;
+  font-weight: 500;
+  color: #688390;
+}
+.action-grid-compare-evidence > span {
+  font-size: 12px;
+  color: #456573;
+  line-height: 1.7;
+}
+.action-grid-compare-evidence .action-grid-compare-land {
+  color: #2d6750;
+}
+.action-grid-compare-item .action-link {
+  align-self: center;
+  white-space: nowrap;
+  font-size: 13px;
+  margin: 0;
+}
+@media (max-width: 950px) {
+  .action-grid-compare-item {
+    grid-template-columns: minmax(0,1fr);
+    gap: 9px;
+    align-items: flex-start;
+  }
+  .action-grid-compare-item .action-link { align-self: flex-start; }
+}
+@media (max-width: 610px) {
+  .action-grid-compare-panel { padding: 15px 13px; }
+}
