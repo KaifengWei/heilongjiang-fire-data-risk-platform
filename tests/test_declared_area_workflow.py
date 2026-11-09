@@ -111,6 +111,25 @@ def test_one_csv_multiple_coordinate_groups_are_shown_and_exported(tmp_path):
     assert len(doc.inline_shapes) >= 1
 
 
+def test_partial_land_cover_is_reported_as_partial_not_absent(tmp_path, monkeypatch):
+    """One matching point does not justify claiming the whole CSV has no raster evidence."""
+    app = make(tmp_path)
+    land = app.extensions["land_cover_context_service"]
+    monkeypatch.setattr(land, "_open", lambda: True)
+    monkeypatch.setattr(
+        land, "_sample",
+        lambda longitude, latitude: 12 if longitude < 120 else None,
+    )
+    client = app.test_client()
+    task_id = tid(upload(client, area_label="跨区域土地覆盖验证"))
+    html = client.get(f"/tasks/{task_id}").get_data(as_text=True)
+    assert "土地覆盖仅部分匹配本次观测" in html
+    assert "1</b> / 2 条观测（50.0%）" in html
+    assert "1</b> 条位于耕地或耕地与自然植被混合背景" in html
+    assert "未匹配的 1 条不参与地表类别判断" in html
+    assert "地表数据尚未覆盖该范围" not in html
+
+
 def test_declared_area_hides_unrelated_fixed_landcover_image(tmp_path, monkeypatch):
     """Available raster evidence must not display an unrelated fixed-area map."""
     app = make(tmp_path)

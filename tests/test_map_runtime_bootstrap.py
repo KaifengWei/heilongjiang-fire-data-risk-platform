@@ -99,14 +99,14 @@ def test_real_product_script_boots_canvas_and_binds_map_actions():
       },
       querySelectorAll(selector) { return actions.get(selector) || []; }
     };
-    const window = {
+    const fakeWindow = {
       FireMapViewport: viewport,
       location: { pathname: '/tasks/runtime-test' },
       addEventListener() {}, dispatchEvent() {}
     };
     const errors = [];
     const environment = {
-      document, window,
+      document, window: fakeWindow,
       console: { error(...parts) { errors.push(parts.map(String).join(' ')); }, log() {} },
       setTimeout() { return 1; }, clearTimeout() {},
       setInterval() { return 1; }, clearInterval() {},
