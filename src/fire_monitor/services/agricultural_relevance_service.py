@@ -62,6 +62,57 @@ def validate_calendar_rules(rows: Any) -> list[dict[str, Any]]:
     return result
 
 
+
+def summarize_agricultural_surface(evidence: dict[str, Any]) -> dict[str, Any]:
+    """Describe actual *matched FIRMS observations*, not field area or fire cause.
+
+    Calendar rules may be absent, but the sampled land-cover classes still
+    provide useful evidence. Keep unknown category counts separate from
+    fire-relatedness labels, which have a different meaning.
+    """
+    total = max(0, int(evidence.get("total_observations") or 0))
+    matched = max(0, min(total, int(evidence.get("land_cover_matched") or 0)))
+    missing = total - matched
+    counts = evidence.get("land_cover_counts")
+    has_classes = isinstance(counts, dict) and bool(counts)
+    farmland = min(
+        matched,
+        max(0, int(counts.get("cropland") or 0)) +
+        max(0, int(counts.get("mosaic") or 0)),
+    ) if has_classes else None
+    other = min(matched - farmland, max(0, int(counts.get("other") or 0))) if has_classes else None
+    rules = max(0, int(evidence.get("calendar_rules_count") or 0))
+    if matched == 0:
+        lead = f"本次 {total:,} 条观测尚无可用土地覆盖匹配，不能据此判断其农业地表背景。"
+    elif farmland is None:
+        lead = f"本次 {total:,} 条观测中有 {matched:,} 条匹配到土地覆盖（{100 * matched / total:.1f}%），其余 {missing:,} 条未匹配；暂无可核验的分类明细。"
+    else:
+        lead = (
+            f"本次 {total:,} 条观测中有 {matched:,} 条获得土地覆盖背景"
+            f"（{100 * matched / total:.1f}%）；其中 {farmland:,} 条位于耕地或耕地与自然植被混合背景"
+            f"（占已匹配观测 {100 * farmland / matched:.1f}%），"
+            f"{other:,} 条为其他地表背景；另有 {missing:,} 条未匹配。"
+        )
+    calendar_note = (
+        f"已配置 {rules} 条有来源的农事时段规则，可与土地覆盖共同分析。"
+        if rules else
+        "当前没有已配置的当地农事时段规则，因此四级相关性标签不能作为秸秆焚烧活动的确认依据。"
+    )
+    return {
+        "available": total > 0,
+        "total": total,
+        "matched": matched,
+        "missing": missing,
+        "matched_percent": round(100 * matched / total, 1) if total else 0.0,
+        "farmland": farmland,
+        "other": other,
+        "farmland_among_matched_percent": round(100 * farmland / matched, 1) if matched and farmland is not None else None,
+        "calendar_rules_count": rules,
+        "headline": lead,
+        "calendar_note": calendar_note,
+    }
+
+
 class AgriculturalRelevanceService:
     def __init__(self, land_cover: LandCoverContextService):
         self.land_cover = land_cover
@@ -200,7 +251,7 @@ class AgriculturalRelevanceService:
 
         total = len(rows)
         matched = total - agriculture_classes["unknown"]
-        return {
+        result = {
             "available": total > 0,
             "rule_id": RULE_ID,
             "rule_version": RULE_VERSION,
@@ -236,3 +287,5 @@ class AgriculturalRelevanceService:
             },
             "examples": examples,
         }
+        result["surface_summary"] = summarize_agricultural_surface(result)
+        return result

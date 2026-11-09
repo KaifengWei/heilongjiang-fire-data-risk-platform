@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ task.name }} - 分析结果</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='product.css', v='release20261106-evidence5') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='product.css', v='release20261109-evidence-batch7') }}">
 </head>
 
 <body class="app-body">
@@ -125,6 +125,7 @@
       </section>
       {% endif %}
 
+      {% if not coordinate_mode %}
       <section class="situation-strip reveal-item">
         <div class="situation-copy">
           <span class="app-eyebrow">SITUATION SUMMARY</span>
@@ -158,6 +159,7 @@
           </article>
         </div>
       </section>
+      {% endif %}
       {% if agricultural_relevance and agricultural_relevance.available %}
       <section class="agriculture-relevance-panel agriculture-relevance-compact reveal-item">
         <div class="agriculture-relevance-heading">
@@ -167,6 +169,7 @@
           </div>
           <small>农业背景线索，与火点活动关注等级分别判断</small>
         </div>
+        {% macro relevance_levels() %}
         <div class="agriculture-relevance-grid" aria-label="相关性等级观测数量">
           {% for label, modifier in [
             ('较高相关','high'), ('可能相关','possible'),
@@ -174,16 +177,37 @@
           ] %}
           <div class="agriculture-relevance-metric is-{{ modifier }}">
             <span>{{ label }}</span>
-            <strong>{{ '{:,}'.format(agricultural_relevance.counts[label]) }}</strong>
+            <strong>{{ '{:,}'.format(agricultural_relevance.counts.get(label, 0)) }}</strong>
           </div>
           {% endfor %}
         </div>
+        {% endmacro %}
+        {% set surface = agricultural_relevance.get('surface_summary') %}
+        {% if coordinate_mode and surface and surface.available %}
+        <div class="agriculture-surface-analysis">
+          <p class="agriculture-surface-lead">{{ surface.headline }}</p>
+          <div class="agriculture-surface-facts" aria-label="实际地表匹配统计">
+            <article><span>已匹配土地覆盖</span><strong>{{ '{:,}'.format(surface.matched) }} <small>条 · {{ '%.1f'|format(surface.matched_percent) }}%</small></strong></article>
+            {% if surface.farmland is not none %}
+            <article><span>耕地及耕地混合背景观测</span><strong>{{ '{:,}'.format(surface.farmland) }} <small>条 · 已匹配中 {{ '%.1f'|format(surface.farmland_among_matched_percent) }}%</small></strong></article>
+            {% endif %}
+            <article><span>尚未匹配土地覆盖</span><strong>{{ '{:,}'.format(surface.missing) }} <small>条</small></strong></article>
+          </div>
+          <p class="agriculture-surface-context">{{ surface.calendar_note }}</p>
+        </div>
+        <details class="agriculture-level-details">
+          <summary>查看四级相关性分类明细（沿用原统计口径）</summary>
+          {{ relevance_levels() }}
+        </details>
+        {% else %}
+          {{ relevance_levels() }}
+        {% endif %}
         <div class="agriculture-relevance-evidence-line">
           <span><b>地表匹配</b> {{ agricultural_relevance.land_cover_matched }} / {{ agricultural_relevance.total_observations }} 条</span>
           <span><b>土地覆盖</b> MCD12Q1 {{ agricultural_relevance.land_cover_year }}</span>
           <span><b>农事规则</b> {{ agricultural_relevance.calendar_rules_count }} 条</span>
         </div>
-        {% if agricultural_region_ranking %}
+        {% if agricultural_region_ranking and (agricultural_region_ranking|length > 1 or not coordinate_mode) %}
         <div class="agriculture-region-heading">
           <div>
             <h3>各地区相关性分布</h3>

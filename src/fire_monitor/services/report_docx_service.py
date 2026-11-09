@@ -717,6 +717,21 @@ def _observation_decision_report(doc: Document, decisions: dict[str, Any] | None
                 ], size=9.75, after=4)
 
 
+def _agricultural_surface_report(doc: Document, evidence: dict[str, Any] | None) -> None:
+    """Carry the same actually matched raster statistics into Word."""
+    summary = (evidence or {}).get("surface_summary") or {}
+    if not summary.get("available"):
+        return
+    _heading(doc, "农业地表背景与覆盖情况")
+    _paragraph(doc, [(str(summary["headline"]), False)])
+    _paragraph(doc, [(str(summary["calendar_note"]), False)])
+    _paragraph(doc, [(
+        "统计对象是本次观测点在土地覆盖栅格上的匹配结果；"
+        "耕地背景观测数量不代表耕地面积或已确认的秸秆焚烧数量。",
+        False,
+    )])
+
+
 def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[str, Any], firms_intelligence: dict[str, Any], historical_baseline: dict[str, Any], land_cover_context: dict[str, Any], priority_land_cover: dict[str, Any] | None, weather_context: dict[str, Any] | None, daily_series: list[dict[str, Any]], agricultural_relevance: dict[str, Any] | None = None, spatial_context: dict[str, Any] | None = None, observation_decisions: dict[str, Any] | None = None) -> bytes:
     doc = Document()
     section = doc.sections[0]
@@ -775,6 +790,7 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
     _summary_table(doc, analysis_summary, historical_baseline, firms_intelligence)
     if analysis_summary.get("area_mode") == "coordinates_only":
         _observation_decision_report(doc, observation_decisions)
+        _agricultural_surface_report(doc, agricultural_relevance)
     if analysis_summary.get("area_mode") == "coordinates_only" and (
         spatial_context or {}
     ).get("top_grids"):
@@ -921,6 +937,7 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
         _paragraph(doc, land)
 
     if (agricultural_relevance and agricultural_relevance.get("available")
+            and not agricultural_relevance.get("surface_summary")
             and not (spatial_context or {}).get("top_grids")):
         # With spatial data, per-grid actions already provide the next step.
         # Keep this fallback only for reports without a location checklist.
