@@ -188,7 +188,7 @@
           <p class="agriculture-surface-lead">{{ surface.headline }}</p>
           <div class="agriculture-surface-facts" aria-label="实际地表匹配统计">
             <article><span>已匹配土地覆盖</span><strong>{{ '{:,}'.format(surface.matched) }} <small>条 · {{ '%.1f'|format(surface.matched_percent) }}%</small></strong></article>
-            {% if surface.farmland is not none %}
+            {% if surface.farmland is not none and surface.matched > 0 %}
             <article><span>耕地及耕地混合背景观测</span><strong>{{ '{:,}'.format(surface.farmland) }} <small>条 · 已匹配中 {{ '%.1f'|format(surface.farmland_among_matched_percent) }}%</small></strong></article>
             {% endif %}
             <article><span>尚未匹配土地覆盖</span><strong>{{ '{:,}'.format(surface.missing) }} <small>条</small></strong></article>

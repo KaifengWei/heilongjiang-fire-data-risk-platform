@@ -85,6 +85,7 @@ def test_coordinate_result_is_compact_and_word_uses_same_surface_numbers(tmp_pat
     assert "尚未匹配土地覆盖" in html
     assert "查看四级相关性分类明细" in html
     assert "当前情况与建议" in html
+    assert "本次态势摘要" not in html
     # A single user-declared area has no meaningful multi-region ranking.
     assert "各地区相关性分布" not in html
 
@@ -93,6 +94,7 @@ def test_coordinate_result_is_compact_and_word_uses_same_surface_numbers(tmp_pat
     doc = Document(BytesIO(exported.data))
     text = "\n".join(p.text for p in doc.paragraphs)
     assert "农业地表背景与覆盖情况" in text
+    assert "本次重点" not in text
     assert "本次 2 条观测中有 1 条获得土地覆盖背景" in text
     assert "另有 1 条未匹配" in text
     assert "没有已配置的当地农事时段规则" in text

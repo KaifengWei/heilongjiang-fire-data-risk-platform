@@ -791,9 +791,9 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
     if analysis_summary.get("area_mode") == "coordinates_only":
         _observation_decision_report(doc, observation_decisions)
         _agricultural_surface_report(doc, agricultural_relevance)
-    if analysis_summary.get("area_mode") == "coordinates_only" and (
-        spatial_context or {}
-    ).get("top_grids"):
+    if (analysis_summary.get("area_mode") == "coordinates_only"
+            and not (observation_decisions or {}).get("available")
+            and (spatial_context or {}).get("top_grids")):
         top = spatial_context["top_grids"][0]
         fw, fs, fe, fn = top["bbox"]
         _heading(doc, "本次重点")
