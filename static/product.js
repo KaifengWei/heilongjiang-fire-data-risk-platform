@@ -892,7 +892,7 @@
     }
 
     // Initialize global map actions once, not on each region switch.
-    $('[data-map-theme]').forEach(button => {
+    $$('[data-map-theme]').forEach(button => {
       button.addEventListener('click', () => {
         const theme = button.getAttribute('data-map-theme') || 'fire';
 
@@ -914,7 +914,7 @@
       });
     });
 
-    $('[data-map-reset]').forEach(button => {
+    $$('[data-map-reset]').forEach(button => {
       button.addEventListener('click', () => {
         focusPoint = null;
         selectRegion('');
@@ -1698,7 +1698,7 @@
       });
     });
 
-    $('[data-map-date]').forEach(button => {
+    $$('[data-map-date]').forEach(button => {
       button.addEventListener('click', () => {
         stopPlayback();
 
@@ -1778,7 +1778,8 @@
     });
   }
 
-  initTaskMapWorkspace().catch(() => {
+  initTaskMapWorkspace().catch(error => {
+    console.error('FIRMS map workspace initialization failed:', error);
     const loadingChip = $('#mapLoadingChip');
 
     if (loadingChip) {

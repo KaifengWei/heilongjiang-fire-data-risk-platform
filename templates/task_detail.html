@@ -841,7 +841,7 @@
 {% include '_record_manage_modal.html' %}
 {% include '_help_modal.html' %}
 <script src="{{ url_for('static', filename='map_viewport.js', v='release20261105b') }}"></script>
-<script src="{{ url_for('static', filename='product.js', v='release20261106-evidence5') }}"></script>
+<script src="{{ url_for('static', filename='product.js', v='release20261109-mapboot6') }}"></script>
 {% if not coordinate_mode and (not task.parameters.selected_regions or not (task.parameters.selected_regions|rejectattr('source','equalto','builtin')|list)) %}
 <script src="{{ url_for('static', filename='county_drilldown.js') }}"></script>
 {% endif %}
