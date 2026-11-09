@@ -70,7 +70,8 @@ def test_report_contains_real_geojson_matched_province_and_png(tmp_path):
     assert "以实测点坐标定位高分辨率影像" in spatial_cells
     assert "农业线索" not in spatial_cells
     assert "证据不足" not in spatial_cells
-    assert "本次重点" in text
+    assert "本次观测形成的主要结论" in text
+    assert "本次重点" not in text
     assert "农业地表核查建议" not in text
     assert "图1 本次火点空间分布" in text
     assert "地图数字 1～5 对应下方统计网格中心" in text
