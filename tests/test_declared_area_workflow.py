@@ -38,7 +38,16 @@ def test_no_polygon_still_analyzes_all_csv_points(tmp_path, monkeypatch):
     assert len(rows) == 2
     assert {x["region_name"] for x in rows} == {"用户关注区域"}
     html = client.get(f"/tasks/{task}").get_data(as_text=True)
-    assert "地表数据尚未覆盖该范围" in html
+    matched = app.extensions["agricultural_relevance_service"].analyze(
+        rows
+    )["land_cover_matched"]
+    complete = app.extensions["land_cover_context_service"].analyze(rows)
+    if complete.get("available"):
+        assert "地表来源：MCD12Q1" in html
+    elif matched:
+        assert "土地覆盖仅部分匹配本次观测" in html
+    else:
+        assert "地表数据尚未覆盖该范围" in html
     assert 'id="mapZoomIn"' in html
     assert 'id="mapZoomOut"' in html
     assert "map_viewport.js?v=release20261105b" in html

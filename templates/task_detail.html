@@ -97,11 +97,12 @@
           {% elif agricultural_relevance and agricultural_relevance.land_cover_matched|default(0) > 0 %}
           {% set matched = agricultural_relevance.land_cover_matched %}
           {% set total = agricultural_relevance.total_observations %}
-          {% set cropland = agricultural_relevance.land_cover_counts.get('cropland', 0) + agricultural_relevance.land_cover_counts.get('mosaic', 0) %}
-          {% set other_surface = agricultural_relevance.land_cover_counts.get('other', 0) %}
+          {% set land_counts = agricultural_relevance.get('land_cover_counts') or {} %}
+          {% set cropland = land_counts.get('cropland', 0) + land_counts.get('mosaic', 0) %}
+          {% set other_surface = land_counts.get('other', 0) %}
           <h3>土地覆盖仅部分匹配本次观测</h3>
           <p>现有 MCD12Q1 {{ agricultural_relevance.land_cover_year }} 土地覆盖数据已匹配 <b>{{ '{:,}'.format(matched) }}</b> / {{ '{:,}'.format(total) }} 条观测（{{ '%.1f'|format(100 * matched / total if total else 0) }}%）。
-          其中 <b>{{ '{:,}'.format(cropland) }}</b> 条位于耕地或耕地与自然植被混合背景，<b>{{ '{:,}'.format(other_surface) }}</b> 条位于其他地表背景。
+          {% if land_counts %}其中 <b>{{ '{:,}'.format(cropland) }}</b> 条位于耕地或耕地与自然植被混合背景，<b>{{ '{:,}'.format(other_surface) }}</b> 条位于其他地表背景。{% endif %}
           未匹配的 {{ '{:,}'.format(total - matched) }} 条不参与地表类别判断；已匹配部分仍可用于下方网格的观测点分类对照。</p>
           <small>分类条数只代表已匹配的火点观测，不代表整个分析范围的土地面积比例。</small>
           {% else %}
