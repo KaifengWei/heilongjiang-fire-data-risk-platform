@@ -67,11 +67,20 @@ def build_joint_historical_evidence(
     peak = weather.get("peak_day") or {}
     peak_date = _valid_date(peak.get("date"))
     if peak_date:
-        top = next(
+        daily_row = next(
             (row for row in rows if _valid_date(row.get("date")) == peak_date),
-            {"date": peak_date, "fire_count": peak.get("fire_count", 0)},
+            None,
         )
+        top = daily_row if daily_row is not None else {
+            "date": peak_date, "fire_count": peak.get("fire_count", 0),
+        }
         peak_number = _number(peak.get("fire_count"))
+        if (
+            daily_row is not None and peak_number is not None
+            and int(_number(daily_row.get("fire_count")) or 0) != int(peak_number)
+        ):
+            # Contradictory counts must not produce a polished but false conclusion.
+            return {"available": False, "reason": "inconsistent_daily_fire_counts"}
         daily_count = int(peak_number) if peak_number is not None else int(
             _number(top.get("fire_count")) or 0
         )
