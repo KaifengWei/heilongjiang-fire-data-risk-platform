@@ -5935,3 +5935,60 @@ body.home-body .home-orbit-visual .home-orbit-image-frame::after {
   .agriculture-surface-analysis { padding: 14px; }
   .agriculture-surface-facts { grid-template-columns: 1fr; }
 }
+
+
+/* JOINT HISTORICAL EVIDENCE: same observations, sample weather and land cover. */
+.weather-joint-evidence {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 18px 23px 20px;
+  border-top: 1px solid #dce9ee;
+  background: #f9fcfd;
+}
+.weather-joint-evidence h3 {
+  margin: 0;
+  color: #17475e;
+  font-size: 18px;
+  line-height: 1.45;
+}
+.weather-joint-evidence .weather-joint-explanation {
+  margin: 5px 0 13px;
+  color: #657f8a;
+  font-size: 12px;
+  line-height: 1.75;
+}
+.weather-joint-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(min(100%,295px),1fr));
+  gap: 11px;
+}
+.weather-joint-grid article {
+  border: 1px solid #dce9ee;
+  border-radius: 11px;
+  padding: 14px 16px;
+  background: #fff;
+  min-width: 0;
+}
+.weather-joint-grid h4 {
+  margin: 0 0 8px;
+  color: #205c75;
+  font-size: 14px;
+  font-weight: 750;
+}
+.weather-joint-grid p {
+  margin: 0;
+  color: #365e70;
+  font-size: 13px;
+  line-height: 1.85;
+  overflow-wrap: break-word;
+}
+.weather-joint-evidence .weather-joint-note {
+  margin: 11px 0 0;
+  color: #728995;
+  font-size: 12px;
+  line-height: 1.6;
+}
+@media (max-width: 720px) {
+  .weather-joint-evidence { padding: 15px 14px; }
+  .weather-joint-grid { grid-template-columns: 1fr; }
+}

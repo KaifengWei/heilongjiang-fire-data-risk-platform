@@ -376,8 +376,48 @@
       </article>
     `;
 
+    renderJointEvidence(data);
     renderDailyComparison(data);
     revealReady();
+  }
+
+  function renderJointEvidence(data) {
+    const result = data && data.joint_evidence;
+    if (!result || !result.available || !cards || !Array.isArray(result.blocks)) return;
+    const blocks = result.blocks.filter(block =>
+      block && typeof block.title === 'string' && typeof block.text === 'string'
+      && block.title && block.text
+    );
+    if (!blocks.length) return;
+    const section = document.createElement('section');
+    section.className = 'weather-joint-evidence';
+    const heading = document.createElement('h3');
+    heading.textContent = '火点、天气与地表证据对照';
+    const explanation = document.createElement('p');
+    explanation.className = 'weather-joint-explanation';
+    explanation.textContent = '把同一任务的观测日期、气象代表点与已有土地覆盖匹配放在一起比较';
+    const list = document.createElement('div');
+    list.className = 'weather-joint-grid';
+    blocks.forEach(block => {
+      const article = document.createElement('article');
+      const title = document.createElement('h4');
+      const body = document.createElement('p');
+      title.textContent = block.title;
+      body.textContent = block.text;
+      article.appendChild(title);
+      article.appendChild(body);
+      list.appendChild(article);
+    });
+    section.appendChild(heading);
+    section.appendChild(explanation);
+    section.appendChild(list);
+    if (typeof result.note === 'string' && result.note) {
+      const note = document.createElement('p');
+      note.className = 'weather-joint-note';
+      note.textContent = result.note;
+      section.appendChild(note);
+    }
+    cards.appendChild(section);
   }
 
   function renderDailyComparison(data) {

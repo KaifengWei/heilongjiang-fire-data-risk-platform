@@ -62,6 +62,9 @@ from fire_monitor.services.gfs_weather_context_service import (
 from fire_monitor.services.historical_weather_context_service import (
     HistoricalWeatherContextService,
 )
+from fire_monitor.services.weather_observation_synthesis_service import (
+    build_joint_historical_evidence,
+)
 from fire_monitor.services.risk_assessment_service import (
     RiskAssessmentService,
 )
@@ -1438,6 +1441,19 @@ def create_app(
                 result = historical_weather_context_service.analyze_coordinate_task(
                     task_id=task_id, rows=rows,
                 )
+                if result.get("available"):
+                    agriculture = agricultural_relevance_service.analyze(
+                        rows,
+                        calendar_rules=(task.get("parameters") or {}).get(
+                            "agricultural_calendar_rules"
+                        ) or [],
+                    )
+                    decisions = build_observation_decisions(
+                        rows, agricultural_relevance=agriculture,
+                    )
+                    result["joint_evidence"] = build_joint_historical_evidence(
+                        result, decisions,
+                    )
             return jsonify(result)
         result = (
             weather_context_service
@@ -2115,6 +2131,13 @@ def create_app(
                         county_context_service
                     ),
                 )
+            )
+
+        if ((task.get("parameters") or {}).get("area_mode") == "coordinates_only"
+                and weather_context.get("available")
+                and weather_context.get("mode") == "historical"):
+            weather_context["joint_evidence"] = build_joint_historical_evidence(
+                weather_context, observation_decisions,
             )
 
         # Spatial report is calculated at export time from this task's

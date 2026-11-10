@@ -416,7 +416,7 @@ def _weather_paragraphs(weather_context: dict[str, Any] | None) -> list[list[tup
             ("，日均降水约 ", False), (f"{rain:.1f} mm" if rain is not None else "—", True), ("。", False),
         ])
         peak = weather_context.get("peak_day") or {}
-        if peak.get("date"):
+        if peak.get("date") and not (weather_context.get("joint_evidence") or {}).get("available"):
             result.append([("火点增多日 ", False), (str(peak.get("date")), True), (" 的天气表现为：", False), (str(peak.get("summary") or "天气条件接近任务期平均"), True)])
         daily = weather_context.get("daily_comparison") or []
         # Select other high-observation dates instead of repeating the peak day.
@@ -469,6 +469,29 @@ def _weather_paragraphs(weather_context: dict[str, Any] | None) -> list[list[tup
             pieces += [("重点查看 ", False), ("、".join(counties), True), ("。", False)]
         result.append(pieces)
     return result
+
+
+def _joint_weather_evidence_report(
+    doc: Document, weather_context: dict[str, Any] | None,
+) -> None:
+    """Export the same location/date/land evidence shown in the weather panel."""
+    synthesis = (weather_context or {}).get("joint_evidence") or {}
+    if not synthesis.get("available"):
+        return
+    blocks = synthesis.get("blocks") or []
+    if not isinstance(blocks, list) or not blocks:
+        return
+    _heading(doc, "火点、天气与地表证据对照")
+    for block in blocks:
+        if not isinstance(block, dict):
+            continue
+        title = str(block.get("title") or "").strip()
+        body = str(block.get("text") or "").strip()
+        if title and body:
+            _paragraph(doc, [(title + "：", True), (body, False)])
+    note = str(synthesis.get("note") or "").strip()
+    if note:
+        _paragraph(doc, [(note, False)], size=9.5, after=6)
 
 
 def _historical_weather_daily_table(doc: Document, weather_context: dict[str, Any]) -> None:
@@ -978,6 +1001,7 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
         _heading(doc, "天气情况")
         for block in weather_blocks:
             _paragraph(doc, block)
+        _joint_weather_evidence_report(doc, weather_context)
         _historical_weather_daily_table(doc, weather_context or {})
 
     # Coordinate-task next steps are now present in the three-column
