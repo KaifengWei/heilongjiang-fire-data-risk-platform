@@ -62,12 +62,26 @@ def build_joint_historical_evidence(
     if not rows:
         return {"available": False}
 
-    top = sorted(
-        rows, key=lambda row: (-int(_number(row["fire_count"]) or 0), str(row["date"]))
-    )[0]
+    # The task's actual peak day is authoritative. POWER may omit a weather
+    # date; never substitute the top count from the weather-covered subset.
+    peak = weather.get("peak_day") or {}
+    peak_date = _valid_date(peak.get("date"))
+    if peak_date:
+        top = next(
+            (row for row in rows if _valid_date(row.get("date")) == peak_date),
+            {"date": peak_date, "fire_count": peak.get("fire_count", 0)},
+        )
+        peak_number = _number(peak.get("fire_count"))
+        daily_count = int(peak_number) if peak_number is not None else int(
+            _number(top.get("fire_count")) or 0
+        )
+    else:
+        top = sorted(
+            rows, key=lambda row: (-int(_number(row["fire_count"]) or 0), str(row["date"]))
+        )[0]
+        daily_count = int(_number(top["fire_count"]) or 0)
     day = _valid_date(top["date"])
-    daily_count = int(_number(top["fire_count"]) or 0)
-    if not daily_count:
+    if daily_count <= 0:
         return {"available": False}
     period = (weather.get("period") or {}).get("metrics") or {}
     comparisons = []

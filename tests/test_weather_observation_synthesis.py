@@ -91,6 +91,18 @@ def test_missing_metrics_and_nonmatching_sample_do_not_fabricate_joint_land_cont
     assert not build_joint_historical_evidence(weather)["available"]
 
 
+def test_missing_peak_weather_does_not_relabel_task_peak():
+    weather = _weather()
+    weather["daily_comparison"] = [weather["daily_comparison"][1]]
+    result = build_joint_historical_evidence(weather, _decisions())
+    assert result["available"]
+    assert result["peak_date"] == "2026-04-01"
+    assert result["peak_count"] == 2
+    assert "2026-04-01 共记录 2 条" in result["blocks"][0]["text"]
+    assert "该日缺少可比的气象指标" in result["blocks"][0]["text"]
+    assert "2026-04-02 共记录" not in result["blocks"][0]["text"]
+
+
 def test_historical_api_and_word_export_share_joint_evidence(tmp_path, monkeypatch):
     app = create_app(
         database_path=tmp_path / "fire.sqlite",
