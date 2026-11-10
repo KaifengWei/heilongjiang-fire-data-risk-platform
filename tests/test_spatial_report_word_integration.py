@@ -148,12 +148,17 @@ def test_month_long_firms_word_has_substantive_task_specific_evidence(tmp_path):
     assert "优先核查位置与建议" in body
     assert "任务期分段观测变化" in body
     assert "火点热辐射功率与高值观测" in body
+    assert "任务期火点观测走势" in body
+    assert "图2 任务期火点观测数量变化" in body
+    assert "按日显示，包含无火点观测的日期" in body
+    assert "28 / 30 天" not in body  # every calendar day has measured rows
+    assert "30 / 30 天" in body
     assert "第 90 百分位" in body
     assert "实际" not in body or "实测点" in tables
     assert "观测依据" in tables
     assert "观测数" in tables
     assert "具体核查事项" in tables
-    assert len(document.inline_shapes) >= 1
+    assert len(document.inline_shapes) >= 2  # spatial map + full-month daily chart
     # The older report was only a few hundred characters. This gate
     # measures actual structured evidence, not generated filler text.
     assert len(combined.strip()) >= 1200, len(combined.strip())

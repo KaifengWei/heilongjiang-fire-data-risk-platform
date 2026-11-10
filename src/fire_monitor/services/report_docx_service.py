@@ -14,6 +14,11 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
+from fire_monitor.services.report_timeline_service import (
+    prepare_fire_timeline,
+    render_fire_timeline_png,
+)
+
 
 BLACK = RGBColor(0, 0, 0)
 BORDER = "D9D9D9"
@@ -937,13 +942,52 @@ def build_analysis_report_docx(*, task: dict[str, Any], analysis_summary: dict[s
 
     _heading(doc, "时间变化")
     _paragraph(doc, _time_paragraph(firms_intelligence))
-    top_dates = sorted(daily_series, key=lambda row: int(row.get("active_fire_observation_count") or 0), reverse=True)[:5]
-    top_date_rows = [(str(row.get("date") or "—"), int(row.get("active_fire_observation_count") or 0)) for row in top_dates]
-    if top_date_rows:
-        _visual_bar_table(
-            doc, top_date_rows, f"图{figure_number} 火点高值日期对比",
+    timeline = prepare_fire_timeline(
+        daily_series, str(analysis_summary.get("period") or ""),
+    )
+    if timeline and timeline["span_days"] >= 14:
+        _heading(doc, "任务期火点观测走势")
+        picture = doc.add_paragraph()
+        picture.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        picture.paragraph_format.keep_with_next = True
+        picture.paragraph_format.keep_together = True
+        picture.add_run().add_picture(
+            BytesIO(render_fire_timeline_png(timeline)), width=Cm(16.4),
         )
+        period_label = (
+            "按日显示，包含无火点观测的日期"
+            if timeline["group_days"] == 1 else
+            f"每柱为连续 {timeline['group_days']} 个自然日的火点观测合计，末柱按实际剩余日数计算"
+        )
+        _paragraph(doc, [
+            (f"图{figure_number} 任务期火点观测数量变化。", True),
+            (f"{period_label}；统计范围 "
+             f"{timeline['start']} 至 {timeline['end']}；"
+             f"总观测 {_fmt_int(timeline['total'])} 条。", False),
+        ], size=9.5, after=6)
         figure_number += 1
+        _paragraph(doc, [
+            ("有火点观测的日期：", True),
+            (f"{timeline['active_days']} / {timeline['span_days']} 天；", False),
+            ("最多日期：", True),
+            (f"{timeline['peak_date']}（{_fmt_int(timeline['peak_count'])} 条）。", False),
+        ], size=10, after=6)
+    else:
+        top_dates = sorted(
+            daily_series,
+            key=lambda row: int(row.get("active_fire_observation_count") or 0),
+            reverse=True,
+        )[:5]
+        top_date_rows = [
+            (str(row.get("date") or "—"),
+             int(row.get("active_fire_observation_count") or 0))
+            for row in top_dates
+        ]
+        if top_date_rows:
+            _visual_bar_table(
+                doc, top_date_rows, f"图{figure_number} 火点高值日期对比",
+            )
+            figure_number += 1
 
     if spatial_context and spatial_context.get("diagnostics"):
         _observation_detail_tables(doc, spatial_context)
