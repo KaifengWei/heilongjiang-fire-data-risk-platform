@@ -165,7 +165,11 @@ def test_historical_api_and_word_export_share_joint_evidence(tmp_path, monkeypat
     data = api.get_json()
     joint = data["joint_evidence"]
     assert joint["available"]
-    assert len(joint["blocks"]) == 3
+    assert len(joint["blocks"]) == 4
+    assert any(
+        block["title"] == "高值日主要位置与天气取样位置"
+        for block in joint["blocks"]
+    )
 
     report = client.get(f"/tasks/{task_id}/report.docx")
     assert report.status_code == 200
