@@ -137,6 +137,38 @@ def build_joint_historical_evidence(
             )
         blocks.append({"title": "气象取样点与重点网格", "text": location})
 
+    # The busiest *day's* leading cell can differ from the cumulative cell.
+    # Comparing weather at a cumulative hotspot to a daily burst elsewhere
+    # must not imply that the sample represents the daily leading location.
+    temporal = (decisions or {}).get("temporal") or {}
+    daily_focus = temporal.get("peak_focus") or {}
+    day_bounds = daily_focus.get("bbox") or []
+    if (
+        lon is not None and lat is not None
+        and len(day_bounds) == 4
+        and all(_number(value) is not None for value in day_bounds)
+    ):
+        in_daily_cell = (
+            float(day_bounds[0]) <= lon < float(day_bounds[2])
+            and float(day_bounds[1]) <= lat < float(day_bounds[3])
+        )
+        local_count = max(0, int(_number(daily_focus.get("count")) or 0))
+        if local_count:
+            local_share = 100 * local_count / daily_count
+            relationship = (
+                "气象代表点位于这一网格，但仅代表其取样位置。"
+                if in_daily_cell else
+                "该网格与气象代表点所在网格不同，取样点天气不能代表当天最集中位置。"
+            )
+            blocks.append({
+                "title": "高值日主要位置与天气取样位置",
+                "text": (
+                    f"{day} 当日观测最多的 0.25° 网格记录 "
+                    f"{local_count:,} 条，占当天 {local_share:.1f}%；"
+                    + relationship
+                ),
+            })
+
     grid = ((decisions or {}).get("top_grid_comparison") or [])
     first = grid[0] if grid else {}
     land_match = int(first.get("surface_matched") or 0)

@@ -103,6 +103,27 @@ def test_missing_peak_weather_does_not_relabel_task_peak():
     assert "2026-04-02 共记录" not in result["blocks"][0]["text"]
 
 
+def test_daily_peak_grid_is_not_confused_with_weather_sample_cell():
+    decisions = _decisions()
+    decisions["temporal"] = {"peak_focus": {
+        "bbox": [125.0, 45.5, 125.25, 45.75],
+        "count": 1,
+    }}
+    result = build_joint_historical_evidence(_weather(), decisions)
+    assert result["available"]
+    titled = {block["title"]: block["text"] for block in result["blocks"]}
+    assert "高值日主要位置与天气取样位置" in titled
+    text = titled["高值日主要位置与天气取样位置"]
+    assert "当日观测最多的 0.25° 网格记录 1 条，占当天 50.0%" in text
+    assert "气象代表点所在网格不同" in text
+
+    decisions["temporal"]["peak_focus"]["bbox"] = [124.0, 45.5, 124.25, 45.75]
+    same = build_joint_historical_evidence(_weather(), decisions)
+    assert "气象代表点位于这一网格" in {
+        block["title"]: block["text"] for block in same["blocks"]
+    }["高值日主要位置与天气取样位置"]
+
+
 def test_historical_api_and_word_export_share_joint_evidence(tmp_path, monkeypatch):
     app = create_app(
         database_path=tmp_path / "fire.sqlite",
