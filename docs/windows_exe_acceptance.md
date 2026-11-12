@@ -13,6 +13,8 @@ conda activate fire-monitor
 powershell -ExecutionPolicy Bypass -File ".\scripts\build_and_check_exe.ps1" -CoverSource "D:\实际路径\home_earth_orbit.webp"
 ```
 
+**集成交付版本请优先执行** `Set-ExecutionPolicy -Scope Process Bypass -Force`，然后直接在已激活 `(fire-monitor)` 的 PowerShell 中运行 `& .\scripts\finalize_windows_delivery.ps1`。不要用 `powershell -File` 启动新 PowerShell 进程，因为 Git 和 Conda 可能仅在当前会话中以函数方式存在，子进程无法继承。正式交付脚本也会在当前会话内直接调用构建脚本。
+
 若图片已经在 `static/images` 下，则省略 `-CoverSource`。脚本执行 Python 全量测试、JavaScript 语法检查（有 Node.js 时）、PyInstaller 打包，并通过 `scripts/verify_windows_bundle.py` 核查首页图片、页面模板、地图静态资源、GDAL/PROJ/GEOS 运行组件。任一必需文件缺失即终止交付。
 
 原有分析记录、CSV 和地图继续使用 Windows 用户数据目录 `%LOCALAPPDATA%\HeilongjiangFireMonitor`。数据库位于 `runtime\fire_monitor.sqlite`，上传文件位于 `uploads`，地图位于 `runtime\map_background\reference_basemap.json`。重新打包只更新项目中的 `dist`；**不要清理用户数据目录**。

@@ -10,7 +10,7 @@ $appDir = Join-Path $root ("dist\" + $name)
 $exe = Join-Path $appDir ($name + ".exe")
 Push-Location $root
 try {
-  if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw "Git command unavailable." }
+  if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw "Git is unavailable in this PowerShell process. Run the script using & from the original activated (fire-monitor) PowerShell prompt, not powershell -File." }
   $branch = (& git branch --show-current).Trim()
   if ($LASTEXITCODE -ne 0 -or $branch -ne $branchExpected) { throw "Expected branch: $branchExpected; found: $branch" }
   & git diff --quiet
@@ -25,10 +25,14 @@ try {
   }
 
   Write-Host "[1/4] Run all tests, build EXE, verify bundle and frozen workflow"
-  $buildArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
-                 (Join-Path $root "scripts\build_and_check_exe.ps1"))
-  if ($CoverSource.Trim()) { $buildArgs += @("-CoverSource", $CoverSource) }
-  & powershell.exe @buildArgs
+  # Keep the activated Anaconda PowerShell session: Git and Conda may be
+  # functions/aliases, not executables inherited by a new powershell.exe.
+  $buildScript = Join-Path $root "scripts\build_and_check_exe.ps1"
+  if ($CoverSource.Trim()) {
+    & $buildScript -CoverSource $CoverSource
+  } else {
+    & $buildScript
+  }
   if ($LASTEXITCODE -ne 0) { throw "Build or EXE smoke test failed; no release ZIP created." }
   if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw "EXE missing: $exe" }
 

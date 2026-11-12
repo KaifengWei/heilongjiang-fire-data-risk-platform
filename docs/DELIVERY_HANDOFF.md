@@ -24,9 +24,10 @@
     git fetch origin
     git merge --ff-only origin/feature/regional-ui-consolidation-v1
     git rev-list --left-right --count HEAD...origin/feature/regional-ui-consolidation-v1
-    powershell -ExecutionPolicy Bypass -File ".\scripts\finalize_windows_delivery.ps1"
+    Set-ExecutionPolicy -Scope Process Bypass -Force
+    & ".\scripts\finalize_windows_delivery.ps1"
 
-同步完成后第三条应输出 0 0。发生冲突时停止处理，不使用 reset --hard 或 git clean。
+同步完成后第三条应输出 0 0。必须在当前已激活的 Anaconda PowerShell 会话内使用 `&` 直接调用脚本，不要再用 `powershell -File` 创建新子窗口；新进程可能无法继承该会话的 Git、Conda 命令或函数。`Set-ExecutionPolicy -Scope Process Bypass` 只对当前会话有效。发生冲突时停止处理，不使用 reset --hard 或 git clean。
 当首页 WebP 不在 static/images/home_earth_orbit.webp 时，可传入 -CoverSource 和实际图片路径。
 
 交付脚本先运行完整源码回归测试、JavaScript 语法检查、PyInstaller 打包、运行资源核验及最新 EXE 本体的独立无界面自检。只有这些步骤都通过，才会生成以下文件：
