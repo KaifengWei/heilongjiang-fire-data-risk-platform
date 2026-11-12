@@ -34,5 +34,20 @@ jobs:
           node --check static/home.js
           node --check static/weather_context.js
 
+      - name: Check Windows delivery PowerShell syntax
+        shell: pwsh
+        run: |
+          foreach ($path in @("scripts/build_and_check_exe.ps1", "scripts/finalize_windows_delivery.ps1")) {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $path).Path, [ref] $tokens, [ref] $parseErrors
+            ) | Out-Null
+            if ($parseErrors.Count -gt 0) {
+              $parseErrors | ForEach-Object { Write-Error $_.Message }
+              throw "PowerShell syntax errors found: $path"
+            }
+          }
+
       - name: Run unit tests
         run: conda run -n fire-monitor python -m pytest -q
