@@ -38,6 +38,18 @@
 
 发布或复制时必须保留整个目录及 _internal，不能只复制 EXE。
 
+## 已成功构建 EXE 后恢复 ZIP 封装
+
+如果旧版交付脚本因中文程序名解码错误，导致 `EXE missing`，但日志中已经包含 `Build verified:` 和 `Windows EXE core self-test verified:`，**不需要重新运行 PyInstaller**。先同步修复后的脚本，再在同一个激活的 Anaconda PowerShell 会话中执行：
+
+~~~powershell
+Set-ExecutionPolicy -Scope Process Bypass -Force
+& ".\scripts\finalize_windows_delivery.ps1" -PackageOnly -BuiltCommit "19980a8"
+~~~
+
+恢复模式要求现有 `dist` EXE 完整，并核对实际构建源码提交与当前提交之间只更改了交付脚本、交付文档及交付编码测试；若修改过业务代码，拒绝复用旧 EXE。恢复模式重新运行包内资源检查与 EXE 本体自检，通过后再生成 ZIP 和 SHA256。ZIP 清楚标注 EXE 实际构建提交与当前封装脚本提交，避免混淆。
+
+
 ## 集中验收清单（同一次构建执行）
 
 - [ ] 启动 EXE，首页与功能栏正常，退出重启后历史分析记录仍在。

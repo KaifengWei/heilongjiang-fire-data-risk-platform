@@ -1,4 +1,8 @@
-param([string] $CoverSource = "")
+﻿param(
+  [string] $CoverSource = "",
+  [switch] $PackageOnly,
+  [string] $BuiltCommit = ""
+)
 # Full Windows delivery: run existing checks, package complete onedir, hash.
 # Never touch persisted %LOCALAPPDATA% user records or uploaded data.
 Set-StrictMode -Version Latest
@@ -24,17 +28,59 @@ try {
     throw "Local source is not at fetched remote HEAD. Fetch and fast-forward first."
   }
 
-  Write-Host "[1/4] Run all tests, build EXE, verify bundle and frozen workflow"
-  # Keep the activated Anaconda PowerShell session: Git and Conda may be
-  # functions/aliases, not executables inherited by a new powershell.exe.
-  $buildScript = Join-Path $root "scripts\build_and_check_exe.ps1"
-  if ($CoverSource.Trim()) {
-    & $buildScript -CoverSource $CoverSource
+  $builtSourceCommit = $head
+  if ($PackageOnly) {
+    # Reuse an EXE that has already passed the frozen workflow.  Only
+    # release scripts/docs may differ between that build and current HEAD.
+    if ($CoverSource.Trim()) { throw "-CoverSource cannot be used with -PackageOnly." }
+    if (-not $BuiltCommit.Trim()) {
+      throw "-PackageOnly requires -BuiltCommit <commit of the successful EXE build>."
+    }
+    $resolved = & git rev-parse --verify $BuiltCommit
+    if ($LASTEXITCODE -ne 0 -or -not $resolved) {
+      throw "Unrecognized -BuiltCommit: $BuiltCommit"
+    }
+    $builtSourceCommit = ($resolved | Select-Object -First 1).Trim()
+    & git merge-base --is-ancestor $builtSourceCommit $head
+    if ($LASTEXITCODE -ne 0) {
+      throw "The built commit must be an ancestor of the current branch."
+    }
+    $changes = @(& git diff --name-only $builtSourceCommit $head)
+    if ($LASTEXITCODE -ne 0) { throw "Cannot compare built and delivery source." }
+    $allowed = @(
+      "scripts/finalize_windows_delivery.ps1",
+      "docs/DELIVERY_HANDOFF.md",
+      "docs/windows_exe_acceptance.md",
+      "tests/test_delivery_script_encoding.py"
+    )
+    foreach ($changedFile in $changes) {
+      if ($allowed -notcontains $changedFile) {
+        throw "The application source changed since the EXE was built ($changedFile); rebuild rather than package an outdated binary."
+      }
+    }
+    Write-Host "[1/4] Recheck previously built EXE: $builtSourceCommit"
+    if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) {
+      throw "Previously built EXE does not exist: $exe"
+    }
+    if (-not (Get-Command conda -ErrorAction SilentlyContinue)) {
+      throw "Conda is required to verify the existing EXE."
+    }
+    & conda run --no-capture-output -n fire-monitor python scripts/verify_windows_bundle.py --app-dir $appDir
+    if ($LASTEXITCODE -ne 0) { throw "Existing EXE bundle resource check failed." }
+    & conda run --no-capture-output -n fire-monitor python scripts/check_frozen_exe.py --app-dir $appDir
+    if ($LASTEXITCODE -ne 0) { throw "Existing EXE failed the frozen workflow smoke test." }
   } else {
-    & $buildScript
+    Write-Host "[1/4] Run all tests, build EXE, verify bundle and frozen workflow"
+    # Git and Conda may be functions only present in the activated shell.
+    $buildScript = Join-Path $root "scripts\build_and_check_exe.ps1"
+    if ($CoverSource.Trim()) {
+      & $buildScript -CoverSource $CoverSource
+    } else {
+      & $buildScript
+    }
+    if ($LASTEXITCODE -ne 0) { throw "Build or EXE smoke test failed; no release ZIP created." }
+    if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw "EXE missing: $exe" }
   }
-  if ($LASTEXITCODE -ne 0) { throw "Build or EXE smoke test failed; no release ZIP created." }
-  if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw "EXE missing: $exe" }
 
   Write-Host "[2/4] Write included usage guide"
   $guide = @"
@@ -46,7 +92,8 @@ Modules: FIRMS CSV, map zoom and filtering, grid/time analyses, land cover,
 historical/forecast weather, Word reports.
 Code tests + frozen EXE self-test: verified by build script.
 Actual Windows GUI, real CSV, weather network and Word layout: manual acceptance PENDING.
-Git source commit: $head
+Built application source commit: $builtSourceCommit
+Delivery script commit: $head
 Manual checklist in source: docs/windows_exe_acceptance.md
 "@
   $utf8 = New-Object System.Text.UTF8Encoding($true)
@@ -55,7 +102,7 @@ Manual checklist in source: docs/windows_exe_acceptance.md
   Write-Host "[3/4] Zip the entire onedir, retaining the root application folder"
   $releaseDir = Join-Path $root "release"
   New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-  $base = $name + "_" + $head.Substring(0, 9) + "_" + (Get-Date -Format "yyyyMMdd_HHmmss") + "_Windows"
+  $base = $name + "_" + $builtSourceCommit.Substring(0, 9) + "_" + (Get-Date -Format "yyyyMMdd_HHmmss") + "_Windows"
   $zipPath = Join-Path $releaseDir ($base + ".zip")
   $manifestPath = Join-Path $releaseDir ($base + "_SHA256.txt")
   Compress-Archive -LiteralPath $appDir -DestinationPath $zipPath -CompressionLevel Optimal -ErrorAction Stop
@@ -73,11 +120,12 @@ Manual checklist in source: docs/windows_exe_acceptance.md
   $manifest = @"
 Product: $name
 Branch: $branchExpected
-Commit: $head
+Built application commit: $builtSourceCommit
+Delivery script commit: $head
 Built: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 EXE SHA256: $((Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash)
 ZIP SHA256: $((Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash)
-Source tests + frozen EXE smoke test: PASSED
+Source tests: validated in original build; frozen EXE smoke test: PASSED
 Windows GUI, real-data weather and Word pagination acceptance: PENDING
 "@
   [System.IO.File]::WriteAllText($manifestPath, $manifest, $utf8)
