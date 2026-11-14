@@ -94,6 +94,48 @@ def prepare_fire_timeline(
     }
 
 
+
+def prepare_web_fire_timeline(
+    daily_series: list[dict[str, Any]],
+    period: str = "",
+    max_bars: int = 32,
+) -> dict[str, Any] | None:
+    """Compact, genuine daily bars for the result page.
+
+    Identical date/binning semantics to the Word report, without downloading
+    or requesting another data series. A tiny visible positive bar is a UI
+    visibility floor, not a modification of the raw count.
+    """
+    prepared = prepare_fire_timeline(daily_series, period, max_bars=max_bars)
+    if not prepared:
+        return None
+    bins = prepared["bins"]
+    max_count = max(1, max(bin_["count"] for bin_ in bins))
+    bars = []
+    for bin_ in bins:
+        count = int(bin_["count"])
+        bars.append({
+            "start": bin_["start"].isoformat(),
+            "end": bin_["end"].isoformat(),
+            "count": count,
+            "height_percent": (
+                round(max(2.5, count * 100 / max_count), 2) if count else 0
+            ),
+            "is_peak": count == max_count and count > 0,
+        })
+    return {
+        "bars": bars,
+        "group_days": prepared["group_days"],
+        "span_days": prepared["span_days"],
+        "start": prepared["start"],
+        "end": prepared["end"],
+        "middle": bars[len(bars) // 2]["start"],
+        "peak_date": prepared["peak_date"],
+        "peak_count": prepared["peak_count"],
+        "total": prepared["total"],
+    }
+
+
 def render_fire_timeline_png(timeline: dict[str, Any], width: int = 920, height: int = 310) -> bytes:
     """Rasterized chart with numeric scales and dates; no fonts to bundle."""
     if width < 400 or height < 210:

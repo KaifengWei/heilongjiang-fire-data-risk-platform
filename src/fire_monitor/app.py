@@ -65,6 +65,7 @@ from fire_monitor.services.historical_weather_context_service import (
 from fire_monitor.services.weather_observation_synthesis_service import (
     build_joint_historical_evidence,
 )
+from fire_monitor.services.report_timeline_service import prepare_web_fire_timeline
 from fire_monitor.services.risk_assessment_service import (
     RiskAssessmentService,
 )
@@ -898,6 +899,11 @@ def create_app(
                 ),
                 task_daily_series=(
                     task_daily_series
+                ),
+                fire_timeline_chart=(
+                    prepare_web_fire_timeline(
+                        task_daily_series, str(analysis_summary.get('period') or ''),
+                    ) if is_declared_area else None
                 ),
                 task_region_ranking=(
                     task_region_ranking

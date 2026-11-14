@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ task.name }} - 分析结果</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='product.css', v='release20261110-joint8') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='product.css', v='release20261114-charts9') }}">
 </head>
 
 <body class="app-body">
@@ -53,6 +53,7 @@
       {% set peak = task_daily_series|max(attribute='active_fire_observation_count') if task_daily_series and analysis_summary.active_fire_count > 0 else none %}
       {% set coordinate_mode = task.parameters.area_mode == 'coordinates_only' %}
       {% if coordinate_mode %}
+      {% set overview_surface = agricultural_relevance.get('surface_summary') if agricultural_relevance else none %}
       <section class="declared-task-summary reveal-item">
         <div>
           <span class="app-eyebrow">OBSERVATION-BASED ANALYSIS</span>
@@ -62,14 +63,57 @@
             <div><strong>{{ firms_intelligence.summary.active_days if firms_intelligence else 0 }}</strong><span>有观测的日期数</span></div>
             <div><strong>{{ location_groups.cell_count if location_groups else 0 }}</strong><span>1° 经纬分组</span></div>
           </div>
-          {% if peak %}
-          <p class="declared-scope-peak">火点高值日：<b>{{ peak.date }}</b>，当天 {{ '{:,}'.format(peak.active_fire_observation_count) }} 条观测。优先查看当天的位置变化及多日重复观测区域。</p>
+          {% if fire_timeline_chart and fire_timeline_chart.bars|length > 1 %}
+          <div class="declared-timeline" aria-label="本次任务火点日期变化">
+            <div class="declared-timeline-heading">
+              <strong>火点日期变化</strong>
+              <span>最多 {{ fire_timeline_chart.peak_date }} · {{ '{:,}'.format(fire_timeline_chart.peak_count) }} 条</span>
+            </div>
+            <div class="declared-timeline-bars" role="group" aria-label="逐日火点观测条数，最高柱代表本图最大观测量">
+              {% for bar in fire_timeline_chart.bars %}
+              {% set clickable = fire_timeline_chart.group_days == 1 and bar.count > 0 %}
+              <button type="button"
+                      class="declared-timeline-bar{{ ' is-peak' if bar.is_peak else '' }}{{ ' is-empty' if bar.count == 0 else '' }}"
+                      {% if clickable %}data-map-date="{{ bar.start }}"{% else %}disabled{% endif %}
+                      title="{{ bar.start }}{{ ' 至 ' ~ bar.end if bar.end != bar.start else '' }}：{{ '{:,}'.format(bar.count) }} 条"
+                      aria-label="{{ bar.start }}{{ ' 至 ' ~ bar.end if bar.end != bar.start else '' }}，{{ '{:,}'.format(bar.count) }} 条{{ '，点击查看地图' if clickable else '' }}">
+                <i style="height: {{ bar.height_percent }}%"></i>
+              </button>
+              {% endfor %}
+            </div>
+            <div class="declared-timeline-axis">
+              <span>{{ fire_timeline_chart.start[5:] }}</span>
+              <span>{{ fire_timeline_chart.middle[5:] }}</span>
+              <span>{{ fire_timeline_chart.end[5:] }}</span>
+            </div>
+            <small>{{ '每日一柱，点击有观测的日期可在地图查看' if fire_timeline_chart.group_days == 1 else '每柱合计连续 ' ~ fire_timeline_chart.group_days ~ ' 个自然日，按实际数量分组' }}</small>
+          </div>
+          {% elif peak %}
+          <p class="declared-scope-peak">火点高值日 {{ peak.date }}，{{ '{:,}'.format(peak.active_fire_observation_count) }} 条。</p>
           {% endif %}
         </div>
         <div class="declared-area-evidence" aria-label="基于实际观测的地表背景摘要">
           <span class="app-eyebrow">OBSERVATION LAND COVER</span>
+          {% macro overview_cover_bar(summary) %}
+          {% if summary and summary.available %}
+          <div class="declared-cover-visual" aria-label="本次观测土地覆盖匹配比例">
+            <div class="declared-cover-visual-heading">
+              <span>已有土地覆盖数据</span>
+              <strong>{{ '%.1f'|format(summary.matched_percent) }}% <small>{{ '{:,}'.format(summary.matched) }} / {{ '{:,}'.format(summary.total) }} 条</small></strong>
+            </div>
+            <div class="declared-cover-track" role="img" aria-label="已匹配 {{ summary.matched }} 条，占 {{ '%.1f'|format(summary.matched_percent) }}%；未匹配 {{ summary.missing }} 条">
+              <span style="width: {{ summary.matched_percent }}%"></span>
+            </div>
+            <div class="declared-cover-key">
+              <span><i class="is-matched"></i>已匹配 {{ '{:,}'.format(summary.matched) }}</span>
+              <span><i class="is-unmatched"></i>未匹配 {{ '{:,}'.format(summary.missing) }}</span>
+            </div>
+          </div>
+          {% endif %}
+          {% endmacro %}
           {% if land_cover_context and land_cover_context.available %}
           <h3>{{ land_cover_context.visual_title }}</h3>
+          {{ overview_cover_bar(overview_surface) }}
           <p>{{ land_cover_context.guidance }}</p>
           {% if land_cover_context.matched_observations is defined and land_cover_context.total_observations is defined %}
           <small>地表来源：MCD12Q1 {{ land_cover_context.year }} · 成功匹配 {{ land_cover_context.matched_observations }} / {{ land_cover_context.total_observations }} 条观测</small>
@@ -101,13 +145,13 @@
           {% set cropland = land_counts.get('cropland', 0) + land_counts.get('mosaic', 0) %}
           {% set other_surface = land_counts.get('other', 0) %}
           <h3>土地覆盖仅部分匹配本次观测</h3>
-          <p>现有 MCD12Q1 {{ agricultural_relevance.land_cover_year }} 土地覆盖数据已匹配 <b>{{ '{:,}'.format(matched) }}</b> / {{ '{:,}'.format(total) }} 条观测（{{ '%.1f'|format(100 * matched / total if total else 0) }}%）。
-          {% if land_counts %}其中 <b>{{ '{:,}'.format(cropland) }}</b> 条位于耕地或耕地与自然植被混合背景，<b>{{ '{:,}'.format(other_surface) }}</b> 条位于其他地表背景。{% endif %}
-          未匹配的 {{ '{:,}'.format(total - matched) }} 条不参与地表类别判断；已匹配部分仍可用于下方网格的观测点分类对照。</p>
-          <small>分类条数只代表已匹配的火点观测，不代表整个分析范围的土地面积比例。</small>
+          {{ overview_cover_bar(overview_surface) }}
+          <p>2024 年 MCD12Q1 已匹配 <b>{{ '{:,}'.format(matched) }}</b> / {{ '{:,}'.format(total) }} 条观测（{{ '%.1f'|format(100 * matched / total if total else 0) }}%）。{% if land_counts %}其中 <b>{{ '{:,}'.format(cropland) }}</b> 条为耕地或混合植被背景，<b>{{ '{:,}'.format(other_surface) }}</b> 条为其他地表背景。{% endif %}</p>
+          <small>其余 {{ '{:,}'.format(total - matched) }} 条未匹配；下方仅分析已匹配观测的地表类别，不代表土地面积。</small>
           {% else %}
-          <h3>地表数据尚未覆盖该范围</h3>
-          <p>本次 CSV 的火点位置已确定。现有 MCD12Q1 栅格未覆盖这些观测点，建议用下方实测坐标定位影像，核对农田、建设用地或其他热源；已安装的 GeoJSON 提供行政轮廓，不替代地表分类。</p>
+          <h3>本次观测暂无地表匹配</h3>
+          {{ overview_cover_bar(overview_surface) }}
+          <p>已保留真实观测坐标和日期，可使用下方地图定位；本次不展示未经匹配的地表类别。</p>
           <div class="declared-evidence-coordinate">
             <strong>{{ '{:,}'.format(location_groups.total) if location_groups else '—' }}</strong>
             <span>条具有有效坐标的观测</span>
@@ -184,16 +228,43 @@
         {% endmacro %}
         {% set surface = agricultural_relevance.get('surface_summary') %}
         {% if coordinate_mode and surface and surface.available %}
-        <div class="agriculture-surface-analysis">
-          <p class="agriculture-surface-lead">{{ surface.headline }}</p>
-          <div class="agriculture-surface-facts" aria-label="实际地表匹配统计">
-            <article><span>已匹配土地覆盖</span><strong>{{ '{:,}'.format(surface.matched) }} <small>条 · {{ '%.1f'|format(surface.matched_percent) }}%</small></strong></article>
-            {% if surface.farmland is not none and surface.matched > 0 %}
-            <article><span>耕地及耕地混合背景观测</span><strong>{{ '{:,}'.format(surface.farmland) }} <small>条 · 已匹配中 {{ '%.1f'|format(surface.farmland_among_matched_percent) }}%</small></strong></article>
-            {% endif %}
-            <article><span>尚未匹配土地覆盖</span><strong>{{ '{:,}'.format(surface.missing) }} <small>条</small></strong></article>
+        <div class="agriculture-surface-analysis" aria-label="实际地表匹配统计">
+          <div class="agriculture-chart-heading">
+            <div>
+              <h3>已匹配观测的地表类型构成</h3>
+              <small>分母为已匹配的 {{ '{:,}'.format(surface.matched) }} 条观测，不是全部 {{ '{:,}'.format(surface.total) }} 条</small>
+            </div>
+            <strong>{{ '%.1f'|format(surface.farmland_among_matched_percent) if surface.farmland is not none and surface.matched else '—' }}<small>{{ '%' if surface.farmland is not none and surface.matched else '' }}</small></strong>
           </div>
-          <p class="agriculture-surface-context">{{ surface.calendar_note }}</p>
+          {% if surface.farmland is not none and surface.other is not none and surface.matched > 0 %}
+          {% set remainder = [0, surface.matched - surface.farmland - surface.other]|max %}
+          <div class="agriculture-composition-bar" role="img"
+               aria-label="已匹配 {{ surface.matched }} 条，其中耕地及混合植被背景 {{ surface.farmland }} 条，其他地表 {{ surface.other }} 条，剩余未分类 {{ remainder }} 条">
+            <span class="is-farmland" style="width: {{ 100 * surface.farmland / surface.matched }}%"></span>
+            <span class="is-other" style="width: {{ 100 * surface.other / surface.matched }}%"></span>
+            {% if remainder > 0 %}
+            <span class="is-unclassified" style="width: {{ 100 * remainder / surface.matched }}%"></span>
+            {% endif %}
+          </div>
+          <div class="agriculture-composition-key">
+            <div><i class="is-farmland"></i><span>耕地与混合植被背景</span><strong>{{ '{:,}'.format(surface.farmland) }} 条</strong><small>{{ '%.1f'|format(100 * surface.farmland / surface.matched) }}%</small></div>
+            <div><i class="is-other"></i><span>其他地表背景</span><strong>{{ '{:,}'.format(surface.other) }} 条</strong><small>{{ '%.1f'|format(100 * surface.other / surface.matched) }}%</small></div>
+            {% if remainder > 0 %}
+            <div><i class="is-unclassified"></i><span>其他未分类匹配</span><strong>{{ '{:,}'.format(remainder) }} 条</strong><small>{{ '%.1f'|format(100 * remainder / surface.matched) }}%</small></div>
+            {% endif %}
+          </div>
+          {% else %}
+          <p class="agriculture-chart-missing">已匹配 {{ '{:,}'.format(surface.matched) }} 条观测，暂缺可展示的具体地表类型。</p>
+          {% endif %}
+          <div class="agriculture-chart-foot">
+            <span>尚未匹配土地覆盖：<b>{{ '{:,}'.format(surface.missing) }}</b> 条</span>
+            <span>地表分类来源：MCD12Q1 {{ agricultural_relevance.land_cover_year }}</span>
+          </div>
+          <details class="agriculture-surface-method">
+            <summary>查看统计口径与农事规则</summary>
+            <p>{{ surface.headline }}</p>
+            <p>{{ surface.calendar_note }}</p>
+          </details>
         </div>
         <details class="agriculture-level-details">
           <summary>查看四级相关性分类明细（沿用原统计口径）</summary>

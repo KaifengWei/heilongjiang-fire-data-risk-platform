@@ -5992,3 +5992,227 @@ body.home-body .home-orbit-visual .home-orbit-image-frame::after {
   .weather-joint-evidence { padding: 15px 14px; }
   .weather-joint-grid { grid-template-columns: 1fr; }
 }
+
+
+/* RESULT CHARTS V9 — genuine daily counts and actual raster-match composition.
+   Coverage uses all observations; crop mix uses matched observations only. */
+.declared-task-summary .declared-timeline {
+  margin-top: 16px;
+  padding: 14px 16px 11px;
+  background: #fff;
+  border: 1px solid #d9e8ee;
+  border-radius: 11px;
+  min-width: 0;
+}
+.declared-timeline-heading,
+.declared-cover-visual-heading,
+.agriculture-chart-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+}
+.declared-timeline-heading strong {
+  font-size: 14px;
+  color: #204c62;
+}
+.declared-timeline-heading > span {
+  color: #376d85;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.declared-timeline-bars {
+  height: 102px;
+  display: flex;
+  align-items: stretch;
+  gap: 3px;
+  padding: 10px 2px 0;
+  border-bottom: 1px solid #cfdfe6;
+  min-width: 0;
+}
+.declared-timeline-bar {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: flex-end;
+  justify-content: stretch;
+  cursor: pointer;
+}
+.declared-timeline-bar i {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  border-radius: 3px 3px 0 0;
+  background: #6ca4bc;
+  transition: background .15s ease;
+}
+.declared-timeline-bar.is-peak i { background: #d99053; }
+.declared-timeline-bar:not(:disabled):hover i,
+.declared-timeline-bar:not(:disabled):focus-visible i { background: #197f9e; }
+.declared-timeline-bar:disabled { cursor: default; }
+.declared-timeline-bar:focus-visible { outline: 2px solid #167e9a; outline-offset: 1px; }
+.declared-timeline-axis {
+  display: flex;
+  justify-content: space-between;
+  margin: 8px 2px 3px;
+  color: #5c8091;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.declared-timeline > small {
+  display: block;
+  margin-top: 5px;
+  color: #7b909b;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.declared-cover-visual { margin: 13px 0 11px; }
+.declared-cover-visual-heading > span {
+  color: #4c7081;
+  font-size: 12px;
+}
+.declared-cover-visual-heading strong {
+  color: #196984;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+.declared-cover-visual-heading strong small {
+  font-size: 11px;
+  font-weight: 500;
+  color: #67818e;
+}
+.declared-cover-track {
+  display: flex;
+  height: 13px;
+  overflow: hidden;
+  background: #e2eaef;
+  border-radius: 100px;
+  margin-top: 10px;
+}
+.declared-cover-track > span {
+  display: block;
+  height: 100%;
+  background: #328eaa;
+  border-radius: inherit;
+}
+.declared-cover-key {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  color: #63808e;
+  font-size: 11px;
+  margin-top: 7px;
+}
+.declared-cover-key span { display: inline-flex; align-items: center; gap: 6px; }
+.declared-cover-key i,
+.agriculture-composition-key i {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.declared-cover-key .is-matched { background: #328eaa; }
+.declared-cover-key .is-unmatched { background: #dce7ec; border: 1px solid #c5d4dc; }
+
+.agriculture-relevance-compact .agriculture-surface-analysis {
+  padding: 18px 19px;
+  margin-bottom: 10px;
+}
+.agriculture-chart-heading { margin: 0 0 17px; }
+.agriculture-chart-heading h3 {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 750;
+  color: #1a5066;
+}
+.agriculture-chart-heading div > small {
+  display: block;
+  font-size: 12px;
+  color: #67838f;
+  line-height: 1.6;
+}
+.agriculture-chart-heading > strong {
+  color: #2b9a91;
+  font-size: 27px;
+  font-variant-numeric: tabular-nums;
+}
+.agriculture-chart-heading > strong small { font-size: 13px; }
+.agriculture-composition-bar {
+  display: flex;
+  overflow: hidden;
+  width: 100%;
+  height: 28px;
+  border-radius: 7px;
+  background: #e1eaef;
+}
+.agriculture-composition-bar > span {
+  display: block;
+  height: 100%;
+  flex: 0 0 auto;
+}
+.agriculture-composition-bar .is-farmland,
+.agriculture-composition-key .is-farmland { background: #47a18d; }
+.agriculture-composition-bar .is-other,
+.agriculture-composition-key .is-other { background: #dfab65; }
+.agriculture-composition-bar .is-unclassified,
+.agriculture-composition-key .is-unclassified { background: #a6bac4; }
+.agriculture-composition-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 22px;
+  margin: 13px 0 11px;
+}
+.agriculture-composition-key > div {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 12px;
+  color: #54717f;
+  min-width: 0;
+}
+.agriculture-composition-key strong {
+  color: #1d4a60;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.agriculture-composition-key small { color: #718b97; }
+.agriculture-chart-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e7eef2;
+  font-size: 12px;
+  color: #6b8491;
+}
+.agriculture-chart-foot b { color: #1e5870; }
+.agriculture-chart-missing { color: #69838e; font-size: 13px; }
+.agriculture-surface-method { margin-top: 10px; }
+.agriculture-surface-method summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: #306b82;
+}
+.agriculture-surface-method p {
+  margin: 8px 0 0;
+  color: #5c7887;
+  font-size: 12px;
+  line-height: 1.7;
+}
+@media (max-width: 730px) {
+  .declared-task-summary .declared-timeline { padding: 12px; }
+  .declared-timeline-bars { gap: 2px; }
+  .agriculture-relevance-compact .agriculture-surface-analysis { padding: 14px; }
+  .agriculture-composition-key { gap: 8px 13px; }
+}

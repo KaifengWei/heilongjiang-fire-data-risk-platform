@@ -47,7 +47,7 @@ def test_no_polygon_still_analyzes_all_csv_points(tmp_path, monkeypatch):
     elif matched:
         assert "土地覆盖仅部分匹配本次观测" in html
     else:
-        assert "地表数据尚未覆盖该范围" in html
+        assert "本次观测暂无地表匹配" in html
     assert 'id="mapZoomIn"' in html
     assert 'id="mapZoomOut"' in html
     assert "map_viewport.js?v=release20261105b" in html
@@ -135,9 +135,9 @@ def test_partial_land_cover_is_reported_as_partial_not_absent(tmp_path, monkeypa
     html = client.get(f"/tasks/{task_id}").get_data(as_text=True)
     assert "土地覆盖仅部分匹配本次观测" in html
     assert "1</b> / 2 条观测（50.0%）" in html
-    assert "1</b> 条位于耕地或耕地与自然植被混合背景" in html
-    assert "未匹配的 1 条不参与地表类别判断" in html
-    assert "地表数据尚未覆盖该范围" not in html
+    assert "1</b> 条为耕地或混合植被背景" in html
+    assert "其余 1 条未匹配；下方仅分析已匹配观测" in html
+    assert "本次观测暂无地表匹配" not in html
 
 
 def test_declared_area_hides_unrelated_fixed_landcover_image(tmp_path, monkeypatch):
