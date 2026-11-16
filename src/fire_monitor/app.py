@@ -50,6 +50,7 @@ from fire_monitor.services.observation_decision_service import (
 from fire_monitor.services.historical_baseline_service import (
     HistoricalFirmsBaselineService,
 )
+from fire_monitor.services.land_cover_visual_service import build_surface_raster_previews
 from fire_monitor.services.land_cover_context_service import (
     LandCoverContextService,
 )
@@ -788,6 +789,13 @@ def create_app(
             calendar_rules=(task.get("parameters") or {}).get("agricultural_calendar_rules") or [],
         )
 
+        surface_raster_previews = (
+            build_surface_raster_previews(
+                land_cover_context_service,
+                agricultural_relevance.get("surface_representatives") or {},
+            ) if is_declared_area else {}
+        )
+
         observation_decisions = (
             build_observation_decisions(
                 task_firms_observations, firms_intelligence, agricultural_relevance,
@@ -919,6 +927,7 @@ def create_app(
                     land_cover_context
                 ),
                 agricultural_relevance=agricultural_relevance,
+                surface_raster_previews=surface_raster_previews,
                 agricultural_region_ranking=agricultural_region_ranking,
                 priority_land_cover=(
                     priority_land_cover

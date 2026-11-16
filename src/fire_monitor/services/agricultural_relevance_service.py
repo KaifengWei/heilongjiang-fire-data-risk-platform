@@ -154,6 +154,7 @@ class AgriculturalRelevanceService:
         agriculture_classes: Counter[str] = Counter()
         calendar_states: Counter[str] = Counter()
         examples: list[dict[str, Any]] = []
+        surface_representatives: dict[str, dict[str, Any]] = {}
         for observation in rows:
             region = str(observation.get("region_name") or "").strip()
             try:
@@ -232,6 +233,22 @@ class AgriculturalRelevanceService:
             if region:
                 by_region.setdefault(region, Counter())[level] += 1
 
+            # Keep one genuine matched observation for each broad surface
+            # category.  Never turn an illustrative photo into "evidence".
+            if (
+                class_id is not None
+                and longitude is not None and latitude is not None
+                and isfinite(longitude) and isfinite(latitude)
+                and -180 <= longitude <= 180 and -90 <= latitude <= 90
+            ):
+                group = "farmland" if class_id in (12, 14) else "other"
+                surface_representatives.setdefault(group, {
+                    "longitude": longitude,
+                    "latitude": latitude,
+                    "class_id": class_id,
+                    "date": str(observation.get("acquired_date") or ""),
+                })
+
             if len(examples) < 20:
                 examples.append({
                     "date": str(observation.get("acquired_date") or ""),
@@ -286,6 +303,7 @@ class AgriculturalRelevanceService:
                 for name, counter in sorted(by_region.items())
             },
             "examples": examples,
+            "surface_representatives": surface_representatives,
         }
         result["surface_summary"] = summarize_agricultural_surface(result)
         return result

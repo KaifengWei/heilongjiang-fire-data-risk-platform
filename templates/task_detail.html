@@ -6,7 +6,7 @@
   <title>{{ task.name }} - 分析结果</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='product.css', v='release20261114-charts9') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='result_console.css', v='release20261116-console1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='result_console.css', v='release20261116-raster2') }}">
 </head>
 
 <body class="app-body">
@@ -289,12 +289,28 @@
           </div>
           <div class="agriculture-composition-key result-evidence-tiles">
             <div class="result-evidence-tile is-farmland">
-              <span class="result-evidence-swatch is-farmland" aria-hidden="true"></span>
-              <span class="result-evidence-tile-copy"><span>耕地与混合植被背景</span><strong>{{ '{:,}'.format(surface.farmland) }} 条</strong><small>已匹配中 {{ '%.1f'|format(100 * surface.farmland / surface.matched) }}%</small></span>
+              {% set farmland_preview = surface_raster_previews.get('farmland') if surface_raster_previews else none %}
+              {% if farmland_preview %}
+              <figure class="result-raster-sample">
+                <img src="{{ farmland_preview.src }}" alt="来自 MCD12Q1 2024 分类栅格的真实观测点周围像元，十字标记为耕地背景样本位置">
+                <figcaption>实测分类栅格邻域 <small>IGBP {{ farmland_preview.class_id }} · 中心为火点</small></figcaption>
+              </figure>
+              {% else %}
+              <span class="result-evidence-swatch is-farmland" role="img" aria-label="类别色块示意，非实际地点影像"></span>
+              {% endif %>
+              <span class="result-evidence-tile-copy"><span>耕地与混合植被背景</span><strong>{{ '{:,}'.format(surface.farmland) }} 条</strong><small>已匹配中 {{ '%.1f'|format(100 * surface.farmland / surface.matched) }}%</small>{% if farmland_preview %}<small class="result-raster-sample-coord">样本 东经 {{ '%.4f'|format(farmland_preview.longitude) }}°，北纬 {{ '%.4f'|format(farmland_preview.latitude) }}°</small>{% endif %}</span>
             </div>
             <div class="result-evidence-tile is-other">
-              <span class="result-evidence-swatch is-other" aria-hidden="true"></span>
-              <span class="result-evidence-tile-copy"><span>其他地表背景</span><strong>{{ '{:,}'.format(surface.other) }} 条</strong><small>已匹配中 {{ '%.1f'|format(100 * surface.other / surface.matched) }}%</small></span>
+              {% set other_preview = surface_raster_previews.get('other') if surface_raster_previews else none %}
+              {% if other_preview %}
+              <figure class="result-raster-sample">
+                <img src="{{ other_preview.src }}" alt="来自 MCD12Q1 2024 分类栅格的真实观测点周围像元，十字标记为其他地表背景样本位置">
+                <figcaption>实测分类栅格邻域 <small>IGBP {{ other_preview.class_id }} · 中心为火点</small></figcaption>
+              </figure>
+              {% else %}
+              <span class="result-evidence-swatch is-other" role="img" aria-label="类别色块示意，非实际地点影像"></span>
+              {% endif %>
+              <span class="result-evidence-tile-copy"><span>其他地表背景</span><strong>{{ '{:,}'.format(surface.other) }} 条</strong><small>已匹配中 {{ '%.1f'|format(100 * surface.other / surface.matched) }}%</small>{% if other_preview %}<small class="result-raster-sample-coord">样本 东经 {{ '%.4f'|format(other_preview.longitude) }}°，北纬 {{ '%.4f'|format(other_preview.latitude) }}°</small>{% endif %}</span>
             </div>
             {% if remainder > 0 %}
             <div class="result-evidence-tile is-unclassified">
@@ -306,6 +322,14 @@
           {% else %}
           <p class="agriculture-chart-missing">已匹配 {{ '{:,}'.format(surface.matched) }} 条观测，暂缺可展示的具体地表类型。</p>
           {% endif %}
+          {% if surface_raster_previews %}
+          <div class="result-raster-legend" aria-label="土地覆盖分类色标">
+            {% for type, label in [('agriculture','耕地及混合植被'), ('forest','林地'), ('grass_shrub','草地灌丛'), ('wetland_water','湿地水体'), ('urban','建设用地'), ('barren_snow','裸地冰雪')] %}
+            <span><i class="is-{{ type }}" aria-hidden="true"></i>{{ label }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+          <div class="result-raster-context-note">缩略图显示所选实际观测点邻近的 MCD12Q1 2024 分类像元，并非真彩色卫星照片或地块边界。不同颜色代表地表类别；“其他地表”图仅是一处真实样点，不代表全部其他地表都具有相同外观。</div>
           <div class="agriculture-chart-foot">
             <span>尚未匹配土地覆盖：<b>{{ '{:,}'.format(surface.missing) }}</b> 条</span>
             <span>地表分类来源：MCD12Q1 {{ agricultural_relevance.land_cover_year }}</span>
