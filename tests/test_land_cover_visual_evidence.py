@@ -112,3 +112,15 @@ def test_actual_landcover_preview_on_result_page_and_unmodified_counts(tmp_path,
     assert "已匹配观测的地表类型构成" in html
     assert "耕地与混合植被背景" in html
     assert "其他地表背景" in html
+
+
+
+def test_result_template_jinja_compiles_with_actual_sample_cards():
+    """Catch malformed conditional tags before any Windows EXE build."""
+    from pathlib import Path
+    from jinja2 import Environment, FileSystemLoader
+
+    templates = Path(__file__).resolve().parents[1] / "templates"
+    Environment(loader=FileSystemLoader(str(templates))).get_template(
+        "task_detail.html"
+    )

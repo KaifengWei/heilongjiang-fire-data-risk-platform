@@ -297,7 +297,7 @@
               </figure>
               {% else %}
               <span class="result-evidence-swatch is-farmland" role="img" aria-label="类别色块示意，非实际地点影像"></span>
-              {% endif %>
+              {% endif %}
               <span class="result-evidence-tile-copy"><span>耕地与混合植被背景</span><strong>{{ '{:,}'.format(surface.farmland) }} 条</strong><small>已匹配中 {{ '%.1f'|format(100 * surface.farmland / surface.matched) }}%</small>{% if farmland_preview %}<small class="result-raster-sample-coord">样本 东经 {{ '%.4f'|format(farmland_preview.longitude) }}°，北纬 {{ '%.4f'|format(farmland_preview.latitude) }}°</small>{% endif %}</span>
             </div>
             <div class="result-evidence-tile is-other">
@@ -309,7 +309,7 @@
               </figure>
               {% else %}
               <span class="result-evidence-swatch is-other" role="img" aria-label="类别色块示意，非实际地点影像"></span>
-              {% endif %>
+              {% endif %}
               <span class="result-evidence-tile-copy"><span>其他地表背景</span><strong>{{ '{:,}'.format(surface.other) }} 条</strong><small>已匹配中 {{ '%.1f'|format(100 * surface.other / surface.matched) }}%</small>{% if other_preview %}<small class="result-raster-sample-coord">样本 东经 {{ '%.4f'|format(other_preview.longitude) }}°，北纬 {{ '%.4f'|format(other_preview.latitude) }}°</small>{% endif %}</span>
             </div>
             {% if remainder > 0 %}
