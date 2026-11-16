@@ -95,7 +95,8 @@ def test_result_page_shows_interactive_real_dates_and_two_distinct_land_denomina
     assert "result-action-card is-date" in html
     assert "result-action-card is-repeat" in html
     assert 'data-map-focus-bbox="' in html
-    assert 'data-map-theme="persistent"' in html
+    # No recurring grid in this sample: no repeat-activity action button.
+    assert 'data-map-theme="persistent"' not in html
     assert "查看位置依据及样本坐标" in html
     assert "查看日期对照和空间差异" in html
     assert 'style="width: 66.7%"' in html

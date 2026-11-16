@@ -52,9 +52,9 @@ def test_no_polygon_still_analyzes_all_csv_points(tmp_path, monkeypatch):
     assert 'id="mapZoomOut"' in html
     assert "map_viewport.js?v=release20261105b" in html
     assert "当前情况与建议" in html
-    assert "空间：哪一片最集中" in html
-    assert "时间：哪一天最突出" in html
-    assert "跨日：哪些位置反复出现" in html
+    assert "先看哪里" in html
+    assert "先看哪一天" in html
+    assert "哪些位置反复出现" in html
     assert "先确认真实地表，再核对热异常来源" not in html
     assert "通用农业区域概念示意" not in html
     assert "110.5" in html
