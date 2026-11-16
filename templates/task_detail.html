@@ -6,6 +6,7 @@
   <title>{{ task.name }} - 分析结果</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='product.css', v='release20261114-charts9') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='result_console.css', v='release20261116-console1') }}">
 </head>
 
 <body class="app-body">
@@ -54,14 +55,44 @@
       {% set coordinate_mode = task.parameters.area_mode == 'coordinates_only' %}
       {% if coordinate_mode %}
       {% set overview_surface = agricultural_relevance.get('surface_summary') if agricultural_relevance else none %}
-      <section class="declared-task-summary reveal-item">
-        <div>
-          <span class="app-eyebrow">OBSERVATION-BASED ANALYSIS</span>
-          <h2>{{ task.parameters.declared_area_label }}</h2>
-          <div class="declared-scope-facts">
-            <div><strong>{{ '{:,}'.format(analysis_summary.active_fire_count) }}</strong><span>本次有效火点观测</span></div>
-            <div><strong>{{ firms_intelligence.summary.active_days if firms_intelligence else 0 }}</strong><span>有观测的日期数</span></div>
-            <div><strong>{{ location_groups.cell_count if location_groups else 0 }}</strong><span>1° 经纬分组</span></div>
+      <section class="declared-task-summary result-console-overview reveal-item">
+        <div class="result-console-main">
+          <div class="result-console-title-row">
+            <div>
+              <span class="app-eyebrow">OBSERVATION WORKSTATION / 观测台</span>
+              <h2>{{ task.parameters.declared_area_label }}</h2>
+            </div>
+            <span class="result-console-source"><i aria-hidden="true"></i>FIRMS 实测数据</span>
+          </div>
+          <div class="declared-scope-facts result-instrument-facts">
+            <article class="result-instrument is-observations">
+              <span class="result-instrument-symbol" aria-hidden="true">
+                <svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="13"/><circle cx="22" cy="22" r="5"/><path d="M22 3v11M22 30v11M3 22h11M30 22h11"/></svg>
+              </span>
+              <span class="result-instrument-label">有效火点观测</span>
+              <strong>{{ '{:,}'.format(analysis_summary.active_fire_count) }} <small>条</small></strong>
+              <span class="result-instrument-meta">来自当前任务 CSV</span>
+            </article>
+            <article class="result-instrument is-calendar">
+              <span class="result-instrument-symbol" aria-hidden="true">
+                <svg viewBox="0 0 44 44" fill="none"><rect x="7" y="10" width="30" height="28" rx="4"/><path d="M7 19h30M14 5v10M30 5v10M14 27h7M14 32h14"/></svg>
+              </span>
+              <span class="result-instrument-label">有火点观测的日期</span>
+              <strong>{{ firms_intelligence.summary.active_days if firms_intelligence else 0 }} <small>天</small></strong>
+              {% set span_days = firms_intelligence.summary.span_days if firms_intelligence else 0 %}
+              <span class="result-instrument-meter" aria-label="任务时段 {{ span_days }} 天">
+                <i style="width: {{ '%.1f'|format(100 * firms_intelligence.summary.active_days / span_days if span_days else 0) }}%"></i>
+              </span>
+              <span class="result-instrument-meta">任务时段共 {{ span_days }} 天</span>
+            </article>
+            <article class="result-instrument is-cells">
+              <span class="result-instrument-symbol" aria-hidden="true">
+                <svg viewBox="0 0 44 44" fill="none"><rect x="6" y="6" width="32" height="32" rx="4"/><path d="M17 6v32M28 6v32M6 17h32M6 28h32"/></svg>
+              </span>
+              <span class="result-instrument-label">经纬度分组</span>
+              <strong>{{ location_groups.cell_count if location_groups else 0 }} <small>组</small></strong>
+              <span class="result-instrument-meta">按 1° 网格归集</span>
+            </article>
           </div>
           {% if fire_timeline_chart and fire_timeline_chart.bars|length > 1 %}
           <div class="declared-timeline" aria-label="本次任务火点日期变化">
@@ -92,21 +123,31 @@
           <p class="declared-scope-peak">火点高值日 {{ peak.date }}，{{ '{:,}'.format(peak.active_fire_observation_count) }} 条。</p>
           {% endif %}
         </div>
-        <div class="declared-area-evidence" aria-label="基于实际观测的地表背景摘要">
+        <div class="declared-area-evidence result-coverage-console" aria-label="基于实际观测的地表背景摘要">
           <span class="app-eyebrow">OBSERVATION LAND COVER</span>
           {% macro overview_cover_bar(summary) %}
           {% if summary and summary.available %}
           <div class="declared-cover-visual" aria-label="本次观测土地覆盖匹配比例">
-            <div class="declared-cover-visual-heading">
-              <span>已有土地覆盖数据</span>
-              <strong>{{ '%.1f'|format(summary.matched_percent) }}% <small>{{ '{:,}'.format(summary.matched) }} / {{ '{:,}'.format(summary.total) }} 条</small></strong>
-            </div>
-            <div class="declared-cover-track" role="img" aria-label="已匹配 {{ summary.matched }} 条，占 {{ '%.1f'|format(summary.matched_percent) }}%；未匹配 {{ summary.missing }} 条">
-              <span style="width: {{ summary.matched_percent }}%"></span>
-            </div>
-            <div class="declared-cover-key">
-              <span><i class="is-matched"></i>已匹配 {{ '{:,}'.format(summary.matched) }}</span>
-              <span><i class="is-unmatched"></i>未匹配 {{ '{:,}'.format(summary.missing) }}</span>
+            <div class="coverage-instrument">
+              <div class="coverage-dial" aria-hidden="true" style="--dial-degrees: {{ '%.1f'|format(summary.matched_percent * 3.6) }}deg;">
+                <span class="coverage-dial-core">
+                  <strong>{{ '%.1f'|format(summary.matched_percent) }}<small>%</small></strong>
+                  <small>已匹配</small>
+                </span>
+              </div>
+              <div class="coverage-console-readout">
+                <div class="declared-cover-visual-heading">
+                  <span>土地覆盖样本覆盖率</span>
+                  <strong>{{ '{:,}'.format(summary.matched) }} <small>/ {{ '{:,}'.format(summary.total) }} 条</small></strong>
+                </div>
+                <div class="declared-cover-track" role="img" aria-label="已匹配 {{ summary.matched }} 条，占 {{ '%.1f'|format(summary.matched_percent) }}%；未匹配 {{ summary.missing }} 条">
+                  <span style="width: {{ summary.matched_percent }}%"></span>
+                </div>
+                <div class="declared-cover-key">
+                  <span><i class="is-matched"></i>已匹配 {{ '{:,}'.format(summary.matched) }}</span>
+                  <span><i class="is-unmatched"></i>未匹配 {{ '{:,}'.format(summary.missing) }}</span>
+                </div>
+              </div>
             </div>
           </div>
           {% endif %}
@@ -228,7 +269,7 @@
         {% endmacro %}
         {% set surface = agricultural_relevance.get('surface_summary') %}
         {% if coordinate_mode and surface and surface.available %}
-        <div class="agriculture-surface-analysis" aria-label="实际地表匹配统计">
+        <div class="agriculture-surface-analysis result-evidence-deck" aria-label="实际地表匹配统计">
           <div class="agriculture-chart-heading">
             <div>
               <h3>已匹配观测的地表类型构成</h3>
@@ -246,11 +287,20 @@
             <span class="is-unclassified" style="width: {{ 100 * remainder / surface.matched }}%"></span>
             {% endif %}
           </div>
-          <div class="agriculture-composition-key">
-            <div><i class="is-farmland"></i><span>耕地与混合植被背景</span><strong>{{ '{:,}'.format(surface.farmland) }} 条</strong><small>{{ '%.1f'|format(100 * surface.farmland / surface.matched) }}%</small></div>
-            <div><i class="is-other"></i><span>其他地表背景</span><strong>{{ '{:,}'.format(surface.other) }} 条</strong><small>{{ '%.1f'|format(100 * surface.other / surface.matched) }}%</small></div>
+          <div class="agriculture-composition-key result-evidence-tiles">
+            <div class="result-evidence-tile is-farmland">
+              <span class="result-evidence-swatch is-farmland" aria-hidden="true"></span>
+              <span class="result-evidence-tile-copy"><span>耕地与混合植被背景</span><strong>{{ '{:,}'.format(surface.farmland) }} 条</strong><small>已匹配中 {{ '%.1f'|format(100 * surface.farmland / surface.matched) }}%</small></span>
+            </div>
+            <div class="result-evidence-tile is-other">
+              <span class="result-evidence-swatch is-other" aria-hidden="true"></span>
+              <span class="result-evidence-tile-copy"><span>其他地表背景</span><strong>{{ '{:,}'.format(surface.other) }} 条</strong><small>已匹配中 {{ '%.1f'|format(100 * surface.other / surface.matched) }}%</small></span>
+            </div>
             {% if remainder > 0 %}
-            <div><i class="is-unclassified"></i><span>其他未分类匹配</span><strong>{{ '{:,}'.format(remainder) }} 条</strong><small>{{ '%.1f'|format(100 * remainder / surface.matched) }}%</small></div>
+            <div class="result-evidence-tile is-unclassified">
+              <span class="result-evidence-swatch is-unclassified" aria-hidden="true"></span>
+              <span class="result-evidence-tile-copy"><span>其他未分类匹配</span><strong>{{ '{:,}'.format(remainder) }} 条</strong><small>已匹配中 {{ '%.1f'|format(100 * remainder / surface.matched) }}%</small></span>
+            </div>
             {% endif %}
           </div>
           {% else %}
@@ -606,14 +656,14 @@
       </section>
       <section class="action-guidance reveal-item">
         {% if coordinate_mode and observation_decisions.available %}
-        <div class="action-guidance-summary">
+        <div class="action-guidance-summary result-action-console">
           <div class="action-guidance-kicker">
             <span class="app-eyebrow">基于实际 FIRMS 观测</span>
             <span class="action-guidance-method-tag">0.25° 空间分组 · 按日统计 · 跨日重复网格</span>
           </div>
           <h2>当前情况与建议</h2>
           <p class="action-guidance-lead action-guidance-insight">{{ observation_decisions.lead }}</p>
-          <div class="action-guidance-facts" aria-label="从本次观测得出的三个结论">
+          <div class="action-guidance-facts result-decision-readouts" aria-label="从本次观测得出的三个结论">
             <div class="action-guidance-fact">
               <span>观测最密集的 0.25° 网格</span>
               <strong>{{ '{:,}'.format(observation_decisions.spatial.count) }} <small>条，{{ '%.1f'|format(observation_decisions.spatial.share) }}%</small></strong>
@@ -631,50 +681,68 @@
             </div>
           </div>
         </div>
-        <div class="action-guidance-steps action-guidance-evidence">
-          <article class="action-step">
-            <span class="action-step-index">01</span>
+        <div class="action-guidance-steps action-guidance-evidence result-action-deck" aria-label="分析结果的可操作入口">
+          <article class="action-step result-action-card is-area">
+            <div class="result-action-card-head">
+              <span class="result-action-icon is-area" aria-hidden="true"><i></i></span>
+              <span class="action-step-index">01 · 空间</span>
+            </div>
             <div class="action-step-copy">
-              <h3>空间：哪一片最集中</h3>
+              <h3>先看哪里</h3>
               <strong class="action-step-finding">{{ observation_decisions.spatial.headline }}</strong>
               <p>{{ observation_decisions.spatial.conclusion }}</p>
-              <p class="action-step-evidence">{{ observation_decisions.spatial.evidence }}</p>
-              <p class="action-step-evidence">实际样本点：东经 {{ '%.5f'|format(observation_decisions.spatial.sample_point.longitude) }}°，北纬 {{ '%.5f'|format(observation_decisions.spatial.sample_point.latitude) }}°{% if observation_decisions.spatial.sample_point.date %}（{{ observation_decisions.spatial.sample_point.date }}）{% endif %}。</p>
-              <button type="button" class="action-link" data-map-focus-bbox="{{ observation_decisions.spatial.bbox|join(',') }}">在地图定位这片集中区域 →</button>
+              <details class="result-action-evidence"><summary>查看位置依据及样本坐标</summary>
+                <p class="action-step-evidence">{{ observation_decisions.spatial.evidence }}</p>
+                <p class="action-step-evidence">实际样本点：东经 {{ '%.5f'|format(observation_decisions.spatial.sample_point.longitude) }}°，北纬 {{ '%.5f'|format(observation_decisions.spatial.sample_point.latitude) }}°{% if observation_decisions.spatial.sample_point.date %}（{{ observation_decisions.spatial.sample_point.date }}）{% endif %}。</p>
+              </details>
+              <button type="button" class="action-link" data-map-focus-bbox="{{ observation_decisions.spatial.bbox|join(',') }}">定位最集中网格 <span aria-hidden="true">›</span></button>
             </div>
           </article>
-          <article class="action-step">
-            <span class="action-step-index">02</span>
+          <article class="action-step result-action-card is-date">
+            <div class="result-action-card-head">
+              <span class="result-action-icon is-date" aria-hidden="true"><i></i></span>
+              <span class="action-step-index">02 · 时间</span>
+            </div>
             <div class="action-step-copy">
-              <h3>时间：哪一天最突出</h3>
+              <h3>先看哪一天</h3>
               <strong class="action-step-finding">{{ observation_decisions.temporal.headline }}</strong>
               <p>{{ observation_decisions.temporal.conclusion }}</p>
-              {% if observation_decisions.temporal.spatial_overlap %}
-              <p class="action-step-evidence">{{ observation_decisions.temporal.spatial_overlap }}</p>
-              {% endif %}
-              {% if observation_decisions.temporal.peak_focus %}
-              <p class="action-step-evidence">{{ observation_decisions.temporal.peak_focus.conclusion }}</p>
-              {% endif %}
-              {% if observation_decisions.temporal.multiple %}
-              <p class="action-step-evidence">比较基准为其余有火点观测日期的中位数，不使用无观测日填零。</p>
+              {% if observation_decisions.temporal.spatial_overlap or observation_decisions.temporal.peak_focus or observation_decisions.temporal.multiple %}
+              <details class="result-action-evidence">
+                <summary>查看日期对照和空间差异</summary>
+                {% if observation_decisions.temporal.spatial_overlap %}
+                <p class="action-step-evidence">{{ observation_decisions.temporal.spatial_overlap }}</p>
+                {% endif %}
+                {% if observation_decisions.temporal.peak_focus %}
+                <p class="action-step-evidence">{{ observation_decisions.temporal.peak_focus.conclusion }}</p>
+                {% endif %}
+                {% if observation_decisions.temporal.multiple %}
+                <p class="action-step-evidence">比较基准为其余有火点观测日期的中位数，不使用无观测日填零。</p>
+                {% endif %}
+              </details>
               {% endif %}
               {% if observation_decisions.temporal.peak_date %}
-              <button type="button" class="action-link" data-map-date="{{ observation_decisions.temporal.peak_date }}">只看这一天的点位 →</button>
+              <button type="button" class="action-link" data-map-date="{{ observation_decisions.temporal.peak_date }}">查看高值日点位 <span aria-hidden="true">›</span></button>
               {% if observation_decisions.temporal.peak_focus %}
-              <button type="button" class="action-link" data-map-focus-bbox="{{ observation_decisions.temporal.peak_focus.bbox|join(',') }}" data-map-focus-date="{{ observation_decisions.temporal.peak_date }}">定位当天观测最多的网格 →</button>
+              <button type="button" class="action-link result-action-secondary" data-map-focus-bbox="{{ observation_decisions.temporal.peak_focus.bbox|join(',') }}" data-map-focus-date="{{ observation_decisions.temporal.peak_date }}">定位当天最集中网格</button>
               {% endif %}
               {% endif %}
             </div>
           </article>
-          <article class="action-step">
-            <span class="action-step-index">03</span>
+          <article class="action-step result-action-card is-repeat">
+            <div class="result-action-card-head">
+              <span class="result-action-icon is-repeat" aria-hidden="true"><i></i></span>
+              <span class="action-step-index">03 · 跨日</span>
+            </div>
             <div class="action-step-copy">
-              <h3>跨日：哪些位置反复出现</h3>
+              <h3>哪些位置反复出现</h3>
               <strong class="action-step-finding">{{ observation_decisions.persistence.headline }}</strong>
               <p>{{ observation_decisions.persistence.conclusion }}</p>
               {% if observation_decisions.persistence.count %}
-              <p class="action-step-evidence">跨日重复表示观测落在同一局部网格，不等同于同一火源连续燃烧。</p>
-              <button type="button" class="action-link" data-map-theme="persistent">显示跨日重复网格 →</button>
+              <details class="result-action-evidence"><summary>查看跨日重复统计口径</summary>
+                <p class="action-step-evidence">跨日重复表示观测落在同一局部网格，不等同于同一火源连续燃烧。</p>
+              </details>
+              <button type="button" class="action-link" data-map-theme="persistent">显示重复观测网格 <span aria-hidden="true">›</span></button>
               {% endif %}
             </div>
           </article>

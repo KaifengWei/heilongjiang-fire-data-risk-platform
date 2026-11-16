@@ -82,6 +82,22 @@ def test_result_page_shows_interactive_real_dates_and_two_distinct_land_denomina
 
     # Coverage: 2/3 of *all* observations. Crop share: 2/2 of *matched* observations.
     assert "本次观测土地覆盖匹配比例" in html
+    assert "result_console.css" in html
+    assert 'class="declared-task-summary result-console-overview reveal-item"' in html
+    assert "result-instrument-facts" in html
+    assert "result-instrument-symbol" in html
+    assert 'class="coverage-dial"' in html
+    assert "--dial-degrees: 240.1deg" in html  # 66.7% displayed => 240.12 degrees
+    assert "result-evidence-tiles" in html
+    assert "result-evidence-swatch is-farmland" in html
+    assert "result-action-deck" in html
+    assert "result-action-card is-area" in html
+    assert "result-action-card is-date" in html
+    assert "result-action-card is-repeat" in html
+    assert 'data-map-focus-bbox="' in html
+    assert 'data-map-theme="persistent"' in html
+    assert "查看位置依据及样本坐标" in html
+    assert "查看日期对照和空间差异" in html
     assert 'style="width: 66.7%"' in html
     assert "已匹配 2 条，占 66.7%；未匹配 1 条" in html
     assert "已匹配观测的地表类型构成" in html
@@ -118,3 +134,33 @@ def test_all_unmatched_has_no_artificial_surface_composition(tmp_path, monkeypat
     assert "已匹配观测的地表类型构成" in html
     assert "暂缺可展示的具体地表类型" in html
     assert "agriculture-composition-bar" not in html
+    assert "result-evidence-swatch is-farmland" not in html
+    assert "result-evidence-tiles" not in html
+
+
+
+def test_console_styles_are_pure_css_and_target_only_coordinate_results():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    style = (root / "static" / "result_console.css").read_text(encoding="utf-8")
+    assert "result-console-overview" in style
+    assert "coverage-dial" in style
+    assert "result-evidence-swatch" in style
+    assert "result-action-deck" in style
+    assert "prefers-reduced-motion" in style
+    assert "#taskWorkspace[data-coordinate-mode=\"true\"]" in style
+    # A view-only redesign must not introduce new data fetches, generated raster
+    # files or external CDNs. It reuses the task's genuine measured values.
+    assert "url(" not in style
+    assert "http://" not in style
+    assert "https://" not in style
+
+    template = (root / "templates" / "task_detail.html").read_text(
+        encoding="utf-8"
+    )
+    assert "filename='result_console.css'" in template
+    assert 'data-map-theme="persistent"' in template
+    assert 'data-map-focus-bbox="' in template
+    assert 'data-map-date="{{ observation_decisions.temporal.peak_date }}"' in template
+    assert "result-action-evidence" in template
