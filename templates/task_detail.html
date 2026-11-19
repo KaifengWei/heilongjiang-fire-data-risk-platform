@@ -6,7 +6,7 @@
   <title>{{ task.name }} - 分析结果</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='product.css', v='release20261114-charts9') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='result_console.css', v='release20261116-raster2') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='result_console.css', v='release20261119-focus3') }}">
 </head>
 
 <body class="app-body">
@@ -178,7 +178,10 @@
             {% endfor %}
           </div>
           {% endif %}
-          <small>占比仅针对成功匹配的火点观测，不代表整个区域的地表面积比例。</small>
+          <details class="result-data-method">
+            <summary>查看地表数据来源</summary>
+            <p>土地覆盖分类采用 MCD12Q1 {{ land_cover_context.year }}，基于实际匹配的观测坐标取样；比例不代表整片土地的面积。</p>
+          </details>
           {% elif agricultural_relevance and agricultural_relevance.land_cover_matched|default(0) > 0 %}
           {% set matched = agricultural_relevance.land_cover_matched %}
           {% set total = agricultural_relevance.total_observations %}
@@ -187,8 +190,10 @@
           {% set other_surface = land_counts.get('other', 0) %}
           <h3>土地覆盖仅部分匹配本次观测</h3>
           {{ overview_cover_bar(overview_surface) }}
-          <p>2024 年 MCD12Q1 已匹配 <b>{{ '{:,}'.format(matched) }}</b> / {{ '{:,}'.format(total) }} 条观测（{{ '%.1f'|format(100 * matched / total if total else 0) }}%）。{% if land_counts %}其中 <b>{{ '{:,}'.format(cropland) }}</b> 条为耕地或混合植被背景，<b>{{ '{:,}'.format(other_surface) }}</b> 条为其他地表背景。{% endif %}</p>
-          <small>其余 {{ '{:,}'.format(total - matched) }} 条未匹配；下方仅分析已匹配观测的地表类别，不代表土地面积。</small>
+          <details class="result-data-method">
+            <summary>查看匹配范围与统计口径</summary>
+            <p>MCD12Q1 2024 共匹配 {{ '{:,}'.format(matched) }} / {{ '{:,}'.format(total) }} 条观测；其中 {{ '{:,}'.format(cropland) }} 条位于耕地及混合植被背景，{{ '{:,}'.format(other_surface) }} 条为其他地表。另有 {{ '{:,}'.format(total - matched) }} 条未匹配。类别占比仅统计已匹配的火点，不代表土地面积。</p>
+          </details>
           {% else %}
           <h3>本次观测暂无地表匹配</h3>
           {{ overview_cover_bar(overview_surface) }}
@@ -252,7 +257,7 @@
             <span class="app-eyebrow">AGRICULTURAL RELEVANCE</span>
             <h2>农业秸秆焚烧相关性识别</h2>
           </div>
-          <small>农业背景线索，与火点活动关注等级分别判断</small>
+          
         </div>
         {% macro relevance_levels() %}
         <div class="agriculture-relevance-grid" aria-label="相关性等级观测数量">
@@ -273,7 +278,7 @@
           <div class="agriculture-chart-heading">
             <div>
               <h3>已匹配观测的地表类型构成</h3>
-              <small>分母为已匹配的 {{ '{:,}'.format(surface.matched) }} 条观测，不是全部 {{ '{:,}'.format(surface.total) }} 条</small>
+              <small>已匹配 {{ '{:,}'.format(surface.matched) }} 条火点</small>
             </div>
             <strong>{{ '%.1f'|format(surface.farmland_among_matched_percent) if surface.farmland is not none and surface.matched else '—' }}<small>{{ '%' if surface.farmland is not none and surface.matched else '' }}</small></strong>
           </div>
@@ -329,29 +334,28 @@
             {% endfor %}
           </div>
           {% endif %}
-          <div class="result-raster-context-note">缩略图显示所选实际观测点邻近的 MCD12Q1 2024 分类像元，并非真彩色卫星照片或地块边界。不同颜色代表地表类别；“其他地表”图仅是一处真实样点，不代表全部其他地表都具有相同外观。</div>
-          <div class="agriculture-chart-foot">
-            <span>尚未匹配土地覆盖：<b>{{ '{:,}'.format(surface.missing) }}</b> 条</span>
-            <span>地表分类来源：MCD12Q1 {{ agricultural_relevance.land_cover_year }}</span>
-          </div>
-          <details class="agriculture-surface-method">
-            <summary>查看统计口径与农事规则</summary>
+          <details class="agriculture-surface-method result-data-method">
+            <summary>查看样本来源与统计口径</summary>
+            <p>未匹配土地覆盖 {{ '{:,}'.format(surface.missing) }} 条；数据为 MCD12Q1 {{ agricultural_relevance.land_cover_year }} 地表分类。缩略图来自所选实际火点附近的分类像元，不是真彩色照片，也不是地块边界。</p>
             <p>{{ surface.headline }}</p>
             <p>{{ surface.calendar_note }}</p>
+            <p>{{ agricultural_relevance.disclaimer }}</p>
           </details>
         </div>
         <details class="agriculture-level-details">
-          <summary>查看四级相关性分类明细（沿用原统计口径）</summary>
+          <summary>查看相关性分类明细</summary>
           {{ relevance_levels() }}
         </details>
         {% else %}
           {{ relevance_levels() }}
         {% endif %}
+        {% if not coordinate_mode %}
         <div class="agriculture-relevance-evidence-line">
           <span><b>地表匹配</b> {{ agricultural_relevance.land_cover_matched }} / {{ agricultural_relevance.total_observations }} 条</span>
           <span><b>土地覆盖</b> MCD12Q1 {{ agricultural_relevance.land_cover_year }}</span>
           <span><b>农事规则</b> {{ agricultural_relevance.calendar_rules_count }} 条</span>
         </div>
+        {% endif %}
         {% if agricultural_region_ranking and (agricultural_region_ranking|length > 1 or not coordinate_mode) %}
         <div class="agriculture-region-heading">
           <div>
@@ -400,7 +404,9 @@
         </details>
         {% endif %}
         {% endif %}
+        {% if not coordinate_mode %}
         <p class="agriculture-relevance-note">{{ agricultural_relevance.disclaimer }}</p>
+        {% endif %}
       </section>
       {% endif %}
 
@@ -539,10 +545,11 @@
               <span class="app-eyebrow">SPATIAL WORKSPACE</span>
               <h2>{{ '观测点分布（真实坐标）' if coordinate_mode else '火点空间分布' }}</h2>
               {% if coordinate_mode and (map_context_count or map_basemap_count) %}
-              <p class="map-spatial-reference-note">
-                {% if map_basemap_count %}地图：{{ basemap_summary.source }}{% endif %}
-                {% if map_context_count %}{{ map_context_count }} 处地区轮廓{% endif %}
-              </p>
+              <details class="result-data-method map-spatial-reference-note">
+                <summary>地图底图来源</summary>
+                {% if map_basemap_count %}<p>{{ basemap_summary.source }}</p>{% endif %}
+                {% if map_context_count %}<p>{{ map_context_count }} 处地区轮廓</p>{% endif %}
+              </details>
               {% endif %}
             </div>
 
@@ -646,15 +653,22 @@
           </div>
 
           {% if coordinate_mode %}
-          <p class="scoped-task-label">本次共 {{ location_groups.total }} 条有坐标的观测，分布在 {{ location_groups.cell_count }} 个经纬度网格。以下为观测数量最多的分组，不是行政区划分。</p>
+          <p class="scoped-task-label">按 1° 经纬网格分组 · 共 {{ location_groups.cell_count }} 组</p>
           {% if location_groups.cell_count > 0 %}
           <div class="observation-grid-groups">
-            <div class="grid-observation-total"><span>全部观测</span><strong>{{ '{:,}'.format(analysis_summary.active_fire_count) }}</strong></div>
-            {% for group in location_groups.groups %}
+            {% for group in location_groups.groups[:3] %}
             <div class="grid-observation-row"><span>{{ group.label }}</span><strong>{{ '{:,}'.format(group.count) }}</strong></div>
             {% endfor %}
-            {% if location_groups.other_count %}
-            <div class="grid-observation-row"><span>其余网格</span><strong>{{ '{:,}'.format(location_groups.other_count) }}</strong></div>
+            {% if location_groups.groups|length > 3 or location_groups.other_count %}
+            <details class="result-data-method result-grid-more">
+              <summary>查看其余网格</summary>
+              {% for group in location_groups.groups[3:] %}
+              <div class="grid-observation-row"><span>{{ group.label }}</span><strong>{{ '{:,}'.format(group.count) }}</strong></div>
+              {% endfor %}
+              {% if location_groups.other_count %}
+              <div class="grid-observation-row"><span>其余网格</span><strong>{{ '{:,}'.format(location_groups.other_count) }}</strong></div>
+              {% endif %}
+            </details>
             {% endif %}
           </div>
           {% endif %}
@@ -683,27 +697,10 @@
         <div class="action-guidance-summary result-action-console">
           <div class="action-guidance-kicker">
             <span class="app-eyebrow">基于实际 FIRMS 观测</span>
-            <span class="action-guidance-method-tag">0.25° 空间分组 · 按日统计 · 跨日重复网格</span>
+            <details class="result-data-method result-decision-method"><summary>统计口径</summary><p>空间集中按 0.25° 网格、重复位置按约 5 km 网格与实际日期统计。</p></details>
           </div>
           <h2>当前情况与建议</h2>
-          <p class="action-guidance-lead action-guidance-insight">{{ observation_decisions.lead }}</p>
-          <div class="action-guidance-facts result-decision-readouts" aria-label="从本次观测得出的三个结论">
-            <div class="action-guidance-fact">
-              <span>观测最密集的 0.25° 网格</span>
-              <strong>{{ '{:,}'.format(observation_decisions.spatial.count) }} <small>条，{{ '%.1f'|format(observation_decisions.spatial.share) }}%</small></strong>
-              <small>该网格在 {{ observation_decisions.spatial.active_days }} 个日期有观测</small>
-            </div>
-            <div class="action-guidance-fact">
-              <span>火点最多的日期</span>
-              <strong>{{ observation_decisions.temporal.peak_date or '—' }}</strong>
-              <small>{{ '{:,}'.format(observation_decisions.temporal.peak_count) }} 条，占本次 {{ '%.1f'|format(observation_decisions.temporal.peak_share) }}%</small>
-            </div>
-            <div class="action-guidance-fact">
-              <span>跨日重复观测的局部网格</span>
-              <strong>{{ observation_decisions.persistence.count }} <small>处</small></strong>
-              <small>按已有约 5 km 网格和实际观测日期统计</small>
-            </div>
-          </div>
+
         </div>
         <div class="action-guidance-steps action-guidance-evidence result-action-deck" aria-label="分析结果的可操作入口">
           <article class="action-step result-action-card is-area">
@@ -714,8 +711,9 @@
             <div class="action-step-copy">
               <h3>先看哪里</h3>
               <strong class="action-step-finding">{{ observation_decisions.spatial.headline }}</strong>
-              <p>{{ observation_decisions.spatial.conclusion }}</p>
-              <details class="result-action-evidence"><summary>查看位置依据及样本坐标</summary>
+              <p>第二位 {{ '{:,}'.format(observation_decisions.spatial.second_count) }} 条{% if observation_decisions.spatial.second_count and observation_decisions.spatial.count < observation_decisions.spatial.second_count * 1.5 %}，两处均值得查看{% endif %}。</p>
+              <details class="result-action-evidence"><summary>位置与统计明细</summary>
+                <p>{{ observation_decisions.spatial.conclusion }}</p>
                 <p class="action-step-evidence">{{ observation_decisions.spatial.evidence }}</p>
                 <p class="action-step-evidence">实际样本点：东经 {{ '%.5f'|format(observation_decisions.spatial.sample_point.longitude) }}°，北纬 {{ '%.5f'|format(observation_decisions.spatial.sample_point.latitude) }}°{% if observation_decisions.spatial.sample_point.date %}（{{ observation_decisions.spatial.sample_point.date }}）{% endif %}。</p>
               </details>
@@ -730,10 +728,13 @@
             <div class="action-step-copy">
               <h3>先看哪一天</h3>
               <strong class="action-step-finding">{{ observation_decisions.temporal.headline }}</strong>
-              <p>{{ observation_decisions.temporal.conclusion }}</p>
+              {% if observation_decisions.temporal.peak_focus %}
+              <p>当天最集中网格 {{ observation_decisions.temporal.peak_focus.count }} 条，{% if observation_decisions.temporal.peak_focus.same_as_overall %}与累计热点重合{% else %}与累计热点位置不同{% endif %}。</p>
+              {% endif %}
               {% if observation_decisions.temporal.spatial_overlap or observation_decisions.temporal.peak_focus or observation_decisions.temporal.multiple %}
               <details class="result-action-evidence">
-                <summary>查看日期对照和空间差异</summary>
+                <summary>日期与空间对照明细</summary>
+                <p>{{ observation_decisions.temporal.conclusion }}</p>
                 {% if observation_decisions.temporal.spatial_overlap %}
                 <p class="action-step-evidence">{{ observation_decisions.temporal.spatial_overlap }}</p>
                 {% endif %}
@@ -761,12 +762,15 @@
             <div class="action-step-copy">
               <h3>哪些位置反复出现</h3>
               <strong class="action-step-finding">{{ observation_decisions.persistence.headline }}</strong>
-              <p>{{ observation_decisions.persistence.conclusion }}</p>
               {% if observation_decisions.persistence.count %}
-              <details class="result-action-evidence"><summary>查看跨日重复统计口径</summary>
-                <p class="action-step-evidence">跨日重复表示观测落在同一局部网格，不等同于同一火源连续燃烧。</p>
+              <p>首位重复网格在 {{ observation_decisions.persistence.active_days }} 个日期记录 {{ '{:,}'.format(observation_decisions.persistence.observations) }} 条观测。</p>
+              <details class="result-action-evidence"><summary>重复位置明细</summary>
+                <p class="action-step-evidence">{{ observation_decisions.persistence.conclusion }}</p>
+                <p class="action-step-evidence">跨日重复表示同一局部网格在不同日期有观测记录。</p>
               </details>
               <button type="button" class="action-link" data-map-theme="persistent">显示重复观测网格 <span aria-hidden="true">›</span></button>
+              {% else %}
+              <p>本次无重复网格，优先查看空间热点与高值日期。</p>
               {% endif %}
             </div>
           </article>
@@ -776,7 +780,6 @@
           <div class="action-grid-compare-header">
             <div>
               <h3>观测最多的三个网格</h3>
-              <p>按实际 FIRMS 观测数量排列；每行对应真实坐标范围和各自的日期分布，不代表农田地块边界。</p>
             </div>
           </div>
           <div class="action-grid-compare-list">
@@ -785,14 +788,20 @@
               <div class="action-grid-compare-position">
                 <span>第 {{ item.rank }} 位</span>
                 <strong>{{ item.bounds_label }}</strong>
-                <small>实测点：东经 {{ '%.5f'|format(item.sample_point.longitude) }}°，北纬 {{ '%.5f'|format(item.sample_point.latitude) }}°</small>
+
               </div>
               <div class="action-grid-compare-evidence">
-                <strong>{{ '{:,}'.format(item.count) }} 条 <small>占本次 {{ '%.1f'|format(item.share) }}%</small></strong>
-                <span>在 {{ item.active_days }} 个日期出现{% if item.peak_date %}，网格高值日 {{ item.peak_date }} 有 {{ item.peak_count }} 条{% endif %}</span>
-                {% if item.land_evidence %}
-                <span class="action-grid-compare-land">{{ item.land_evidence }}</span>
+                <strong>{{ '{:,}'.format(item.count) }} 条 <small>{{ item.active_days }} 个观测日</small></strong>
+                {% if item.surface_matched %}
+                <span>其中 {{ item.surface_matched }} 条匹配地表，{{ item.cropland_background_count }} 条属于耕地或混合植被背景</span>
                 {% endif %}
+                <details class="result-data-method result-grid-evidence">
+                  <summary>日期与坐标明细</summary>
+                  <p>实测点：东经 {{ '%.5f'|format(item.sample_point.longitude) }}°，北纬 {{ '%.5f'|format(item.sample_point.latitude) }}°。</p>
+                  {% if item.peak_date %}<p>网格高值日 {{ item.peak_date }}：{{ item.peak_count }} 条。</p>{% endif %}
+                  {% if item.land_evidence %}<p>{{ item.land_evidence }}</p>{% endif %}
+                  <p>占本次 {{ '%.1f'|format(item.share) }}%</p>
+                </details>
               </div>
               <button type="button" class="action-link" data-map-focus-bbox="{{ item.bbox|join(',') }}">定位该网格 →</button>
             </article>
@@ -1043,6 +1052,6 @@
 {% if not coordinate_mode and (not task.parameters.selected_regions or not (task.parameters.selected_regions|rejectattr('source','equalto','builtin')|list)) %}
 <script src="{{ url_for('static', filename='county_drilldown.js') }}"></script>
 {% endif %}
-<script src="{{ url_for('static', filename='weather_context.js', v='release20261110-joint8') }}"></script>
+<script src="{{ url_for('static', filename='weather_context.js', v='release20261119-focus3') }}"></script>
 </body>
 </html>

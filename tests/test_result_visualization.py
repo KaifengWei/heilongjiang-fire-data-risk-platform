@@ -97,16 +97,16 @@ def test_result_page_shows_interactive_real_dates_and_two_distinct_land_denomina
     assert 'data-map-focus-bbox="' in html
     # No recurring grid in this sample: no repeat-activity action button.
     assert 'data-map-theme="persistent"' not in html
-    assert "查看位置依据及样本坐标" in html
-    assert "查看日期对照和空间差异" in html
+    assert "位置与统计明细" in html
+    assert "日期与空间对照明细" in html
     assert 'style="width: 66.7%"' in html
     assert "已匹配 2 条，占 66.7%；未匹配 1 条" in html
     assert "已匹配观测的地表类型构成" in html
-    assert "分母为已匹配的 2 条观测，不是全部 3 条" in html
+    assert "已匹配 2 条火点" in html
     assert 'style="width: 100.0%"' in html
     assert "耕地与混合植被背景" in html
-    assert "尚未匹配土地覆盖" in html
-    assert "查看统计口径与农事规则" in html
+    assert "未匹配土地覆盖" in html
+    assert "查看样本来源与统计口径" in html
 
 
 def test_all_unmatched_has_no_artificial_surface_composition(tmp_path, monkeypatch):

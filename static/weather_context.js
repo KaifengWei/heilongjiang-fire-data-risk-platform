@@ -283,9 +283,7 @@
       source.textContent = `${data.source || 'NASA POWER Daily'} · ${start} 至 ${end}`;
     }
 
-    setLead(data.spatial_scope === 'representative_point'
-      ? '选取本次火点最密集的经纬网格内实际代表点，查看任务日期的历史天气；不套用其他地区的气象资料。'
-      : '结合任务日期和重点县区，查看火点出现时的天气条件。');
+    setLead('');
 
     if (!cards) return;
 
@@ -360,7 +358,7 @@
           <span>火点增多日</span>
           <b>${peak.date || ''} · ${Number(peak.fire_count || 0).toLocaleString('zh-CN')} 个火点</b>
         </div>
-        <p>${peak.summary || ''}</p>
+        ${peak.summary ? `<details class="result-data-method weather-peak-details"><summary>查看当天气象对比</summary><p>${peak.summary}</p></details>` : ''}
         <div class="historical-peak-facts">${peakFacts}</div>
       </article>
 
@@ -371,7 +369,7 @@
         </div>
         ${coordinatePoint
           ? `<p>东经 ${Number(coordinatePoint.longitude).toFixed(4)}°，北纬 ${Number(coordinatePoint.latitude).toFixed(4)}°</p>
-             <small>所在网格共 ${Number(coordinatePoint.cell_count)} 条观测；点位天气代表所选坐标，不等同于整个区域平均值。</small>`
+             <details class="result-data-method"><summary>查看取样范围</summary><p>所在网格记录 ${Number(coordinatePoint.cell_count)} 条观测，天气数值来自所选坐标。</p></details>`
           : `<div class="history-county-list">${countyRows}</div>`}
       </article>
     `;
@@ -383,39 +381,63 @@
 
   function renderJointEvidence(data) {
     const result = data && data.joint_evidence;
-    if (!result || !result.available || !cards || !Array.isArray(result.blocks)) return;
-    const blocks = result.blocks.filter(block =>
+    if (!result || !result.available || !cards) return;
+    const blocks = Array.isArray(result.blocks) ? result.blocks.filter(block =>
       block && typeof block.title === 'string' && typeof block.text === 'string'
       && block.title && block.text
-    );
-    if (!blocks.length) return;
+    ) : [];
+    const highlights = Array.isArray(result.highlights) ? result.highlights.filter(item =>
+      item && typeof item.title === 'string' && typeof item.text === 'string'
+      && item.title && item.text
+    ).slice(0, 3) : [];
+    if (!blocks.length && !highlights.length) return;
+
     const section = document.createElement('section');
-    section.className = 'weather-joint-evidence';
+    section.className = 'weather-joint-evidence result-weather-essentials';
     const heading = document.createElement('h3');
-    heading.textContent = '火点、天气与地表证据对照';
-    const explanation = document.createElement('p');
-    explanation.className = 'weather-joint-explanation';
-    explanation.textContent = '把同一任务的观测日期、气象代表点与已有土地覆盖匹配放在一起比较';
-    const list = document.createElement('div');
-    list.className = 'weather-joint-grid';
-    blocks.forEach(block => {
-      const article = document.createElement('article');
-      const title = document.createElement('h4');
-      const body = document.createElement('p');
-      title.textContent = block.title;
-      body.textContent = block.text;
-      article.appendChild(title);
-      article.appendChild(body);
-      list.appendChild(article);
-    });
+    heading.textContent = '高值日天气与重点位置';
     section.appendChild(heading);
-    section.appendChild(explanation);
-    section.appendChild(list);
-    if (typeof result.note === 'string' && result.note) {
-      const note = document.createElement('p');
-      note.className = 'weather-joint-note';
-      note.textContent = result.note;
-      section.appendChild(note);
+
+    if (highlights.length) {
+      const list = document.createElement('div');
+      list.className = 'weather-joint-grid';
+      highlights.forEach(item => {
+        const article = document.createElement('article');
+        const title = document.createElement('h4');
+        const body = document.createElement('p');
+        title.textContent = item.title;
+        body.textContent = item.text;
+        article.append(title, body);
+        list.appendChild(article);
+      });
+      section.appendChild(list);
+    }
+
+    if (blocks.length) {
+      const details = document.createElement('details');
+      details.className = 'result-data-method weather-joint-full';
+      const summary = document.createElement('summary');
+      summary.textContent = '查看完整气象与地表对照';
+      details.appendChild(summary);
+      const list = document.createElement('div');
+      list.className = 'weather-joint-full-list';
+      blocks.forEach(block => {
+        const article = document.createElement('article');
+        const title = document.createElement('h4');
+        const body = document.createElement('p');
+        title.textContent = block.title;
+        body.textContent = block.text;
+        article.append(title, body);
+        list.appendChild(article);
+      });
+      details.appendChild(list);
+      if (typeof result.note === 'string' && result.note) {
+        const note = document.createElement('p');
+        note.className = 'weather-joint-note';
+        note.textContent = result.note;
+        details.appendChild(note);
+      }
+      section.appendChild(details);
     }
     cards.appendChild(section);
   }
@@ -428,7 +450,7 @@
 
     const box = document.createElement('article');
     box.className = 'weather-daily-comparison';
-    box.innerHTML = '<div class="weather-daily-heading"><div><strong>火点日期与天气变化</strong><p>按任务日期对照实际火点数量和取样点的每日天气</p></div><label>天气指标 <select aria-label="切换逐日天气指标"><option value="precipitation_mm">日降水量</option><option value="humidity_percent">相对湿度</option><option value="wind_mps">平均风速</option><option value="temperature_c">平均气温</option></select></label></div><div class="weather-daily-chart"></div><div class="weather-daily-legend"><span class="weather-daily-bar-mark">火点数量</span><span class="weather-daily-line-mark">天气指标</span><small>两组数据使用独立刻度，图形仅用于对照日期变化</small></div>';
+    box.innerHTML = '<div class="weather-daily-heading"><div><strong>火点与天气变化</strong></div><label>天气指标 <select aria-label="切换逐日天气指标"><option value="precipitation_mm">日降水量</option><option value="humidity_percent">相对湿度</option><option value="wind_mps">平均风速</option><option value="temperature_c">平均气温</option></select></label></div><div class="weather-daily-chart"></div><div class="weather-daily-legend"><span class="weather-daily-bar-mark">火点数量</span><span class="weather-daily-line-mark">天气指标</span></div>';
     const chartHost = box.querySelector('.weather-daily-chart');
     const picker = box.querySelector('select');
     const labels = {

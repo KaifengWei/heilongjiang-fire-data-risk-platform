@@ -134,9 +134,9 @@ def test_partial_land_cover_is_reported_as_partial_not_absent(tmp_path, monkeypa
     task_id = tid(upload(client, area_label="跨区域土地覆盖验证"))
     html = client.get(f"/tasks/{task_id}").get_data(as_text=True)
     assert "土地覆盖仅部分匹配本次观测" in html
-    assert "1</b> / 2 条观测（50.0%）" in html
-    assert "1</b> 条为耕地或混合植被背景" in html
-    assert "其余 1 条未匹配；下方仅分析已匹配观测" in html
+    assert "共匹配 1 / 2 条观测" in html
+    assert "其中 1 条位于耕地及混合植被背景" in html
+    assert "另有 1 条未匹配" in html
     assert "本次观测暂无地表匹配" not in html
 
 
@@ -177,7 +177,7 @@ def test_declared_summary_shows_measured_land_cover_shares(tmp_path, monkeypatch
     assert "农田及交错植被" in text
     assert "林地" in text
     assert text.count("50.0%") >= 2
-    assert "不代表整个区域的地表面积比例" in text
+    assert "比例不代表整片土地的面积" in text
     assert "通用农业区域概念示意" not in text
 
 

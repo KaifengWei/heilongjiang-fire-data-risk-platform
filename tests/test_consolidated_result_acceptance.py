@@ -83,7 +83,7 @@ def test_coordinate_result_is_compact_and_word_uses_same_surface_numbers(tmp_pat
     assert "本次 2 条观测中有 1 条获得土地覆盖背景" in html
     assert "其中 1 条位于耕地或耕地与自然植被混合背景" in html
     assert "尚未匹配土地覆盖" in html
-    assert "查看四级相关性分类明细" in html
+    assert "查看相关性分类明细" in html
     assert "当前情况与建议" in html
     assert "本次态势摘要" not in html
     # A single user-declared area has no meaningful multi-region ranking.

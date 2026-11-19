@@ -112,6 +112,30 @@ def build_joint_historical_evidence(
                 )
         comparisons.append(comparison)
 
+    # The desktop UI shows only decisive comparisons by default; full
+    # measured evidence in 'blocks' is preserved for expansion and Word.
+    humidity_today = _number(top.get("humidity_percent"))
+    humidity_mean = _number(period.get("humidity_percent"))
+    rain_today = _number(top.get("precipitation_mm"))
+    temp_today = _number(top.get("temperature_c"))
+    temp_mean = _number(period.get("temperature_c"))
+    digest_parts = []
+    if humidity_today is not None:
+        humidity_text = f"湿度 {humidity_today:.0f}%"
+        if humidity_mean is not None and abs(humidity_today - humidity_mean) >= 5:
+            direction = "低" if humidity_today < humidity_mean else "高"
+            humidity_text += f"（比任务期{direction}{abs(humidity_today - humidity_mean):.0f}个百分点）"
+        digest_parts.append(humidity_text)
+    if temp_today is not None and temp_mean is not None and abs(temp_today - temp_mean) >= 2:
+        direction = "低" if temp_today < temp_mean else "高"
+        digest_parts.append(f"气温 {temp_today:.1f}℃（比任务期{direction}{abs(temp_today - temp_mean):.1f}℃）")
+    if rain_today is not None and not digest_parts:
+        digest_parts.append(f"日降水 {rain_today:.1f} mm")
+    highlights: list[dict[str, str]] = [{
+        "title": f"{day} · {daily_count:,} 条火点",
+        "text": "；".join(digest_parts[:2]) if digest_parts else "查看该日实际天气记录",
+    }]
+
     blocks: list[dict[str, str]] = [{
         "title": "火点最多日期的实际天气",
         "text": (
@@ -177,6 +201,13 @@ def build_joint_historical_evidence(
                     + relationship
                 ),
             })
+            highlights.append({
+                "title": "当天热点位置",
+                "text": (
+                    f"最集中网格 {local_count:,} 条（占当日 {local_share:.1f}%）；"
+                    + ("与气象取样点同网格" if in_daily_cell else "与气象取样点不同网格")
+                ),
+            })
 
     grid = ((decisions or {}).get("top_grid_comparison") or [])
     first = grid[0] if grid else {}
@@ -194,6 +225,10 @@ def build_joint_historical_evidence(
                 f"{top_count - land_match:,} 条未匹配。"
             ),
         })
+        highlights.append({
+            "title": "累计热点地表",
+            "text": f"首位网格 {top_count:,} 条中，{land_match:,} 条匹配地表，{farmland:,} 条为耕地及混合植被背景",
+        })
     return {
         "available": True,
         "mode": "historical",
@@ -201,5 +236,6 @@ def build_joint_historical_evidence(
         "peak_count": daily_count,
         "sample_in_primary_grid": same_cell,
         "blocks": blocks,
+        "highlights": highlights,
         "note": "气象数值来自单一代表点；日期对照与地表类别均是观测证据，不直接确定热异常成因。",
     }
