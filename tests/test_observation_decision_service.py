@@ -119,7 +119,8 @@ def test_decision_panel_uses_real_task_counts_and_matches_word(tmp_path):
     page = client.get(submitted.headers["Location"])
     assert page.status_code == 200
     html = page.get_data(as_text=True)
-    assert "从本次观测得出的三个结论" in html
+    assert "result-action-deck" in html
+    assert "位置与统计明细" in html
     assert "首位网格 4 条，占 66.7%" in html
     assert 'data-map-focus-bbox="124.0,45.0,124.25,45.25"' in html
     assert 'data-map-date="2026-04-01"' in html

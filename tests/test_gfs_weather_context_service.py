@@ -198,6 +198,7 @@ def test_historical_weather_ui_uses_compact_non_defensive_copy():
         / "weather_context.js"
     ).read_text(encoding="utf-8")
 
-    assert "结合任务日期和重点县区，查看火点出现时的天气条件。" in weather_js
+    assert "result.highlights" in weather_js
+    assert "查看完整气象与地表对照" in weather_js
     assert "任务期平均天气" in weather_js
     assert "不代表预报，也不能单独证明火点成因" not in weather_js

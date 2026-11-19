@@ -547,7 +547,7 @@
               {% if coordinate_mode and (map_context_count or map_basemap_count) %}
               <details class="result-data-method map-spatial-reference-note">
                 <summary>地图底图来源</summary>
-                {% if map_basemap_count %}<p>{{ basemap_summary.source }}</p>{% endif %}
+                {% if map_basemap_count %}<p>地图：{{ basemap_summary.source }}</p>{% endif %}
                 {% if map_context_count %}<p>{{ map_context_count }} 处地区轮廓</p>{% endif %}
               </details>
               {% endif %}
@@ -654,6 +654,10 @@
 
           {% if coordinate_mode %}
           <p class="scoped-task-label">按 1° 经纬网格分组 · 共 {{ location_groups.cell_count }} 组</p>
+          <details class="result-data-method result-grid-definition">
+            <summary>查看网格定义</summary>
+            <p>按观测坐标分组，不是行政区划分。</p>
+          </details>
           {% if location_groups.cell_count > 0 %}
           <div class="observation-grid-groups">
             {% for group in location_groups.groups[:3] %}
@@ -711,7 +715,11 @@
             <div class="action-step-copy">
               <h3>先看哪里</h3>
               <strong class="action-step-finding">{{ observation_decisions.spatial.headline }}</strong>
-              <p>第二位 {{ '{:,}'.format(observation_decisions.spatial.second_count) }} 条{% if observation_decisions.spatial.second_count and observation_decisions.spatial.count < observation_decisions.spatial.second_count * 1.5 %}，两处均值得查看{% endif %}。</p>
+              {% if observation_decisions.spatial.second_count %}
+              <p>第二位 {{ '{:,}'.format(observation_decisions.spatial.second_count) }} 条{% if observation_decisions.spatial.count < observation_decisions.spatial.second_count * 1.5 %}，两处均值得查看{% endif %}。</p>
+              {% else %}
+              <p>本次观测集中在这一个网格。</p>
+              {% endif %}
               <details class="result-action-evidence"><summary>位置与统计明细</summary>
                 <p>{{ observation_decisions.spatial.conclusion }}</p>
                 <p class="action-step-evidence">{{ observation_decisions.spatial.evidence }}</p>

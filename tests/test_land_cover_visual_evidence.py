@@ -108,7 +108,7 @@ def test_actual_landcover_preview_on_result_page_and_unmodified_counts(tmp_path,
     assert "实测分类栅格邻域" in html
     assert "东经 110.5000°，北纬 30.5000°" in html
     assert "东经 127.5000°，北纬 45.5000°" in html
-    assert "分类像元，并非真彩色卫星照片" in html
+    assert "分类像元，不是真彩色照片" in html
     assert "已匹配观测的地表类型构成" in html
     assert "耕地与混合植被背景" in html
     assert "其他地表背景" in html
