@@ -30,3 +30,15 @@ def test_bundle_verification_requires_onedir_support_folder(tmp_path):
     folder = tmp_path / "dist" / "app"
     folder.mkdir(parents=True)
     assert missing_bundle_items(folder) == ["_internal/"]
+
+
+
+def test_bundle_requires_final_result_and_weather_assets(tmp_path):
+    folder = tmp_path / "农业秸秆焚烧区域火点检测与分析平台"
+    _fake_bundle(folder)
+    for rel in ("static/result_console.css", "static/weather_context.js"):
+        path = folder / "_internal" / rel
+        path.unlink()
+        assert "_internal/" + rel in missing_bundle_items(folder)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"restored")

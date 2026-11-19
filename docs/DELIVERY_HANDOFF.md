@@ -30,11 +30,12 @@
 同步完成后第三条应输出 0 0。必须在当前已激活的 Anaconda PowerShell 会话内使用 `&` 直接调用脚本，不要再用 `powershell -File` 创建新子窗口；新进程可能无法继承该会话的 Git、Conda 命令或函数。`Set-ExecutionPolicy -Scope Process Bypass` 只对当前会话有效。发生冲突时停止处理，不使用 reset --hard 或 git clean。
 当首页 WebP 不在 static/images/home_earth_orbit.webp 时，可传入 -CoverSource 和实际图片路径。
 
-交付脚本先运行完整源码回归测试、JavaScript 语法检查、PyInstaller 打包、运行资源核验及最新 EXE 本体的独立无界面自检。只有这些步骤都通过，才会生成以下文件：
+交付脚本先运行完整源码回归测试、JavaScript 语法检查、PyInstaller 打包、运行资源核验及最新 EXE 本体的独立无界面自检。随后逐项校验 ZIP 内**全部文件路径、数量、大小和 CRC**，并对 EXE 与地图、天气、结果页等关键资源比对原构建文件的 SHA256；只有这些步骤都通过，才会生成以下文件：
 
 - dist/农业秸秆焚烧区域火点检测与分析平台/农业秸秆焚烧区域火点检测与分析平台.exe
 - release/农业秸秆焚烧区域火点检测与分析平台_<提交>_<构建时间>_Windows.zip
 - 同名前缀的 _SHA256.txt 校验文件
+- 同名前缀的 _Windows验收记录.md（17 项集中实机验收，全部初始为未勾选）
 
 发布或复制时必须保留整个目录及 _internal，不能只复制 EXE。
 
@@ -49,6 +50,16 @@ Set-ExecutionPolicy -Scope Process Bypass -Force
 
 恢复模式要求现有 `dist` EXE 完整，并核对实际构建源码提交与当前提交之间只更改了交付脚本、交付文档及交付编码测试；若修改过业务代码，拒绝复用旧 EXE。恢复模式重新运行包内资源检查与 EXE 本体自检，通过后再生成 ZIP 和 SHA256。ZIP 清楚标注 EXE 实际构建提交与当前封装脚本提交，避免混淆。
 
+
+## 本轮交付收口：一次构建、一次验收
+
+交付脚本生成的 `_Windows验收记录.md` 是本次 EXE 的**版本绑定**记录，包含构建源码提交、ZIP SHA256、17 项集中实机检查及截图/Word 复现记录栏。请优先按这 17 项分四组一次性检查；本文件和 `docs/windows_exe_acceptance.md` 保留扩展口径。
+
+**三个阶段须严格区分：**（一）GitHub CI 源码回归；（二）本机 `finalize_windows_delivery.ps1` 构建、打包后 EXE 核心自检与 ZIP 完整性检查；（三）你在 Windows EXE 窗口中实际操作、实际使用 Word 打开 DOCX 并核对数据与排版。只有第三阶段确认后，才能将软件标记为最终 GUI 验收通过。
+
+原软件名称、真实数据范围、MCD12Q1 匹配、POWER/GFS 取样和报告口径均保持原状。发现不通过项目时，保留截图、任务记录及复现步骤，集中修复后再统一构建。不删除 `%LOCALAPPDATA%` 下的既有用户记录。
+
+软件著作权材料进入准备阶段，但**尚不作为正式定稿**；功能截图、说明书与源代码打印稿需在 GUI 验收通过后冻结，按真实功能统一校核。材料对照见 `docs/SOFTWARE_COPYRIGHT_HANDOFF.md`。
 
 ## 集中验收清单（同一次构建执行）
 

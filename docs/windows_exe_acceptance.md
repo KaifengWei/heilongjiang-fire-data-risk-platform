@@ -19,6 +19,14 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\build_and_check_exe.ps1" -Co
 
 原有分析记录、CSV 和地图继续使用 Windows 用户数据目录 `%LOCALAPPDATA%\HeilongjiangFireMonitor`。数据库位于 `runtime\fire_monitor.sqlite`，上传文件位于 `uploads`，地图位于 `runtime\map_background\reference_basemap.json`。重新打包只更新项目中的 `dist`；**不要清理用户数据目录**。
 
+## 当前一次性验收入口
+
+本次统一运行 `scripts/finalize_windows_delivery.ps1`。除了完整 EXE 和同版本 ZIP、SHA256 文件，脚本还会生成 **`release/*_Windows验收记录.md`**：17 项按安装/持久化、地图/结果、天气/Word、解压分发分组的最小集中实测清单，均默认未勾选。
+
+交付脚本会在 ZIP 压缩后进一步验证文件清单、原生依赖及结果页/天气页面等资源的压缩完整性；若 ZIP 有缺失或与已自检的 EXE 目录不一致，就不会宣告完整交付成功。
+
+用户应使用该版本绑定记录一次性填写结果；以下条目作为**展开的详细技术验收口径**，无须为了逐项勾选反复编译软件。Windows GUI 和 Word 中实际分页仍须实机检查，不以 GitHub CI 成功替代。
+
 ## 本机 EXE 验收记录
 
 以下各项必须使用新打包 EXE **实际操作**后勾选；当前不能视为已完成。
