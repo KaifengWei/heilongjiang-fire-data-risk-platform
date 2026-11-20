@@ -39,6 +39,17 @@ python main.py serve --port 5050
 
 详细 P0 判别口径见 [docs/agricultural_relevance_p0.md](docs/agricultural_relevance_p0.md)，边界库说明见 [docs/china_region_boundary_catalog.md](docs/china_region_boundary_catalog.md)。
 
+## 说明书与软著材料
+
+当前实际功能与界面对应材料：
+
+- [软件使用说明 V1.0 候选稿](docs/SOFTWARE_MANUAL_V1_DRAFT.md)（按真实 EXE 功能重写，待截图与实机验收）；
+- [软件著作权登记信息采集表候选稿](docs/SOFTWARE_REGISTRATION_FORM_DRAFT.md)（主要功能与技术特点分别控制字数）；
+- [源码整理与提交材料对照](docs/SOFTWARE_COPYRIGHT_HANDOFF.md)（源程序前后 30 页候选稿生成、版本与逐行来源）；
+- [Windows 整体交付与验收](docs/DELIVERY_HANDOFF.md)（EXE、ZIP、Word 及数据的统一验收）。
+
+本轮文档整理不更改业务算法和用户数据；最终说明书以 Windows 实测通过的版本及真实截图定稿。
+
 ## 开发原则
 
 保留现有数据与稳定功能，独立测试分支推进改造，只有实际实现且经过验证的功能才写入最终使用说明书。未经授权的数据、密钥和全国行政区边界不打包发布。
