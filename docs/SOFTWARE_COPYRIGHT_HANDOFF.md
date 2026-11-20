@@ -30,6 +30,29 @@
 - **结果和 Word：** 地图、结果卡与 DOCX 使用同一任务观测数据及对应的分析结果，不拼凑来自其他任务或地区的数据。
 - **功能名称：** 程序/说明书固定使用本文件所列正式名称。技术实现可提 Flask + pywebview、SQLite、GDAL/Shapely，不必在技术特点中堆叠大量库名。
 
+## 源码清单与前后 30 页候选稿（已准备自动生成流程）
+
+原仓库新增 `scripts/prepare_copyright_source.py`。在已激活的 `(fire-monitor)` PowerShell 中，从原项目目录执行：
+
+~~~powershell
+cd D:\GitHubProjects\heilongjiang-straw-burning-monitor
+conda run --no-capture-output -n fire-monitor python scripts/prepare_copyright_source.py --out "release\softcopyright_draft" --version "V1.0"
+~~~
+
+该脚本不会改动软件运行代码或用户数据，将根据**当前实际磁盘文件与 Git HEAD**生成：
+
+- `源文件清单.csv`：逐文件原始行数、非空源码行数、SHA256 和语言类型；
+- `源码整理统计.json`：实际源码总量、Python／JS／CSS／HTML 分项、当前提交号、候选页数及潜在长行换行数量；
+- `前30页源码候选.txt`、`后30页源码候选.txt`：按源文件固定顺序选取前、后各 1500 条非空源程序行。程序不足 3000 条非空行时，则输出 `全部源程序候选.txt`，不会虚构不足的代码；
+- `每页源码来源.csv`、`源码逐行溯源.csv`：对应每页、每行来源文件与原始行号，便于核对与纠错；
+- `源程序前后30页_待排版核验.docx`：A4、页眉及 50 条非空源码行/候选页的 **Word 排版候选稿**。
+
+默认纳入：根入口 `main.py`、`desktop.py`，`src/fire_monitor` 下 Python 运行源码，`static` 中 JavaScript／CSS 和 `templates` 中 HTML 页面。**不混入** `tests`、生成的数据文件、图像、`data` 以及仅构建/调试用的 `scripts`。原始空行仅在候选展示中略去，非空行内容不造假、不替换；原始来源由 CSV 逐行定位。
+
+**注意：这是独立的材料准备工具，不代表软著申报材料已定稿。** Word 中某些超长源码行可能自动换行，从而改变实际物理页数。生成后仍必须实际打开 Word，核验是否为 60 页、每页有效代码行数和程序首尾，检查页眉软件名称与正式申报版本完全一致。只有通过 EXE 整体验收、冻结源码提交后，才据此版本生成正式打印稿。
+
+权威规则依据：国家版权局《计算机软件著作权登记办法》第十条规定源程序和文档的鉴别材料通常使用前后各连续 30 页、程序每页不少于 50 行；实际登记环节的纸张排版及代码行数口径仍以受理机构要求为准。参考：https://www.ncac.gov.cn/xxfb/flfg/bmgz/202410/t20241015_869486.html
+
 ## 后续仅按下列顺序收口
 
 1. 运行一次完整 `scripts/finalize_windows_delivery.ps1`，得到同版本 EXE、ZIP、SHA256 和 17 项验收记录。

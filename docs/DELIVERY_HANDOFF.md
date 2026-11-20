@@ -61,6 +61,8 @@ Set-ExecutionPolicy -Scope Process Bypass -Force
 
 软件著作权材料进入准备阶段，但**尚不作为正式定稿**；功能截图、说明书与源代码打印稿需在 GUI 验收通过后冻结，按真实功能统一校核。材料对照见 `docs/SOFTWARE_COPYRIGHT_HANDOFF.md`。
 
+软著源码整理工具已提供：`scripts/prepare_copyright_source.py`。可先从当前提交生成包含 Python、JavaScript、CSS、HTML 的源文件行数清单、前后 30 页可追溯候选稿；具体命令和最终排版注意事项见 `docs/SOFTWARE_COPYRIGHT_HANDOFF.md`。该工具不改变 EXE 打包路径，也不把尚未验收的源码作为最终材料。
+
 ## 集中验收清单（同一次构建执行）
 
 - [ ] 启动 EXE，首页与功能栏正常，退出重启后历史分析记录仍在。
